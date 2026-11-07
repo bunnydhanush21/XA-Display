@@ -3,12 +3,17 @@ import ApplicationServices
 import Darwin
 import Foundation
 import Network
+import ScreenCaptureKit
 import XADisplayProtocol
 
 final class HostController {
     var onState: ((String) -> Void)?
     private let poster = EventPoster()
     private let capture = CapturePipeline()
+    private let audioCapture = AudioCapture()
+    private var audioMode: AudioRouteMode = HostStore.loadAudioMode()
+    private var selectedAudioBundles: [String] = HostStore.loadAudioBundles()
+    private var knownAudioApps: [(bundle: String, name: String)] = []
     private let display = XAVirtualDisplay()
     private var dispatcher: InputDispatcher
     private var settings: XAFeatureSettings
@@ -83,6 +88,7 @@ final class HostController {
             log("Recovered \(moved) window(s) onto the main display")
         }
         capture.stop()
+        audioCapture.stop()
         display.stop()
         closeLinks()
         publish()
@@ -114,7 +120,27 @@ final class HostController {
     func setAudio(_ on: Bool) {
         settings.audio = on
         persist()
-        restartCaptureIfNeeded()
+        restartAudio()
+    }
+
+    func setAudioMode(_ mode: AudioRouteMode) {
+        audioMode = mode
+        HostStore.saveAudio(mode: mode, bundles: selectedAudioBundles)
+        restartAudio()
+    }
+
+    func toggleAudioBundle(_ bundle: String) {
+        if let index = selectedAudioBundles.firstIndex(of: bundle) {
+            selectedAudioBundles.remove(at: index)
+        } else {
+            selectedAudioBundles.append(bundle)
+        }
+        HostStore.saveAudio(mode: audioMode, bundles: selectedAudioBundles)
+        if audioMode == .selected { restartAudio() }
+    }
+
+    func audioMenuState() -> (mode: AudioRouteMode, selected: [String], apps: [(bundle: String, name: String)]) {
+        (audioMode, selectedAudioBundles, knownAudioApps)
     }
 
     func setWindowSnapping(_ on: Bool) {
@@ -400,10 +426,8 @@ final class HostController {
                 self?.capture.onAccessUnit = { data, key, _, captureMs, encodeMs in
                     self?.sendVideo(data, keyframe: key, captureMs: captureMs, encodeMs: encodeMs)
                 }
-                self?.capture.onPCM = { pcm in
-                    self?.sendAudio(pcm)
-                }
                 self?.log("Capture \(width)x\(height) @ \(fps) \(level)")
+                self?.restartAudio()
             } catch {
                 self?.log("Capture failed: \(error.localizedDescription)")
                 if self?.preset.id == .native {
@@ -426,10 +450,44 @@ final class HostController {
         _ = encodeMs
     }
 
-    private func sendAudio(_ pcm: Data) {
+    private func restartAudio() {
+        audioCapture.stop()
+        guard settings.audio, savedDisplayID != 0 else { return }
+        let displayID = savedDisplayID
+        let frame = lastDisplayFrame
+        let mode = audioMode
+        let selected = selectedAudioBundles
+        audioCapture.onLog = { [weak self] line in self?.log(line) }
+        audioCapture.onPacket = { [weak self] packet in
+            self?.sendAudio(packet)
+        }
+        Task { [weak self] in
+            guard let self = self else { return }
+            var onDisplay: [String] = []
+            if mode == .displayApps, let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
+                onDisplay = AudioCapture.bundlesOnVirtualDisplay(content: content, displayFrame: frame)
+                let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
+                DispatchQueue.main.async { self.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+            } else if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
+                let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
+                DispatchQueue.main.async { self.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+            }
+            let choice = AudioRoutePlanner.choice(mode: mode, selectedBundleIDs: selected, bundlesOnDisplay: onDisplay)
+            await self.audioCapture.start(displayID: displayID, choice: choice)
+        }
+    }
+
+    private func sendAudio(_ packet: XAAudio) {
         guard settings.audio, dispatcher.armed else { return }
-        guard AudioPolicy.accept(enabled: true, armed: true, byteCount: pcm.count, channels: 2) else { return }
-        let message = XAInputMessage.audio(XAAudio(session: dispatcher.session, sampleRate: 48_000, channels: 2, pcm: pcm))
+        guard AudioPolicy.accept(enabled: true, armed: true, byteCount: packet.payload.count, channels: Int(packet.channels), codec: packet.codec) else { return }
+        let message = XAInputMessage.audio(XAAudio(
+            session: dispatcher.session,
+            sampleRate: packet.sampleRate,
+            channels: packet.channels,
+            pcm: packet.payload,
+            codec: packet.codec,
+            hostTimeMs: packet.hostTimeMs
+        ))
         sendInput(message)
     }
 
@@ -576,5 +634,18 @@ enum HostStore {
         defaults.set(token, forKey: tokenKey)
         if let data = try? JSONEncoder().encode(settings) { defaults.set(data, forKey: settingsKey) }
         if let data = try? JSONEncoder().encode(presets) { defaults.set(data, forKey: presetsKey) }
+    }
+
+    static func loadAudioMode() -> AudioRouteMode {
+        AudioRouteMode(rawValue: UserDefaults.standard.string(forKey: "XADisplayHost.audioMode") ?? "") ?? .all
+    }
+
+    static func loadAudioBundles() -> [String] {
+        UserDefaults.standard.stringArray(forKey: "XADisplayHost.audioBundles") ?? []
+    }
+
+    static func saveAudio(mode: AudioRouteMode, bundles: [String]) {
+        UserDefaults.standard.set(mode.rawValue, forKey: "XADisplayHost.audioMode")
+        UserDefaults.standard.set(bundles, forKey: "XADisplayHost.audioBundles")
     }
 }

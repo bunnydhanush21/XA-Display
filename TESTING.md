@@ -28,7 +28,7 @@ Run these on the iPad mini 3 and the Mac after installing the unsigned app and t
 - [ ] Pinch zooms the picture and a tap still hits the pixel under the finger. It does not pinch-zoom a Mac view.
 - [ ] Command strip buttons fire. Hidden when the strip is off.
 - [ ] Snap left, snap right, and fill move a window on the virtual display. Flick-to-tile does the same when touchscreen gestures are on. Quit the host and the window returns to the main display.
-- [ ] Audio on both sides plays system audio. Audio off is silent. Dropped audio does not stall video.
+- [ ] Audio on both sides plays through the iPad speaker or headphones. Host route: all audio, selected apps, and apps on the virtual display. Volume slider changes loudness. Late packets do not pile up. Mute-on-Mac stays unavailable. Audio off is silent and does not stall video.
 - [ ] Saved presets restore Balanced, Safe, or Native across a relaunch.
 - [ ] Sidebar moves to the right. Tap slop, double-tap window, and long-press time change behavior.
 - [ ] Auto-connect off does not attach when the cable is plugged in. On attaches without a click.

@@ -16,7 +16,7 @@ Each item has a switch. Pairing, clipboard, and audio default as noted.
 | Pinch magnifier | On | Local zoom of the picture. Touches stay mapped through the zoom. Not a Mac pinch gesture. |
 | Command strip | On | Esc, undo, redo, copy, paste, snap left/right, fill. |
 | Window snapping | On | Moves windows with Accessibility. Also returns them to the main display when the virtual display closes. |
-| Audio | Off | 48 kHz stereo PCM, bounded buffers. Both sides must enable it. |
+| Audio to iPad | Off | Separate ScreenCaptureKit audio stream. Modes: all system audio, selected apps, or apps whose windows are on the virtual display. AAC-LC when the encoder accepts it, otherwise PCM. iPad jitter buffer and volume slider. |
 | Saved presets | On | Host remembers Balanced / Safe / Native. |
 | Sidebar side and gesture timing | Left, medium | iPad settings. |
 | Auto-connect on USB | On | Host menu. |
@@ -55,6 +55,18 @@ Presets:
 - **Native** (experimental): 2048×1536 @ 30, Main Level 5.0, about 18 Mb/s USB. This is outside Apple's published Level 4.2 playback envelope. If encode or decode fails, the host steps down to Balanced, then Safe.
 
 The host lowers bitrate when the iPad reports heat, a low battery, or a backed-up send queue. Frames that would break the reference chain are dropped until the next keyframe. Queues are capped.
+
+### Audio
+
+Audio is off until both the iPad switch and the Mac **Audio to iPad** switch are on. The picture stream does not carry audio. A second ScreenCaptureKit stream uses `capturesAudio = true` and `excludesCurrentProcessAudio = true`.
+
+- **All system audio** uses a display filter with an empty exclude list.
+- **Selected apps only** uses `SCContentFilter(display:includingApplications:exceptingWindows:)` for the checked bundle ids.
+- **Apps on the iPad display** rebuilds that include list from windows that intersect the virtual display.
+
+Packets are AAC-LC (1024 samples, about 21 ms at 48 kHz) when AudioToolbox accepts the converter, otherwise little-endian PCM. Each packet carries the host capture time. The iPad estimates clock offset from input ping/pong and holds packets in a jitter queue (target 60 ms, drop if more than 140 ms late, at most 6 packets). Playback is AudioQueue on iOS 12. The settings slider scales PCM before it is queued.
+
+**Mute on Mac while routed** is not implemented. Public Core Audio can mute the output device, which silences the speakers and usually the capture as well. There is no public per-app mute that keeps a process tap alive without a virtual audio driver. Opus is not used; it would need a third-party codec.
 
 Metrics on the iPad:
 

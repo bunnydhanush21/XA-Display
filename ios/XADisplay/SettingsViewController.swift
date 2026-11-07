@@ -41,6 +41,18 @@ final class SettingsViewController: UITableViewController {
         tokenField.borderStyle = .roundedRect
         tokenField.addTarget(self, action: #selector(tokenChanged), for: .editingChanged)
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        let header = UIView(frame: CGRect(x: 0, y: 0, width: 320, height: 64))
+        let slider = UISlider(frame: CGRect(x: 20, y: 20, width: 280, height: 32))
+        slider.minimumValue = 0
+        slider.maximumValue = 1
+        slider.value = Float(UserDefaults.standard.object(forKey: "XADisplay.audioVolume") as? Double ?? 1)
+        slider.addTarget(self, action: #selector(volumeChanged(_:)), for: .valueChanged)
+        header.addSubview(slider)
+        tableView.tableHeaderView = header
+    }
+
+    @objc private func volumeChanged(_ sender: UISlider) {
+        UserDefaults.standard.set(Double(sender.value), forKey: "XADisplay.audioVolume")
     }
 
     @objc private func done() {
@@ -60,7 +72,7 @@ final class SettingsViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if section == 2 {
-            return "Pointer events are mouse and keyboard events injected on the Mac. They are not native Mac touchscreen input. Pinch magnifies the picture locally. Clipboard and audio stay off until you enable them here and in XA Display Host. Pairing stays on unless you turn it off on both sides."
+            return "Pointer events are mouse and keyboard events on the Mac, not native touch input. The slider is iPad playback volume. Audio stays off until you enable it here and in XA Display Host. The host chooses all audio, selected apps, or apps on the iPad display. Mute-on-Mac is not available."
         }
         if section == 0 { return "Type the token shown in the Mac menu bar." }
         return nil

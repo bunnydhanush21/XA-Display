@@ -15,8 +15,8 @@ public struct FrameLimits: Equatable {
 
     /// Video access units. A 2048×1536 keyframe stays well under 2 MB; the buffer cannot grow past 3 MB.
     public static let video = FrameLimits(maxPayload: 2_000_000, maxBuffer: 3_000_000)
-    /// Input messages are tiny. 16 KB is enough for a text chunk and small enough to reject abuse.
-    public static let input = FrameLimits(maxPayload: 16_384, maxBuffer: 65_536, maxFramesPerAppend: 32)
+    /// Input stays bounded. 256 KB covers one clipboard image and still rejects multi-megabyte frames.
+    public static let input = FrameLimits(maxPayload: 262_144, maxBuffer: 524_288, maxFramesPerAppend: 32)
 }
 
 public enum FrameParseError: Equatable, Error {

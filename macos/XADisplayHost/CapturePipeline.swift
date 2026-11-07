@@ -33,16 +33,10 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
         config.queueDepth = 3
         config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(max(fps, 1)))
         config.scalesToFit = true
-        config.capturesAudio = audio
-        if audio {
-            config.sampleRate = 48_000
-            config.channelCount = 2
-        }
+        config.capturesAudio = false
         let stream = SCStream(filter: filter, configuration: config, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
-        if audio {
-            try? stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
-        }
+        _ = audio
         guard encoder.start(width: width, height: height, fps: fps, bitrate: bitrate, profileLevel: profileLevel) else {
             throw CaptureError.encoderFailed
         }

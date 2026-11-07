@@ -8,6 +8,7 @@ protocol InputChannelDelegate: AnyObject {
     func inputChannel(_ channel: InputChannel, clipboard text: String, revision: UInt64)
     func inputChannel(_ channel: InputChannel, audio: XAAudio)
     func inputChannel(_ channel: InputChannel, roundTripMs: Double)
+    func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double)
 }
 
 final class InputChannel {
@@ -187,12 +188,18 @@ final class InputChannel {
                 self.delegate?.inputChannel(self, armed: ack.accepted, reason: ack.reason)
             }
         case .pong(let pong):
-            let now = UInt64(Date().timeIntervalSince1970 * 1000)
-            if now >= pong.clientUnixMs {
-                let rtt = Double(now - pong.clientUnixMs)
+            let now = Date().timeIntervalSince1970 * 1000
+            let send = Double(pong.clientUnixMs)
+            let host = Double(pong.hostUnixMs)
+            if now >= send {
+                let rtt = now - send
+                let offset = AudioSyncMath.clockOffsetClientMinusHost(clientSendMs: send, hostMs: host, clientRecvMs: now)
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     self.delegate?.inputChannel(self, roundTripMs: rtt)
+                    if let offset = offset {
+                        self.delegate?.inputChannel(self, clockOffsetClientMinusHost: offset)
+                    }
                 }
             }
         case .clipboard(let clip):

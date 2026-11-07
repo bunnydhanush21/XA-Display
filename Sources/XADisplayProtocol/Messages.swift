@@ -218,19 +218,33 @@ public enum WindowAction: UInt8, Equatable, Codable {
     case snapFull = 4
     case moveToMain = 5
     case moveToVirtual = 6
+    case moveAcross = 7
+    case saveLayout = 8
+    case restoreLayout = 9
+}
+
+public enum ClipboardKind: UInt8, Equatable {
+    case text = 1
+    case imagePNG = 2
 }
 
 public struct XAClipboard: Equatable {
-    public static let maxBytes = 12_000
+    public static let maxTextBytes = 12_000
+    public static let maxImageBytes = 200_000
+    public static var maxBytes: Int { maxTextBytes }
     public var session: UInt32
     public var seq: UInt32
     public var revision: UInt64
+    public var kind: ClipboardKind
     public var text: String
-    public init(session: UInt32, seq: UInt32, revision: UInt64, text: String) {
+    public var image: Data
+    public init(session: UInt32, seq: UInt32, revision: UInt64, text: String, kind: ClipboardKind = .text, image: Data = Data()) {
         self.session = session
         self.seq = seq
         self.revision = revision
+        self.kind = kind
         self.text = text
+        self.image = image
     }
 }
 
@@ -245,17 +259,40 @@ public struct XAWindowCommand: Equatable {
     }
 }
 
+public enum XAAudioCodec: UInt8, Equatable {
+    case pcm = 0
+    case aac = 1
+}
+
 public struct XAAudio: Equatable {
     public static let maxBytes = 8_192
+    /// AAC-LC uses 1024-sample packets. At 48 kHz that is about 21 ms, plus the network hop.
+    public static let aacPacketMilliseconds = 21
     public var session: UInt32
     public var sampleRate: UInt32
     public var channels: UInt16
-    public var pcm: Data
-    public init(session: UInt32, sampleRate: UInt32, channels: UInt16, pcm: Data) {
+    public var codec: XAAudioCodec
+    public var hostTimeMs: Double
+    public var payload: Data
+    public var pcm: Data { payload }
+    public init(session: UInt32, sampleRate: UInt32, channels: UInt16, pcm: Data, codec: XAAudioCodec = .pcm, hostTimeMs: Double = 0) {
         self.session = session
         self.sampleRate = sampleRate
         self.channels = channels
-        self.pcm = pcm
+        self.codec = codec
+        self.hostTimeMs = hostTimeMs
+        self.payload = pcm
+    }
+}
+
+public struct XAPresetCommand: Equatable {
+    public var session: UInt32
+    public var seq: UInt32
+    public var name: String
+    public init(session: UInt32, seq: UInt32, name: String) {
+        self.session = session
+        self.seq = seq
+        self.name = name
     }
 }
 
@@ -281,6 +318,7 @@ public enum XAInputMessage: Equatable {
     case clipboard(XAClipboard)
     case window(XAWindowCommand)
     case audio(XAAudio)
+    case preset(XAPresetCommand)
 
     public func encode() throws -> Data {
         switch self {
@@ -356,7 +394,15 @@ public enum XAInputMessage: Equatable {
             payload.u32(clip.session)
             payload.u32(clip.seq)
             payload.u64(clip.revision)
-            try payload.str(clip.text, maxBytes: XAClipboard.maxBytes)
+            payload.u8(clip.kind.rawValue)
+            switch clip.kind {
+            case .text:
+                try payload.str(clip.text, maxBytes: XAClipboard.maxTextBytes)
+            case .imagePNG:
+                guard clip.image.count <= XAClipboard.maxImageBytes else { throw ProtocolError.tooLarge }
+                payload.u32(UInt32(clip.image.count))
+                payload.bytes(clip.image)
+            }
             return Self.wrap(type: 10, payload: payload.data)
         case .window(let command):
             var payload = ByteWriter()
@@ -365,15 +411,22 @@ public enum XAInputMessage: Equatable {
             payload.u8(command.action.rawValue)
             return Self.wrap(type: 11, payload: payload.data)
         case .audio(let audio):
-            guard audio.pcm.count <= XAAudio.maxBytes else { throw ProtocolError.tooLarge }
+            guard audio.payload.count <= XAAudio.maxBytes else { throw ProtocolError.tooLarge }
             var payload = ByteWriter()
             payload.u32(audio.session)
             payload.u32(audio.sampleRate)
             payload.u16(audio.channels)
-            payload.u16(0)
-            payload.u32(UInt32(audio.pcm.count))
-            payload.bytes(audio.pcm)
+            payload.u16(UInt16(audio.codec.rawValue))
+            payload.f64(audio.hostTimeMs)
+            payload.u32(UInt32(audio.payload.count))
+            payload.bytes(audio.payload)
             return Self.wrap(type: 12, payload: payload.data)
+        case .preset(let preset):
+            var payload = ByteWriter()
+            payload.u32(preset.session)
+            payload.u32(preset.seq)
+            try payload.str(preset.name)
+            return Self.wrap(type: 13, payload: payload.data)
         }
     }
 
@@ -444,8 +497,17 @@ public enum XAInputMessage: Equatable {
             let session = try reader.u32()
             let seq = try reader.u32()
             let revision = try reader.u64()
-            let text = try reader.str(maxBytes: XAClipboard.maxBytes)
-            return .clipboard(XAClipboard(session: session, seq: seq, revision: revision, text: text))
+            guard let kind = ClipboardKind(rawValue: try reader.u8()) else { throw ProtocolError.badEnum }
+            switch kind {
+            case .text:
+                let text = try reader.str(maxBytes: XAClipboard.maxTextBytes)
+                return .clipboard(XAClipboard(session: session, seq: seq, revision: revision, text: text, kind: .text))
+            case .imagePNG:
+                let count = Int(try reader.u32())
+                guard count > 0, count <= XAClipboard.maxImageBytes, count == reader.remaining else { throw ProtocolError.tooLarge }
+                let image = reader.data.subdata(in: reader.offset..<(reader.offset + count))
+                return .clipboard(XAClipboard(session: session, seq: seq, revision: revision, text: "", kind: .imagePNG, image: image))
+            }
         case 11:
             let session = try reader.u32()
             let seq = try reader.u32()
@@ -455,11 +517,18 @@ public enum XAInputMessage: Equatable {
             let session = try reader.u32()
             let sampleRate = try reader.u32()
             let channels = try reader.u16()
-            _ = try reader.u16()
+            let codecRaw = try reader.u16()
+            guard let codec = XAAudioCodec(rawValue: UInt8(codecRaw)) else { throw ProtocolError.badEnum }
+            let hostTimeMs = try reader.f64()
             let count = Int(try reader.u32())
             guard count <= XAAudio.maxBytes, count == reader.remaining else { throw ProtocolError.tooLarge }
-            let pcm = reader.data.subdata(in: reader.offset..<(reader.offset + count))
-            return .audio(XAAudio(session: session, sampleRate: sampleRate, channels: channels, pcm: pcm))
+            let bytes = reader.data.subdata(in: reader.offset..<(reader.offset + count))
+            return .audio(XAAudio(session: session, sampleRate: sampleRate, channels: channels, pcm: bytes, codec: codec, hostTimeMs: hostTimeMs))
+        case 13:
+            let session = try reader.u32()
+            let seq = try reader.u32()
+            let name = try reader.str()
+            return .preset(XAPresetCommand(session: session, seq: seq, name: name))
         default:
             return nil
         }

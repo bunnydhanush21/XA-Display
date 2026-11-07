@@ -14,7 +14,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private var receiver: VideoReceiver!
     private let input = InputChannel()
     private let clipboard = ClipboardBridge()
-    private let audio = PCMPlayer()
+    private let audio = RoutedAudioPlayer()
     private var features = XAFeatureSettings()
     private var token = ""
     private var interpreter = DirectTouchInterpreter()
@@ -480,6 +480,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             self.clipboard.enabled = features.clipboardSync
             self.precisionLabel.isHidden = !features.precisionMode
             if features.audio { self.audio.start() } else { self.audio.stop() }
+            self.audio.volume = UserDefaults.standard.object(forKey: "XADisplay.audioVolume") as? Double ?? self.audio.volume
             LocalSettings.save(token: token, features: features)
             self.applyChrome()
             self.interpreter = DirectTouchInterpreter(
@@ -647,10 +648,13 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     func inputChannel(_ channel: InputChannel, audio: XAAudio) {
         guard features.audio else { return }
         self.audio.start()
-        self.audio.enqueue(audio.pcm)
+        self.audio.push(audio)
     }
     func inputChannel(_ channel: InputChannel, roundTripMs: Double) {
         rttMs = roundTripMs
         refreshStats()
+    }
+    func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double) {
+        audio.setClockOffset(clockOffsetClientMinusHost)
     }
 }

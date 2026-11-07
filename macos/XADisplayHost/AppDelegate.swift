@@ -37,7 +37,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Regenerate token", action: #selector(regenerate), keyEquivalent: "")
         addToggle(menu, "Require pairing", settings.requirePairing, #selector(togglePairing(_:)))
         addToggle(menu, "Clipboard sync", settings.clipboardSync, #selector(toggleClipboard(_:)))
-        addToggle(menu, "Audio", settings.audio, #selector(toggleAudio(_:)))
+        addToggle(menu, "Audio to iPad", settings.audio, #selector(toggleAudio(_:)))
+        let audioMenu = NSMenu()
+        let audioState = controller.audioMenuState()
+        let modes: [(String, AudioRouteMode)] = [
+            ("All system audio", .all),
+            ("Selected apps only", .selected),
+            ("Apps on the iPad display", .displayApps),
+        ]
+        for (index, mode) in modes.enumerated() {
+            let item = NSMenuItem(title: mode.0, action: #selector(audioMode(_:)), keyEquivalent: "")
+            item.tag = index
+            item.state = audioState.mode == mode.1 ? .on : .off
+            item.target = self
+            audioMenu.addItem(item)
+        }
+        audioMenu.addItem(NSMenuItem(title: "Mute on Mac is unavailable without a virtual audio device", action: nil, keyEquivalent: ""))
+        if audioState.mode == .selected {
+            audioMenu.addItem(.separator())
+            for app in audioState.apps.prefix(24) where !app.bundle.isEmpty {
+                let item = NSMenuItem(title: app.name.isEmpty ? app.bundle : app.name, action: #selector(toggleAudioApp(_:)), keyEquivalent: "")
+                item.representedObject = app.bundle
+                item.state = audioState.selected.contains(app.bundle) ? .on : .off
+                item.target = self
+                audioMenu.addItem(item)
+            }
+        }
+        let audioItem = NSMenuItem(title: "Audio route", action: nil, keyEquivalent: "")
+        audioItem.submenu = audioMenu
+        menu.addItem(audioItem)
         addToggle(menu, "Window snapping", settings.windowSnapping, #selector(toggleSnap(_:)))
         addToggle(menu, "Touchscreen-style gestures", settings.touchscreenGestures, #selector(toggleTouch(_:)))
         addToggle(menu, "Wi-Fi fallback", settings.wifiFallback, #selector(toggleWiFi(_:)))
@@ -75,6 +103,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func togglePairing(_ sender: NSMenuItem) { controller.setRequirePairing(sender.state != .on) }
     @objc private func toggleClipboard(_ sender: NSMenuItem) { controller.setClipboard(sender.state != .on) }
     @objc private func toggleAudio(_ sender: NSMenuItem) { controller.setAudio(sender.state != .on) }
+    @objc private func audioMode(_ sender: NSMenuItem) {
+        let modes: [AudioRouteMode] = [.all, .selected, .displayApps]
+        guard sender.tag >= 0, sender.tag < modes.count else { return }
+        controller.setAudioMode(modes[sender.tag])
+    }
+    @objc private func toggleAudioApp(_ sender: NSMenuItem) {
+        guard let bundle = sender.representedObject as? String else { return }
+        controller.toggleAudioBundle(bundle)
+    }
     @objc private func toggleSnap(_ sender: NSMenuItem) { controller.setWindowSnapping(sender.state != .on) }
     @objc private func toggleTouch(_ sender: NSMenuItem) { controller.setTouchGestures(sender.state != .on) }
     @objc private func toggleWiFi(_ sender: NSMenuItem) { controller.setWiFi(sender.state != .on) }

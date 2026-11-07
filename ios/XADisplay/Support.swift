@@ -1,4 +1,5 @@
 import AudioToolbox
+import AVFoundation
 import Foundation
 import UIKit
 import XADisplayProtocol
@@ -59,6 +60,11 @@ final class PCMPlayer {
         running = false
     }
 
+    func setVolume(_ volume: Float) {
+        guard let queue = queue else { return }
+        AudioQueueSetParameter(queue, kAudioQueueParam_Volume, volume)
+    }
+
     func enqueue(_ pcm: Data) {
         guard running, let queue = queue, pcm.count >= 4, pcm.count <= XAAudio.maxBytes else { return }
         var buffer: AudioQueueBufferRef?
@@ -71,6 +77,103 @@ final class PCMPlayer {
         if AudioQueueEnqueueBuffer(queue, buffer, 0, nil) != noErr {
             AudioQueueFreeBuffer(queue, buffer)
         }
+    }
+}
+
+final class RoutedAudioPlayer {
+    var volume: Double {
+        didSet { output.setVolume(Float(min(1, max(0, volume)))) }
+    }
+    private var jitter = AudioJitterQueue()
+    private let output = PCMPlayer()
+    private var timer: Timer?
+    private let decoder = AACLCDecoder()
+
+    init() {
+        volume = UserDefaults.standard.object(forKey: "XADisplay.audioVolume") as? Double ?? 1
+    }
+
+    func start() {
+        output.start()
+        output.setVolume(Float(volume))
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.015, repeats: true) { [weak self] _ in
+            self?.pump()
+        }
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+        jitter = AudioJitterQueue()
+        output.stop()
+    }
+
+    func setClockOffset(_ offset: Double) {
+        jitter.offsetClientMinusHost = offset
+    }
+
+    func push(_ packet: XAAudio) {
+        guard AudioPolicy.accept(enabled: true, armed: true, byteCount: packet.payload.count, channels: Int(packet.channels), codec: packet.codec) else { return }
+        let pcm: Data?
+        switch packet.codec {
+        case .pcm:
+            pcm = packet.payload
+        case .aac:
+            guard let parts = AACPacket.unpack(packet.payload) else { return }
+            pcm = decoder.decode(cookie: parts.cookie, frame: parts.frame)
+        }
+        guard let pcm = pcm else { return }
+        let shaped = AudioVolume.scalePCM16(pcm: pcm, volume: volume)
+        _ = jitter.push(hostMs: packet.hostTimeMs, payload: shaped)
+    }
+
+    private func pump() {
+        let now = Date().timeIntervalSince1970 * 1000
+        while let slot = jitter.popReady(nowClientMs: now) {
+            output.enqueue(slot.payload)
+        }
+    }
+}
+
+final class AACLCDecoder {
+    func decode(cookie: Data, frame: Data) -> Data? {
+        guard let aac = AVAudioFormat(settings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: 48_000,
+            AVNumberOfChannelsKey: 2,
+        ]), let pcmFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
+        let converter = AVAudioConverter(from: aac, to: pcmFormat) else { return nil }
+        _ = cookie
+        let compressed = AVAudioCompressedBuffer(format: aac, packetCapacity: 1, maximumPacketSize: frame.count)
+        frame.withUnsafeBytes { raw in
+            if let base = raw.baseAddress {
+                memcpy(compressed.data, base, frame.count)
+            }
+        }
+        compressed.byteLength = UInt32(frame.count)
+        compressed.packetCount = 1
+        if let descriptions = compressed.packetDescriptions {
+            descriptions[0].mStartOffset = 0
+            descriptions[0].mDataByteSize = UInt32(frame.count)
+            descriptions[0].mVariableFramesInPacket = 0
+        }
+        guard let pcm = AVAudioPCMBuffer(pcmFormat: pcmFormat, frameCapacity: 4096) else { return nil }
+        var consumed = false
+        var error: NSError?
+        converter.convert(to: pcm, error: &error) { _, status in
+            if consumed {
+                status.pointee = .endOfStream
+                return nil
+            }
+            consumed = true
+            status.pointee = .haveData
+            return compressed
+        }
+        guard error == nil, pcm.frameLength > 0 else { return nil }
+        let list = pcm.audioBufferList.pointee.mBuffers
+        guard let data = list.mData else { return nil }
+        return Data(bytes: data, count: Int(list.mDataByteSize))
     }
 }
 

@@ -213,8 +213,8 @@ public struct InputDispatcher {
             return .post(releaseHeld())
 
         case .clipboard(let clip):
-            guard clipboardEnabled else { return .drop }
-            guard clip.text.utf8.count <= XAClipboard.maxBytes else { return .drop }
+            guard clipboardEnabled, clip.kind == .text else { return .drop }
+            guard clip.text.utf8.count <= XAClipboard.maxTextBytes else { return .drop }
             guard accept(session: clip.session, seq: clip.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
             return .post([.clipboard(text: clip.text, revision: clip.revision)])
 
@@ -223,7 +223,7 @@ public struct InputDispatcher {
             guard accept(session: command.session, seq: command.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
             return .post([.window(command.action)])
 
-        case .helloAck, .pong, .audio:
+        case .helloAck, .pong, .audio, .preset:
             return .drop
         }
     }
