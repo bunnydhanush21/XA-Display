@@ -93,6 +93,8 @@ The XA host **does not** turn `touch` or `scroll` on this port into CGEvents. Pa
 | 15 | media | session, seq, action u8, f64 scrub. Actions: play/pause 1, next 2, previous 3, volume up 4, volume down 5, seek forward 6, seek backward 7. Scrub is a signed fraction; zero means the action stands alone |
 | 16 | nowPlaying | Host to iPad. session, app name, title, artist, f64 position, f64 duration, artwork byte count and bytes. Position and duration are -1 when unknown. Artwork may be empty |
 
+`xa.battery` on port 9000 carries `text` (the telemetry lines) and `heat` (whether the pack is warm enough to lower bitrate). It is display data. Charge-limit commands are not on this socket. They go to the local helper in `jailbreak/battery-care/`.
+
 Session id is chosen by the host in `helloAck`. Sequence numbers are monotonic per session. Replays are dropped. Moves and scrolls are rate-limited. Button-up and `release` are not.
 
 Mouse coordinates are either absolute normalized (0...1 of the video) or relative. The host maps absolute points into the virtual display's global frame, the same top-left space as `CGDisplayBounds`. Scroll content follows the fingers: UIKit positive `dy` (fingers moved down) becomes a negative CGEvent `wheel1`.

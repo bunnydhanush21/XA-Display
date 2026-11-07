@@ -231,6 +231,7 @@ final class HostController {
     }
 
     func settingsSnapshot() -> XAFeatureSettings { settings }
+    func batterySummary() -> String { lastBatteryText }
 
     private func tick() {
         guard running, settings.autoConnectUSB || transport != .none else { return }
@@ -354,6 +355,10 @@ final class HostController {
                 log("Decode failed. Falling back from \(preset.id.rawValue) to \(next.rawValue)")
                 selectPreset(next)
             }
+        case .xaBattery(let text, let heat):
+            lastBatteryText = text.isEmpty ? "iPad battery: off" : text
+            lastBatteryHeat = heat
+            publish()
         case .touch, .scroll:
             if LegacyInputPolicy.acceptsUnauthenticatedVideoInput {
                 log("ignored unauthenticated video input")
@@ -364,6 +369,8 @@ final class HostController {
     }
 
     private var lastHealth = HealthReport(thermal: .unknown, batteryFraction: nil, batteryState: "unknown", fpsDelivered: 0, decodeFails: 0)
+    private var lastBatteryText = "iPad battery: waiting"
+    private var lastBatteryHeat = false
 
     private func handleInput(_ message: XAInputMessage) {
         let outcome = dispatcher.handle(message, hostNowMs: Date().timeIntervalSince1970 * 1000)
@@ -631,6 +638,7 @@ final class HostController {
         signals.onExternalPower = lastHealth.batteryState == "charging" || lastHealth.batteryState == "full"
         signals.decodeFailed = false
         signals.sendBacklogFrames = pendingSends
+        signals.batteryHeat = lastBatteryHeat
         if let tune = adaptation.advance(dt: dt, signals: signals), tune.bitrate != 0 {
             capture.updateBitrate(tune.bitrate)
             log("Adapt \(tune.reason): \(tune.preset.rawValue) \(tune.fps)fps \(tune.bitrate)bps")

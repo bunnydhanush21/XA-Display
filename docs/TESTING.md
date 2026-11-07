@@ -56,6 +56,19 @@ Run these on the iPad mini 3 and the Mac after installing the unsigned app and t
 - [ ] With one-tap reconnect on, launching the app resumes the last Mac. The Macs list shows saved and nearby hosts. A Mac that is powered off does not wake.
 - [ ] Media remote, when enabled on both sides, sends play, skip, and volume. The panel names the frontmost app. It does not show artwork unless a future public API provides it.
 
+## Battery care, supervised
+
+Do this on the iPad while it is streaming before you leave **Charge limit** on. Telemetry can stay on. The charge limit stays off until this passes. Have the experimental helper installed only for the limit steps. Keep a cable on the iPad and watch the Mac **iPad battery** menu.
+
+- [ ] Telemetry shows level, and any missing cycle count, health, temperature, current, or voltage says unavailable. None of those missing rows show 0.
+- [ ] UIDevice still shows a level if registry reads fail. The source line says which one was used.
+- [ ] With the helper not installed, enabling charge limit does not claim that charging stopped.
+- [ ] Enable charge limit at 80/75. Charge under the streaming load until the level reaches the stop point. Confirm `IsCharging` is false and the level stops rising. Then use the iPad until the level falls to the resume point. Confirm charging starts again without toggling the feature off.
+- [ ] Tap **Restore normal charging** while held at the limit. Charging resumes immediately.
+- [ ] Tap **Disable battery care**. The kill-switch file `/var/mobile/Library/XADisplay/battery-care.disabled` exists, and a later `charge-off` does not stick.
+- [ ] Unplug the helper's launchd job. Charging is restored when the process exits.
+- [ ] Warm the pack only as far as you safely can. Brightness and the stream rate drop. Apple's thermal controls are left alone. If the temperature crosses the watchdog line, charging is restored and the iPad shows a warning.
+
 ### Presets and heat
 
 - [ ] Balanced is the first connection: 1440×1080, 30 fps target.

@@ -88,6 +88,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let presetItem = NSMenuItem(title: "Display preset", action: nil, keyEquivalent: "")
         presetItem.submenu = presets
         menu.addItem(presetItem)
+        let batteryItem = NSMenuItem(title: "iPad battery", action: nil, keyEquivalent: "")
+        let batteryMenu = NSMenu()
+        for line in controller.batterySummary().split(separator: "\n").prefix(12) {
+            let item = NSMenuItem(title: String(line), action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            batteryMenu.addItem(item)
+        }
+        if batteryMenu.items.isEmpty {
+            batteryMenu.addItem(NSMenuItem(title: "unavailable", action: nil, keyEquivalent: ""))
+        }
+        batteryItem.submenu = batteryMenu
+        menu.addItem(batteryItem)
         menu.addItem(withTitle: "Permissions…", action: #selector(showPermissions), keyEquivalent: "")
         menu.addItem(withTitle: "Export diagnostics…", action: #selector(exportDiagnostics), keyEquivalent: "")
         menu.addItem(.separator())

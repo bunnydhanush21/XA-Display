@@ -48,6 +48,8 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var oneTapReconnect: Bool
     public var rememberMacs: Bool
     public var mediaRemote: Bool
+    public var batteryTelemetry: Bool
+    public var chargeLimit: Bool
 
     public init(
         requirePairing: Bool = true,
@@ -69,7 +71,9 @@ public struct XAFeatureSettings: Equatable, Codable {
         inputRotation: Int = 0,
         oneTapReconnect: Bool = true,
         rememberMacs: Bool = true,
-        mediaRemote: Bool = false
+        mediaRemote: Bool = false,
+        batteryTelemetry: Bool = true,
+        chargeLimit: Bool = false
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -91,6 +95,8 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.oneTapReconnect = oneTapReconnect
         self.rememberMacs = rememberMacs
         self.mediaRemote = mediaRemote
+        self.batteryTelemetry = batteryTelemetry
+        self.chargeLimit = chargeLimit
     }
 }
 
@@ -99,7 +105,7 @@ extension XAFeatureSettings {
         case requirePairing, clipboardSync, threeFingerShortcuts, pinchMagnifier, commandStrip
         case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
         case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
-        case oneTapReconnect, rememberMacs, mediaRemote
+        case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit
     }
 
     public init(from decoder: Decoder) throws {
@@ -125,6 +131,8 @@ extension XAFeatureSettings {
         oneTapReconnect = try values.decodeIfPresent(Bool.self, forKey: .oneTapReconnect) ?? fallback.oneTapReconnect
         rememberMacs = try values.decodeIfPresent(Bool.self, forKey: .rememberMacs) ?? fallback.rememberMacs
         mediaRemote = try values.decodeIfPresent(Bool.self, forKey: .mediaRemote) ?? fallback.mediaRemote
+        batteryTelemetry = try values.decodeIfPresent(Bool.self, forKey: .batteryTelemetry) ?? fallback.batteryTelemetry
+        chargeLimit = try values.decodeIfPresent(Bool.self, forKey: .chargeLimit) ?? fallback.chargeLimit
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -149,6 +157,8 @@ extension XAFeatureSettings {
         try values.encode(oneTapReconnect, forKey: .oneTapReconnect)
         try values.encode(rememberMacs, forKey: .rememberMacs)
         try values.encode(mediaRemote, forKey: .mediaRemote)
+        try values.encode(batteryTelemetry, forKey: .batteryTelemetry)
+        try values.encode(chargeLimit, forKey: .chargeLimit)
     }
 }
 

@@ -57,6 +57,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private var drawerEdge: UIScreenEdgePanGestureRecognizer?
     private var commandStripHeight: NSLayoutConstraint!
     private let macBrowser = MacBrowser()
+    private let batteryLoop = BatteryCareLoop()
+    private var chargeConfig = ChargeLimitConfig()
     private var directory = MacDirectory()
     private var discoveredMacs: [String] = []
     private var mediaPanel: MediaRemoteViewController?
@@ -714,6 +716,14 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
 
     private func showSettings() {
         let settings = SettingsViewController(features: features, assist: assist, token: token)
+        settings.onRestoreCharging = { [weak self] in self?.batteryLoop.restore() }
+        settings.onDisableBatteryCare = { [weak self, weak settings] in
+            guard let self = self else { return }
+            self.features.chargeLimit = false
+            settings?.features.chargeLimit = false
+            self.batteryLoop.disable()
+            LocalSettings.save(token: self.token, features: self.features)
+        }
         settings.onChange = { [weak self] features, assist, token in
             guard let self = self else { return }
             self.features = features
@@ -799,8 +809,19 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         default: state = "unknown"
         }
         let thermal = ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue)
-        warningLabel.isHidden = thermal != .serious && thermal != .critical
-        warningLabel.text = thermal == .critical ? "Very warm. The Mac should drop quality." : "Warm. Quality may step down."
+        let battery = batteryLoop.tick(enabledTelemetry: features.batteryTelemetry, chargeLimit: features.chargeLimit, config: chargeConfig)
+        if features.batteryTelemetry, !battery.text.isEmpty {
+            receiver.sendBattery(text: battery.text, heat: battery.heat)
+        } else {
+            receiver.sendBattery(text: "", heat: false)
+        }
+        if let careWarning = batteryLoop.warning {
+            warningLabel.isHidden = false
+            warningLabel.text = careWarning
+        } else {
+            warningLabel.isHidden = thermal != .serious && thermal != .critical
+            warningLabel.text = thermal == .critical ? "Very warm. The Mac should drop quality." : "Warm. Quality may step down."
+        }
         receiver.sendHealth(
             HealthReport(
                 thermal: thermal,
@@ -815,7 +836,9 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private func refreshStats() {
         let pipeline = pipelineMs.map { String(format: "%.0f ms", $0) } ?? "—"
         let rtt = rttMs.map { String(format: "%.0f ms", $0) } ?? "—"
-        statsLabel.text = "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Capture→ack \(pipeline)\n  Input RTT \(rtt)\n  \(streamLabel)  "
+        let batteryLines = features.batteryTelemetry ? "\n" + batteryLoop.lastText : ""
+        statsLabel.text =
+            "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Capture→ack \(pipeline)\n  Input RTT \(rtt)\n  \(streamLabel)\(batteryLines)  "
     }
 
     @objc private func foreground() {

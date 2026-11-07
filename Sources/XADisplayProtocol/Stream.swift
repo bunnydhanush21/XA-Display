@@ -124,10 +124,11 @@ public struct AdaptationSignals: Equatable {
     public var pipelineMs: Double?
     public var sendBacklogFrames: Int
     public var decodeFailed: Bool
+    public var batteryHeat: Bool
 
     public init(
         thermal: ThermalBucket = .nominal, batteryFraction: Double? = 1, onExternalPower: Bool = true, inputRTTMs: Double? = 10, pipelineMs: Double? = 20, sendBacklogFrames: Int = 0,
-        decodeFailed: Bool = false
+        decodeFailed: Bool = false, batteryHeat: Bool = false
     ) {
         self.thermal = thermal
         self.batteryFraction = batteryFraction
@@ -136,6 +137,7 @@ public struct AdaptationSignals: Equatable {
         self.pipelineMs = pipelineMs
         self.sendBacklogFrames = sendBacklogFrames
         self.decodeFailed = decodeFailed
+        self.batteryHeat = batteryHeat
     }
 }
 
@@ -198,11 +200,12 @@ public struct AdaptationController {
 
         let congested = (signals.pipelineMs ?? 0) > 120 || (signals.inputRTTMs ?? 0) > 80 || signals.sendBacklogFrames >= 2
         let lowBattery = (signals.batteryFraction ?? 1) < 0.15 && !signals.onExternalPower
-        if congested || signals.thermal == .fair || lowBattery {
+        if congested || signals.thermal == .fair || lowBattery || signals.batteryHeat {
             healthySeconds = 0
             var reason = "congestion"
             if signals.thermal == .fair { reason = "thermal fair" }
             if lowBattery { reason = "low battery" }
+            if signals.batteryHeat { reason = "battery temperature" }
             let reduced = max(minimumBitrate, bitrate * 7 / 10)
             if reduced < bitrate {
                 return apply(preset: preset, fps: fps, bitrate: reduced, reason: reason)

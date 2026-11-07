@@ -6,6 +6,8 @@ final class SettingsViewController: UITableViewController {
     var assist: TouchAssist
     var token: String
     var onChange: ((XAFeatureSettings, TouchAssist, String) -> Void)?
+    var onRestoreCharging: (() -> Void)?
+    var onDisableBatteryCare: (() -> Void)?
     private let tokenField = UITextField()
     private let rows: [(String, WritableKeyPath<XAFeatureSettings, Bool>)] = [
         ("Require pairing", \.requirePairing),
@@ -23,7 +25,9 @@ final class SettingsViewController: UITableViewController {
         ("Precision overlay", \.precisionMode),
         ("One-tap reconnect", \.oneTapReconnect),
         ("Remember Macs", \.rememberMacs),
-        ("Media remote", \.mediaRemote)
+        ("Media remote", \.mediaRemote),
+        ("Battery telemetry", \.batteryTelemetry),
+        ("Charge limit (experimental)", \.chargeLimit)
     ]
 
     init(features: XAFeatureSettings, assist: TouchAssist, token: String) {
@@ -69,14 +73,15 @@ final class SettingsViewController: UITableViewController {
         token = tokenField.text ?? ""
     }
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 4 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 5 }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0: return 1
         case 1: return rows.count
         case 2: return 10
-        default: return 5
+        case 3: return 5
+        default: return 2
         }
     }
 
@@ -89,12 +94,16 @@ final class SettingsViewController: UITableViewController {
             return
                 "Title-bar double-tap fills or restores that window. A double-tap in the window contents stays a click. Flicks tile only from the title bar. Notification Center and Control Center use Accessibility menu extras unless you set a key here. Mission Control is Control-Up, App Exposé is Control-Down, and Apps is F4. Hold duration and movement threshold are the long-press and tap slop rows in About. Hit targets stay at least 36 points."
         }
+        if section == 4 {
+            return
+                "Charge limit is experimental and off until you enable it. It needs the separate root helper in jailbreak/battery-care. Prove stop and resume on a device (see docs/TESTING.md) before leaving it on. DisableInflow and ExternalConnected are not used. Heat lowers brightness and stream rate. It does not change Apple thermal controls."
+        }
         if section == 0 { return "Type the token shown in the Mac menu bar." }
         return nil
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        ["Pairing", "Features", "Touch", "About"][section]
+        ["Pairing", "Features", "Touch", "About", "Battery care"][section]
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -121,6 +130,11 @@ final class SettingsViewController: UITableViewController {
             }
             return cell
         }
+        if indexPath.section == 4 {
+            cell.textLabel?.text = indexPath.row == 0 ? "Restore normal charging" : "Disable battery care"
+            cell.selectionStyle = .default
+            return cell
+        }
         if indexPath.section == 3 {
             switch indexPath.row {
             case 0: cell.textLabel?.text = "Copy diagnostics"
@@ -145,6 +159,10 @@ final class SettingsViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        if indexPath.section == 4 {
+            if indexPath.row == 0 { onRestoreCharging?() } else { onDisableBatteryCare?() }
+            return
+        }
         if indexPath.section == 2 {
             guard indexPath.row >= 6 else { return }
             cycleTouch(indexPath.row)

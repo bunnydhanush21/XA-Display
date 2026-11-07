@@ -40,6 +40,8 @@ Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window
 | Metrics | Delivered FPS, handoff, capture→ack, input RTT | Named for what they measure |
 | Wireless | One-tap reconnect, saved Macs, Bonjour `_xahost._tcp` | Launch resumes the last Mac. Wake is Bonjour, not Wake-on-LAN |
 | Media remote | Play, skip, volume, and seek | System media keys. The panel shows the frontmost app |
+| Battery telemetry | Level, health, temperature, charge flags | Read-only. Missing values say unavailable |
+| Charge limit | Experimental, off. Stop 80% / resume 75% | Separate root helper. Not Wake or thermal control |
 
 Deferred: MIDI, multitouch app integrations, image clipboard apply, three-finger pinch and spread, per-app command strips, launch at login, a jailbreak launchd helper, and now-playing title, artist, and artwork. See [Roadmap](#roadmap).
 
@@ -145,6 +147,12 @@ Diagnostics export redacts the pairing token. The threat model is [docs/SECURITY
 One-tap reconnect is on by default. The iPad stores each paired Mac's name and token. Launching the app from the home screen resumes the last Mac and opens a short TCP connection to that Mac's `_xahost._tcp` service. That connection is how macOS can wake for network access. It works only when the host was running before sleep, **Wake for network access** is already enabled, and a Bonjour Sleep Proxy is on the network. XA Display does not send Wake-on-LAN magic packets and does not ask for an admin password.
 
 The media remote is off until you enable it on both sides. Play, pause, next, previous, volume, and seek are NX system-defined media keys posted with `CGEvent`. There is no public macOS API that reads another app's now-playing item, so the panel shows the frontmost app name. Title, artist, artwork, and a timeline position stay empty.
+
+## Battery care
+
+Telemetry is on by default and only reads. The iPad shows level, cycle count, estimated health (`NominalChargeCapacity` or `AppleRawMaxCapacity` over `DesignCapacity`), temperature, charge flags, and current and voltage when the registry provides them. A missing field is the word unavailable. The same text is sent to the Mac menu. If the registry read fails, level and charging fall back to `UIDevice`.
+
+The charge limit is off and marked experimental. The decision to stop at 80% and resume at 75% lives in the app. The optional root helper in `jailbreak/battery-care/` is the only process that writes `IsCharging`, and only after a token on a local socket. It does not listen on the network and it does not write `DisableInflow` or `ExternalConnected`. A stale sample, a read error, unexpected drain while plugged in, a level under 20%, or temperature over 40°C restores normal charging. Heat handling dims the iPad and lowers stream bitrate and frame rate. It does not change Apple's thermal controls. Install, entitlements, `ldid`, and uninstall steps are in that folder's README. Prove stop and resume on a streaming iPad, using [docs/TESTING.md](docs/TESTING.md), before leaving the limit on.
 
 ## Known limits
 
