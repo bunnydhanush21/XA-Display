@@ -80,8 +80,10 @@ enum UsbmuxClient {
             }
         }
         let length = socklen_t(MemoryLayout<sockaddr_un>.size)
-        let connected = withUnsafePointer(to: &address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, length) }
+        let connected = withUnsafePointer(to: &address) { pointer -> Int32 in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sock in
+                Darwin.connect(fd, sock, length)
+            }
         }
         if connected != 0 {
             close(fd)

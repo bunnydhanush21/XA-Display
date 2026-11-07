@@ -56,7 +56,7 @@ public struct XARect: Equatable, Codable {
     }
 }
 
-public struct XAModifierMask: OptionSet, Equatable, Codable {
+public struct XAModifierMask: OptionSet, Equatable, Hashable, Codable {
     public var rawValue: UInt8
     public init(rawValue: UInt8) { self.rawValue = rawValue }
     public static let shift = XAModifierMask(rawValue: 1)

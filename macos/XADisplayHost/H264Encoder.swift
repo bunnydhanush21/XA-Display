@@ -1,5 +1,6 @@
 import CoreMedia
 import Foundation
+import QuartzCore
 import VideoToolbox
 import XADisplayProtocol
 

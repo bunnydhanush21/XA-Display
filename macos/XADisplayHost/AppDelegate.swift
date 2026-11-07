@@ -31,10 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu(state: String) {
         let menu = NSMenu()
-        menu.addItem(title: state, action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: state, action: nil, keyEquivalent: "")
         let settings = controller.settingsSnapshot()
-        menu.addItem(title: "Pairing token \(DiagnosticsText.redactToken(controller.currentToken()))", action: #selector(copyToken), keyEquivalent: "")
-        menu.addItem(title: "Regenerate token", action: #selector(regenerate), keyEquivalent: "")
+        menu.addItem(withTitle: "Pairing token \(DiagnosticsText.redactToken(controller.currentToken()))", action: #selector(copyToken), keyEquivalent: "")
+        menu.addItem(withTitle: "Regenerate token", action: #selector(regenerate), keyEquivalent: "")
         addToggle(menu, "Require pairing", settings.requirePairing, #selector(togglePairing(_:)))
         addToggle(menu, "Clipboard sync", settings.clipboardSync, #selector(toggleClipboard(_:)))
         addToggle(menu, "Audio", settings.audio, #selector(toggleAudio(_:)))
@@ -44,17 +44,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addToggle(menu, "Auto-connect on USB", settings.autoConnectUSB, #selector(toggleAuto(_:)))
         addToggle(menu, "Saved presets", settings.savedPresets, #selector(toggleSaved(_:)))
         let presets = NSMenu()
-        presets.addItem(title: "Balanced 1440×1080", action: #selector(presetBalanced), keyEquivalent: "")
-        presets.addItem(title: "Safe 1024×768", action: #selector(presetSafe), keyEquivalent: "")
-        presets.addItem(title: "Native experimental 2048×1536", action: #selector(presetNative), keyEquivalent: "")
-        presets.addItem(title: "Save current as Last", action: #selector(savePreset), keyEquivalent: "")
+        presets.addItem(withTitle: "Balanced 1440×1080", action: #selector(presetBalanced), keyEquivalent: "")
+        presets.addItem(withTitle: "Safe 1024×768", action: #selector(presetSafe), keyEquivalent: "")
+        presets.addItem(withTitle: "Native experimental 2048×1536", action: #selector(presetNative), keyEquivalent: "")
+        presets.addItem(withTitle: "Save current as Last", action: #selector(savePreset), keyEquivalent: "")
         let presetItem = NSMenuItem(title: "Display preset", action: nil, keyEquivalent: "")
         presetItem.submenu = presets
         menu.addItem(presetItem)
-        menu.addItem(title: "Permissions…", action: #selector(showPermissions), keyEquivalent: "")
-        menu.addItem(title: "Export diagnostics…", action: #selector(exportDiagnostics), keyEquivalent: "")
+        menu.addItem(withTitle: "Permissions…", action: #selector(showPermissions), keyEquivalent: "")
+        menu.addItem(withTitle: "Export diagnostics…", action: #selector(exportDiagnostics), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(title: "Quit XA Display Host", action: #selector(quit), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit XA Display Host", action: #selector(quit), keyEquivalent: "q")
         for item in menu.items { item.target = self }
         for item in presets.items { item.target = self }
         statusItem.menu = menu
