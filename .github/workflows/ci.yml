@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Protocol tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+          xcodebuild -version
+      - name: Swift tests
+        run: swift test
+
+  ios:
+    name: Unsigned iPad IPA
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate and build
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP=$(find build/Build/Products -name 'XADisplay.app' -type d | head -n 1)
+          test -n "$APP"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry XADisplay.ipa Payload
+          ls -l XADisplay.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XADisplay.ipa
+          path: ios/XADisplay.ipa
+
+  macos:
+    name: Mac host
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate and build
+        working-directory: macos
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplayHost.xcodeproj \
+            -scheme XADisplayHost \
+            -destination 'platform=macOS' \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Zip host
+        working-directory: macos
+        run: |
+          APP=$(find build/Build/Products -name 'XADisplayHost.app' -type d | head -n 1)
+          test -n "$APP"
+          codesign --force --deep --sign - "$APP" || true
+          ditto -c -k --keepParent "$APP" XADisplayHost.zip
+          ls -l XADisplayHost.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XADisplayHost.zip
+          path: macos/XADisplayHost.zip

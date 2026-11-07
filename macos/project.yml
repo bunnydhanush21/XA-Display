@@ -1,0 +1,56 @@
+name: XADisplayHost
+options:
+  bundleIdPrefix: com.bunnydhanush
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  XADisplayProtocol:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  XADisplayHost:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: XADisplayHost
+        excludes:
+          - Info.plist
+          - XADisplayHost.entitlements
+    dependencies:
+      - package: XADisplayProtocol
+        product: XADisplayProtocol
+      - sdk: ScreenCaptureKit.framework
+      - sdk: VideoToolbox.framework
+      - sdk: CoreMedia.framework
+      - sdk: ApplicationServices.framework
+    info:
+      path: XADisplayHost/Info.plist
+      properties:
+        CFBundleDisplayName: XA Display Host
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true
+        NSHighResolutionCapable: true
+        NSScreenCaptureUsageDescription: XA Display Host captures only the virtual display it creates so your iPad can show it.
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.host
+        PRODUCT_NAME: XADisplayHost
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: XADisplayHost/XADisplayHost-Bridging-Header.h
+        CODE_SIGN_ENTITLEMENTS: XADisplayHost/XADisplayHost.entitlements
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        ARCHS: arm64
+        ONLY_ACTIVE_ARCH: NO
+        GENERATE_INFOPLIST_FILE: NO
+        OTHER_LDFLAGS: "-Wl,-undefined,dynamic_lookup"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
