@@ -358,6 +358,8 @@ public enum XAInputMessage: Equatable {
     case audio(XAAudio)
     case preset(XAPresetCommand)
     case chrome(XAChromeCommand)
+    case media(XAMediaCommand)
+    case nowPlaying(XANowPlaying)
 
     public func encode() throws -> Data {
         switch self {
@@ -478,6 +480,25 @@ public enum XAInputMessage: Equatable {
             payload.f64(command.dx)
             payload.f64(command.dy)
             return Self.wrap(type: 14, payload: payload.data)
+        case .media(let command):
+            var payload = ByteWriter()
+            payload.u32(command.session)
+            payload.u32(command.seq)
+            payload.u8(command.action.rawValue)
+            payload.f64(command.scrub)
+            return Self.wrap(type: 15, payload: payload.data)
+        case .nowPlaying(let info):
+            guard info.artworkPNG.count <= XANowPlaying.maxArtworkBytes else { throw ProtocolError.tooLarge }
+            var payload = ByteWriter()
+            payload.u32(info.session)
+            try payload.str(info.appName)
+            try payload.str(info.title)
+            try payload.str(info.artist)
+            payload.f64(info.position)
+            payload.f64(info.duration)
+            payload.u32(UInt32(info.artworkPNG.count))
+            payload.bytes(info.artworkPNG)
+            return Self.wrap(type: 16, payload: payload.data)
         }
     }
 
@@ -590,6 +611,23 @@ public enum XAInputMessage: Equatable {
             let dx = try reader.f64()
             let dy = try reader.f64()
             return .chrome(XAChromeCommand(session: session, seq: seq, op: op, index: index, windowIndex: windowIndex, dx: dx, dy: dy))
+        case 15:
+            let session = try reader.u32()
+            let seq = try reader.u32()
+            guard let action = MediaAction(rawValue: try reader.u8()) else { throw ProtocolError.badEnum }
+            let scrub = try reader.f64()
+            return .media(XAMediaCommand(session: session, seq: seq, action: action, scrub: scrub))
+        case 16:
+            let session = try reader.u32()
+            let appName = try reader.str()
+            let title = try reader.str()
+            let artist = try reader.str()
+            let position = try reader.f64()
+            let duration = try reader.f64()
+            let count = Int(try reader.u32())
+            guard count <= XANowPlaying.maxArtworkBytes, count == reader.remaining else { throw ProtocolError.tooLarge }
+            let artwork = count == 0 ? Data() : reader.data.subdata(in: reader.offset..<(reader.offset + count))
+            return .nowPlaying(XANowPlaying(session: session, appName: appName, title: title, artist: artist, position: position, duration: duration, artworkPNG: artwork))
         default:
             return nil
         }

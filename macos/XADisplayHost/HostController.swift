@@ -30,6 +30,7 @@ final class HostController {
     private var wifiInput: NWConnection?
     private var inputFD: FDStream?
     private var browser: NWBrowser?
+    private var wakeListener: NWListener?
     private var wifiHost: String?
     private var timer: Timer?
     private var lastDisplayFrame = XARect(x: 0, y: 0, width: 0, height: 0)
@@ -58,7 +59,8 @@ final class HostController {
             expectedToken: token,
             requirePairing: settings.requirePairing,
             clipboardEnabled: settings.clipboardSync,
-            windowActionsEnabled: settings.windowSnapping || settings.touchscreenGestures
+            windowActionsEnabled: settings.windowSnapping || settings.touchscreenGestures,
+            mediaEnabled: settings.mediaRemote
         )
         dispatcher.sessionGenerator = {
             var value: UInt32 = 0
@@ -71,9 +73,11 @@ final class HostController {
         running = true
         log("XA Display Host started")
         startBrowser()
+        startWakeService()
         timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             self?.pollClipboard()
             self?.publishChrome()
+            self?.publishNowPlaying()
             self?.queue.async { self?.tick() }
         }
         queue.async { self.tick() }
@@ -91,6 +95,8 @@ final class HostController {
         capture.stop()
         audioCapture.stop()
         display.stop()
+        wakeListener?.cancel()
+        wakeListener = nil
         closeLinks()
         publish()
     }
@@ -158,6 +164,24 @@ final class HostController {
 
     func setWiFi(_ on: Bool) {
         settings.wifiFallback = on
+        persist()
+        startWakeService()
+    }
+
+    func setOneTapReconnect(_ on: Bool) {
+        settings.oneTapReconnect = on
+        persist()
+        startWakeService()
+    }
+
+    func setRememberMacs(_ on: Bool) {
+        settings.rememberMacs = on
+        persist()
+    }
+
+    func setMediaRemote(_ on: Bool) {
+        settings.mediaRemote = on
+        dispatcher.mediaEnabled = on
         persist()
     }
 
@@ -375,6 +399,9 @@ final class HostController {
             case .chrome(let op, let index, let windowIndex, let dx, let dy):
                 guard settings.windowSnapping || settings.touchscreenGestures else { continue }
                 applyChrome(op: op, index: index, windowIndex: windowIndex, dx: dx, dy: dy)
+            case .media(let action, _):
+                guard settings.mediaRemote else { continue }
+                MediaKeyPoster.post(action)
             default:
                 poster.post(event)
             }
@@ -611,6 +638,48 @@ final class HostController {
                 selectPreset(tune.preset)
             }
         }
+    }
+
+    private func publishNowPlaying() {
+        guard settings.mediaRemote, dispatcher.armed else { return }
+        let name = NSWorkspace.shared.frontmostApplication?.localizedName ?? "Mac"
+        sendInput(.nowPlaying(XANowPlaying(session: dispatcher.session, appName: name)))
+    }
+
+    private func startWakeService() {
+        guard settings.oneTapReconnect || settings.wifiFallback else {
+            wakeListener?.cancel()
+            wakeListener = nil
+            return
+        }
+        guard wakeListener == nil else { return }
+        let tcp = NWProtocolTCP.Options()
+        tcp.noDelay = true
+        let params = NWParameters(tls: nil, tcp: tcp)
+        params.includePeerToPeer = true
+        guard let port = NWEndpoint.Port(rawValue: XADisplayProtocolInfo.hostWakePort),
+            let listener = try? NWListener(using: params, on: port)
+        else {
+            log("Wake service unavailable")
+            return
+        }
+        let advertised = Host.current().localizedName
+        listener.service = NWListener.Service(name: advertised.isEmpty ? "XA Display" : advertised, type: XADisplayProtocolInfo.hostBonjourType)
+        listener.newConnectionHandler = { [weak self] connection in
+            connection.start(queue: self?.queue ?? .main)
+            self?.log("Wake poke from the iPad")
+            self?.queue.async { self?.tick() }
+            self?.queue.asyncAfter(deadline: .now() + 1) { connection.cancel() }
+        }
+        listener.stateUpdateHandler = { [weak self] state in
+            if case .failed(let error) = state {
+                self?.log("Wake service failed: \(error.localizedDescription)")
+                self?.wakeListener = nil
+            }
+        }
+        listener.start(queue: queue)
+        wakeListener = listener
+        log(WakeOnDemandPolicy.summary)
     }
 
     private func startBrowser() {

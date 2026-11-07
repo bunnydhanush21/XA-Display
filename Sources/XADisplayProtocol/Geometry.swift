@@ -7,6 +7,9 @@ public enum XADisplayProtocolInfo {
     /// Versioned input channel. Injection requires a paired token and session.
     public static let inputPort: UInt16 = 9001
     public static let bonjourType = "_opensidecar._tcp"
+    /// Host advertisement the iPad browses. Connecting to it is the wake poke.
+    public static let hostBonjourType = "_xahost._tcp"
+    public static let hostWakePort: UInt16 = 9002
 }
 
 public struct XAPoint: Equatable, Codable {

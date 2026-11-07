@@ -17,6 +17,9 @@ final class SidebarView: UIView {
     var onSettings: (() -> Void)?
     var onPrecision: (() -> Void)?
     var onTrackpad: (() -> Void)?
+    var onMacs: (() -> Void)?
+    var onMedia: (() -> Void)?
+    private var mediaButton: UIButton?
     var onCollapse: (() -> Void)?
     private var modifierButtons: [XAModifierMask: UIButton] = [:]
     private var heights: [NSLayoutConstraint] = []
@@ -45,6 +48,14 @@ final class SidebarView: UIView {
         add(title: "Keys") { [weak self] in self?.onKeyboard?() }
         add(title: "Trackpad") { [weak self] in self?.onTrackpad?() }
         add(title: "Precise") { [weak self] in self?.onPrecision?() }
+        add(title: "Macs") { [weak self] in self?.onMacs?() }
+        let media = makeButton("Media")
+        mediaButton = media
+        media.isHidden = true
+        let mediaTarget = ActionBox { [weak self] in self?.onMedia?() }
+        objc_setAssociatedObject(media, &ActionBox.key, mediaTarget, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        media.addTarget(mediaTarget, action: #selector(ActionBox.fire), for: .touchUpInside)
+        stack.addArrangedSubview(media)
         add(title: "Settings") { [weak self] in self?.onSettings?() }
         add(title: "Disconnect") { [weak self] in self?.onDisconnect?() }
     }
@@ -57,6 +68,10 @@ final class SidebarView: UIView {
 
     func setCollapsed(_ collapsed: Bool) {
         stack.isHidden = collapsed
+    }
+
+    func setShowsMedia(_ on: Bool) {
+        mediaButton?.isHidden = !on
     }
 
     func setLarge(_ large: Bool) {

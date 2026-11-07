@@ -38,6 +38,21 @@ enum LocalSettings {
             UserDefaults.standard.set(data, forKey: assistKey)
         }
     }
+
+    static let macsKey = "XADisplay.macs"
+
+    static func loadMacs() -> MacDirectory {
+        guard let data = UserDefaults.standard.data(forKey: macsKey),
+            let directory = try? JSONDecoder().decode(MacDirectory.self, from: data)
+        else { return MacDirectory() }
+        return directory
+    }
+
+    static func saveMacs(_ directory: MacDirectory) {
+        if let data = try? JSONEncoder().encode(directory) {
+            UserDefaults.standard.set(data, forKey: macsKey)
+        }
+    }
 }
 
 final class PCMPlayer {

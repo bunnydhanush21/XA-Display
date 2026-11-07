@@ -45,6 +45,9 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var showStats: Bool
     public var precisionMode: Bool
     public var inputRotation: Int
+    public var oneTapReconnect: Bool
+    public var rememberMacs: Bool
+    public var mediaRemote: Bool
 
     public init(
         requirePairing: Bool = true,
@@ -63,7 +66,10 @@ public struct XAFeatureSettings: Equatable, Codable {
         scrollInertia: Bool = true,
         showStats: Bool = true,
         precisionMode: Bool = false,
-        inputRotation: Int = 0
+        inputRotation: Int = 0,
+        oneTapReconnect: Bool = true,
+        rememberMacs: Bool = true,
+        mediaRemote: Bool = false
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -82,6 +88,67 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.showStats = showStats
         self.precisionMode = precisionMode
         self.inputRotation = inputRotation
+        self.oneTapReconnect = oneTapReconnect
+        self.rememberMacs = rememberMacs
+        self.mediaRemote = mediaRemote
+    }
+}
+
+extension XAFeatureSettings {
+    private enum CodingKeys: String, CodingKey {
+        case requirePairing, clipboardSync, threeFingerShortcuts, pinchMagnifier, commandStrip
+        case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
+        case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
+        case oneTapReconnect, rememberMacs, mediaRemote
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = XAFeatureSettings()
+        requirePairing = try values.decodeIfPresent(Bool.self, forKey: .requirePairing) ?? fallback.requirePairing
+        clipboardSync = try values.decodeIfPresent(Bool.self, forKey: .clipboardSync) ?? fallback.clipboardSync
+        threeFingerShortcuts = try values.decodeIfPresent(Bool.self, forKey: .threeFingerShortcuts) ?? fallback.threeFingerShortcuts
+        pinchMagnifier = try values.decodeIfPresent(Bool.self, forKey: .pinchMagnifier) ?? fallback.pinchMagnifier
+        commandStrip = try values.decodeIfPresent(Bool.self, forKey: .commandStrip) ?? fallback.commandStrip
+        windowSnapping = try values.decodeIfPresent(Bool.self, forKey: .windowSnapping) ?? fallback.windowSnapping
+        audio = try values.decodeIfPresent(Bool.self, forKey: .audio) ?? fallback.audio
+        savedPresets = try values.decodeIfPresent(Bool.self, forKey: .savedPresets) ?? fallback.savedPresets
+        gestureTuning = try values.decodeIfPresent(GestureTuning.self, forKey: .gestureTuning) ?? fallback.gestureTuning
+        autoConnectUSB = try values.decodeIfPresent(Bool.self, forKey: .autoConnectUSB) ?? fallback.autoConnectUSB
+        touchscreenGestures = try values.decodeIfPresent(Bool.self, forKey: .touchscreenGestures) ?? fallback.touchscreenGestures
+        wifiFallback = try values.decodeIfPresent(Bool.self, forKey: .wifiFallback) ?? fallback.wifiFallback
+        trackpadMode = try values.decodeIfPresent(Bool.self, forKey: .trackpadMode) ?? fallback.trackpadMode
+        scrollInertia = try values.decodeIfPresent(Bool.self, forKey: .scrollInertia) ?? fallback.scrollInertia
+        showStats = try values.decodeIfPresent(Bool.self, forKey: .showStats) ?? fallback.showStats
+        precisionMode = try values.decodeIfPresent(Bool.self, forKey: .precisionMode) ?? fallback.precisionMode
+        inputRotation = try values.decodeIfPresent(Int.self, forKey: .inputRotation) ?? fallback.inputRotation
+        oneTapReconnect = try values.decodeIfPresent(Bool.self, forKey: .oneTapReconnect) ?? fallback.oneTapReconnect
+        rememberMacs = try values.decodeIfPresent(Bool.self, forKey: .rememberMacs) ?? fallback.rememberMacs
+        mediaRemote = try values.decodeIfPresent(Bool.self, forKey: .mediaRemote) ?? fallback.mediaRemote
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(requirePairing, forKey: .requirePairing)
+        try values.encode(clipboardSync, forKey: .clipboardSync)
+        try values.encode(threeFingerShortcuts, forKey: .threeFingerShortcuts)
+        try values.encode(pinchMagnifier, forKey: .pinchMagnifier)
+        try values.encode(commandStrip, forKey: .commandStrip)
+        try values.encode(windowSnapping, forKey: .windowSnapping)
+        try values.encode(audio, forKey: .audio)
+        try values.encode(savedPresets, forKey: .savedPresets)
+        try values.encode(gestureTuning, forKey: .gestureTuning)
+        try values.encode(autoConnectUSB, forKey: .autoConnectUSB)
+        try values.encode(touchscreenGestures, forKey: .touchscreenGestures)
+        try values.encode(wifiFallback, forKey: .wifiFallback)
+        try values.encode(trackpadMode, forKey: .trackpadMode)
+        try values.encode(scrollInertia, forKey: .scrollInertia)
+        try values.encode(showStats, forKey: .showStats)
+        try values.encode(precisionMode, forKey: .precisionMode)
+        try values.encode(inputRotation, forKey: .inputRotation)
+        try values.encode(oneTapReconnect, forKey: .oneTapReconnect)
+        try values.encode(rememberMacs, forKey: .rememberMacs)
+        try values.encode(mediaRemote, forKey: .mediaRemote)
     }
 }
 

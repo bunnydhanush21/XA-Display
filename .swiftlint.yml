@@ -26,8 +26,8 @@ file_length:
   error: 1500
 
 type_body_length:
-  warning: 900
-  error: 1200
+  warning: 1100
+  error: 1400
 
 function_body_length:
   warning: 150

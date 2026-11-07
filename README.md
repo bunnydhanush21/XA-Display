@@ -38,8 +38,10 @@ Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window
 | Clipboard | Off by default. Text, 12 KB | Images are framed and not applied |
 | Quality | Thermal, battery, and send-queue bitrate steps | iPad health reports |
 | Metrics | Delivered FPS, handoff, capture→ack, input RTT | Named for what they measure |
+| Wireless | One-tap reconnect, saved Macs, Bonjour `_xahost._tcp` | Launch resumes the last Mac. Wake is Bonjour, not Wake-on-LAN |
+| Media remote | Play, skip, volume, and seek | System media keys. The panel shows the frontmost app |
 
-Deferred: MIDI, multitouch app integrations, image clipboard apply, three-finger pinch and spread, per-app command strips, launch at login, and a jailbreak launchd helper. See [Roadmap](#roadmap).
+Deferred: MIDI, multitouch app integrations, image clipboard apply, three-finger pinch and spread, per-app command strips, launch at login, a jailbreak launchd helper, and now-playing title, artist, and artwork. See [Roadmap](#roadmap).
 
 ## Architecture
 
@@ -136,6 +138,13 @@ Diagnostics export redacts the pairing token. The threat model is [docs/SECURITY
 - Launch the host at login
 - Optional jailbreak `launchd` plist, kept out of the app and away from Substrate
 - Measured latency and FPS filled into [docs/PERFORMANCE.md](docs/PERFORMANCE.md) from the method written there
+- Now-playing title, artist, artwork, and a true scrub position if macOS gains a public read API. Media keys already ship
+
+## Wireless and media remote
+
+One-tap reconnect is on by default. The iPad stores each paired Mac's name and token. Launching the app from the home screen resumes the last Mac and opens a short TCP connection to that Mac's `_xahost._tcp` service. That connection is how macOS can wake for network access. It works only when the host was running before sleep, **Wake for network access** is already enabled, and a Bonjour Sleep Proxy is on the network. XA Display does not send Wake-on-LAN magic packets and does not ask for an admin password.
+
+The media remote is off until you enable it on both sides. Play, pause, next, previous, volume, and seek are NX system-defined media keys posted with `CGEvent`. There is no public macOS API that reads another app's now-playing item, so the panel shows the frontmost app name. Title, artist, artwork, and a timeline position stay empty.
 
 ## Known limits
 

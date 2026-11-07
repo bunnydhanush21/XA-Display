@@ -53,6 +53,8 @@ Run these on the iPad mini 3 and the Mac after installing the unsigned app and t
 - [ ] Audio on both sides plays through the iPad speaker or headphones. Routes: all audio, selected apps, apps on the virtual display. Volume slider changes loudness. Mute-on-Mac stays unavailable.
 - [ ] Right-edge swipe opens the action drawer and does not open iOS Control Center. Left-edge swipe opens a left sidebar.
 - [ ] Trackpad mode moves the drawn cursor. Direct Touch does not.
+- [ ] With one-tap reconnect on, launching the app resumes the last Mac. The Macs list shows saved and nearby hosts. A Mac that is powered off does not wake.
+- [ ] Media remote, when enabled on both sides, sends play, skip, and volume. The panel names the frontmost app. It does not show artwork unless a future public API provides it.
 
 ### Presets and heat
 

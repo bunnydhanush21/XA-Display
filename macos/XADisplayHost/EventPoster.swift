@@ -60,7 +60,7 @@ final class EventPoster {
             }
             let cg = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)
             cg?.post(tap: .cghidEventTap)
-        case .clipboard, .window, .chrome:
+        case .clipboard, .window, .chrome, .media:
             break
         }
     }

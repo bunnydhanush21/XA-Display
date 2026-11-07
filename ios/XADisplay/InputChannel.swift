@@ -9,6 +9,7 @@ protocol InputChannelDelegate: AnyObject {
     func inputChannel(_ channel: InputChannel, audio: XAAudio)
     func inputChannel(_ channel: InputChannel, roundTripMs: Double)
     func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double)
+    func inputChannel(_ channel: InputChannel, nowPlaying: XANowPlaying)
 }
 
 final class InputChannel {
@@ -66,6 +67,13 @@ final class InputChannel {
         queue.async {
             guard self.armed, ClipboardPolicy.accept(enabled: true, armed: true, utf8Count: text.utf8.count) else { return }
             self.send(.clipboard(XAClipboard(session: self.session, seq: self.nextSeq(), revision: revision, text: text)))
+        }
+    }
+
+    func sendMedia(_ action: MediaAction, scrub: Double) {
+        queue.async {
+            guard self.armed else { return }
+            self.send(.media(XAMediaCommand(session: self.session, seq: self.nextSeq(), action: action, scrub: scrub)))
         }
     }
 
@@ -223,6 +231,11 @@ final class InputChannel {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.delegate?.inputChannel(self, audio: audio)
+            }
+        case .nowPlaying(let info):
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.inputChannel(self, nowPlaying: info)
             }
         default:
             break

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- One-tap reconnect, a saved-Mac picker, and Bonjour discovery of the host. Wake-on-demand is a Bonjour connection, not a Wake-on-LAN packet.
+- Media remote mode. Transport buttons post system media keys. The panel shows the frontmost app name.
+
 ## [1.0.0] - 2026-11-07
 
 ### Added

@@ -92,6 +92,7 @@ public enum PostedEvent: Equatable {
     case clipboard(text: String, revision: UInt64)
     case window(WindowAction)
     case chrome(op: UInt8, index: UInt16, windowIndex: UInt16, dx: Double, dy: Double)
+    case media(MediaAction, scrub: Double)
 }
 
 public enum DispatchOutcome: Equatable {
@@ -112,6 +113,7 @@ public struct InputDispatcher {
     public var requirePairing: Bool
     public var clipboardEnabled: Bool
     public var windowActionsEnabled: Bool
+    public var mediaEnabled: Bool
     public var sessionGenerator: () -> UInt32
     public private(set) var armed = false
     public private(set) var session: UInt32 = 0
@@ -127,7 +129,7 @@ public struct InputDispatcher {
 
     public init(
         expectedToken: String, displayFrame: XARect = XARect(x: 0, y: 0, width: 0, height: 0), videoPixelSize: XASize = .zero, maxInputPerSecond: Int = 500, requirePairing: Bool = true,
-        clipboardEnabled: Bool = false, windowActionsEnabled: Bool = false
+        clipboardEnabled: Bool = false, windowActionsEnabled: Bool = false, mediaEnabled: Bool = false
     ) {
         self.expectedToken = expectedToken
         self.displayFrame = displayFrame
@@ -136,6 +138,7 @@ public struct InputDispatcher {
         self.requirePairing = requirePairing
         self.clipboardEnabled = clipboardEnabled
         self.windowActionsEnabled = windowActionsEnabled
+        self.mediaEnabled = mediaEnabled
         self.sessionGenerator = { 0 }
         self.limiter = RateLimiter(maxPerSecond: maxInputPerSecond)
         self.lastGlobal = CoordinateMapper.globalPoint(normalized: XAPoint(x: 0.5, y: 0.5), displayFrame: displayFrame)
@@ -237,7 +240,12 @@ public struct InputDispatcher {
             guard accept(session: command.session, seq: command.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
             return .post([.chrome(op: command.op.rawValue, index: command.index, windowIndex: command.windowIndex, dx: command.dx, dy: command.dy)])
 
-        case .helloAck, .pong, .audio, .preset:
+        case .media(let command):
+            guard mediaEnabled else { return .drop }
+            guard accept(session: command.session, seq: command.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
+            return .post([.media(command.action, scrub: command.scrub)])
+
+        case .helloAck, .pong, .audio, .preset, .nowPlaying:
             return .drop
         }
     }

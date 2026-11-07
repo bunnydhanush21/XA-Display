@@ -72,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         touchNote.isEnabled = false
         menu.addItem(touchNote)
         addToggle(menu, "Wi-Fi fallback", settings.wifiFallback, #selector(toggleWiFi(_:)))
+        addToggle(menu, "One-tap reconnect", settings.oneTapReconnect, #selector(toggleOneTap(_:)))
+        addToggle(menu, "Remember Macs", settings.rememberMacs, #selector(toggleRemember(_:)))
+        addToggle(menu, "Media remote", settings.mediaRemote, #selector(toggleMedia(_:)))
+        let wakeNote = NSMenuItem(title: "Wake uses Bonjour, not Wake-on-LAN", action: nil, keyEquivalent: "")
+        wakeNote.isEnabled = false
+        menu.addItem(wakeNote)
         addToggle(menu, "Auto-connect on USB", settings.autoConnectUSB, #selector(toggleAuto(_:)))
         addToggle(menu, "Saved presets", settings.savedPresets, #selector(toggleSaved(_:)))
         let presets = NSMenu()
@@ -118,6 +124,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleSnap(_ sender: NSMenuItem) { controller.setWindowSnapping(sender.state != .on) }
     @objc private func toggleTouch(_ sender: NSMenuItem) { controller.setTouchGestures(sender.state != .on) }
     @objc private func toggleWiFi(_ sender: NSMenuItem) { controller.setWiFi(sender.state != .on) }
+    @objc private func toggleOneTap(_ sender: NSMenuItem) { controller.setOneTapReconnect(sender.state != .on) }
+    @objc private func toggleRemember(_ sender: NSMenuItem) { controller.setRememberMacs(sender.state != .on) }
+    @objc private func toggleMedia(_ sender: NSMenuItem) { controller.setMediaRemote(sender.state != .on) }
     @objc private func toggleAuto(_ sender: NSMenuItem) { controller.setAutoConnect(sender.state != .on) }
     @objc private func toggleSaved(_ sender: NSMenuItem) { controller.setSavedPresets(sender.state != .on) }
     @objc private func presetBalanced() { controller.selectPreset(.balanced) }
@@ -149,6 +158,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Grant Screen Recording so this app can capture only the XA Display. Grant Accessibility so pointer, keyboard, and window recovery can work. Quit and reopen after granting Screen Recording if capture stays denied.
 
                 USB is preferred. Wi-Fi is used only when the cable is gone and Wi-Fi fallback is enabled. Only a paired iPad can control the Mac while Require pairing is on.
+
+                One-tap reconnect advertises this Mac as _xahost._tcp. The iPad's connection can wake the Mac when Wake for network access is already on. This app does not send Wake-on-LAN packets. Media remote sends play, skip, and volume as system media keys. It shows the frontmost app name because macOS has no public now-playing read API.
                 """)
         text.frame = NSRect(x: 20, y: 120, width: 480, height: 210)
         let screen = NSButton(title: "Request Screen Recording", target: self, action: #selector(requestScreen))

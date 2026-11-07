@@ -20,7 +20,10 @@ final class SettingsViewController: UITableViewController {
         ("Trackpad mode", \.trackpadMode),
         ("Momentum scroll", \.scrollInertia),
         ("Stats overlay", \.showStats),
-        ("Precision overlay", \.precisionMode)
+        ("Precision overlay", \.precisionMode),
+        ("One-tap reconnect", \.oneTapReconnect),
+        ("Remember Macs", \.rememberMacs),
+        ("Media remote", \.mediaRemote)
     ]
 
     init(features: XAFeatureSettings, assist: TouchAssist, token: String) {

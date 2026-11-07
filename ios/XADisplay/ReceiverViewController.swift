@@ -56,6 +56,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private var sidebarEdge: UIScreenEdgePanGestureRecognizer?
     private var drawerEdge: UIScreenEdgePanGestureRecognizer?
     private var commandStripHeight: NSLayoutConstraint!
+    private let macBrowser = MacBrowser()
+    private var directory = MacDirectory()
+    private var discoveredMacs: [String] = []
+    private var mediaPanel: MediaRemoteViewController?
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -70,6 +74,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         token = loaded.token
         features = loaded.features
         assist = LocalSettings.loadAssist()
+        directory = LocalSettings.loadMacs()
+        applyLaunchRoute()
         interpreter = DirectTouchInterpreter(
             slop: features.gestureTuning.clamped().slop,
             doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
@@ -164,6 +170,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             self.input.sendClipboard(text: text, revision: UInt64(UIPasteboard.general.changeCount))
         }
         clipboard.start()
+        macBrowser.onNames = { [weak self] names in
+            self?.discoveredMacs = names
+        }
+        if features.oneTapReconnect || features.rememberMacs { macBrowser.start() }
         chrome.install(in: view)
         wireChrome()
         addGestures()
@@ -194,6 +204,17 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         let mask = modifiers(from: command.modifierFlags)
         let shortcut = KeyShortcut(input: command.input ?? "", modifiers: mask)
         for intent in shortcut.intents() { input.send(intent: intent) }
+    }
+
+    private var didOfferPicker = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !didOfferPicker else { return }
+        if case .picker = LaunchRoute.decide(oneTap: features.oneTapReconnect, directory: directory) {
+            didOfferPicker = true
+            showMacPicker()
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -572,6 +593,78 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             self?.collapsed.toggle()
             self?.applyChrome()
         }
+        sidebar.onMacs = { [weak self] in self?.showMacPicker() }
+        sidebar.onMedia = { [weak self] in self?.showMediaRemote() }
+    }
+
+    private func applyLaunchRoute() {
+        switch LaunchRoute.decide(oneTap: features.oneTapReconnect, directory: directory) {
+        case .resume(let mac):
+            token = mac.token
+            statusLabel.text = "Connecting to \(mac.name)"
+            if features.oneTapReconnect { macBrowser.poke(name: mac.name) }
+        case .picker:
+            statusLabel.text = "Choose a Mac"
+        case .listen:
+            break
+        }
+    }
+
+    private func showMacPicker() {
+        guard features.rememberMacs || features.oneTapReconnect else { return }
+        let picker = MacPickerViewController(style: .grouped)
+        picker.saved = directory.sorted()
+        picker.discovered = discoveredMacs
+        picker.onSelectSaved = { [weak self] mac in
+            guard let self = self else { return }
+            self.directory.select(mac.id, now: Date().timeIntervalSince1970)
+            self.token = mac.token
+            self.input.token = mac.token
+            LocalSettings.saveMacs(self.directory)
+            LocalSettings.save(token: mac.token, features: self.features)
+            self.statusLabel.text = "Connecting to \(mac.name)"
+            self.statusLabel.isHidden = false
+            self.macBrowser.poke(name: mac.name)
+            self.input.ensureListening()
+            self.receiver.ensureListening()
+        }
+        picker.onSelectDiscovered = { [weak self] name in
+            guard let self = self else { return }
+            let existing = self.directory.macs.first { $0.id == name }
+            let mac = SavedMac(id: name, name: name, token: existing?.token ?? self.token, lastUsed: Date().timeIntervalSince1970)
+            self.directory.remember(mac)
+            self.token = mac.token
+            self.input.token = mac.token
+            LocalSettings.saveMacs(self.directory)
+            LocalSettings.save(token: mac.token, features: self.features)
+            self.statusLabel.text = "Connecting to \(name)"
+            self.statusLabel.isHidden = false
+            self.macBrowser.poke(name: name)
+        }
+        present(UINavigationController(rootViewController: picker), animated: true)
+    }
+
+    private func showMediaRemote() {
+        guard features.mediaRemote else { return }
+        let panel = MediaRemoteViewController()
+        panel.modalPresentationStyle = .fullScreen
+        panel.onCommand = { [weak self] action, scrub in
+            self?.input.sendMedia(action, scrub: scrub)
+        }
+        panel.onClose = { [weak self] in
+            self?.mediaPanel = nil
+            self?.dismiss(animated: true)
+        }
+        mediaPanel = panel
+        present(panel, animated: true)
+    }
+
+    private func rememberConnectedMac() {
+        guard features.rememberMacs else { return }
+        let name = directory.last()?.name ?? discoveredMacs.first ?? "Mac"
+        let id = directory.last()?.id ?? name
+        directory.remember(SavedMac(id: id, name: name, token: token, lastUsed: Date().timeIntervalSince1970))
+        LocalSettings.saveMacs(directory)
     }
 
     private func command(_ item: CommandStripItem) {
@@ -635,6 +728,11 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             LocalSettings.save(token: token, features: features)
             LocalSettings.saveAssist(assist)
             self.applyChrome()
+            if features.oneTapReconnect || features.rememberMacs {
+                self.macBrowser.start()
+            } else {
+                self.macBrowser.stop()
+            }
             self.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
             self.interpreter = DirectTouchInterpreter(
                 slop: features.gestureTuning.clamped().slop,
@@ -652,6 +750,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         sidebar.setCollapsed(collapsed)
         sidebarLeading.isActive = features.gestureTuning.sidebarOnLeft
         sidebarTrailing.isActive = !features.gestureTuning.sidebarOnLeft
+        sidebar.setShowsMedia(features.mediaRemote)
         commandStrip.isHidden = !features.commandStrip
         commandStripHeight.constant = assist.largeButtons ? 68 : 52
         sidebar.setLarge(assist.largeButtons)
@@ -858,6 +957,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         chrome.loupe.show(image: image, around: finger, finger: finger)
     }
     func inputChannel(_ channel: InputChannel, armed: Bool, reason: String) {
+        if armed { rememberConnectedMac() }
         if !armed {
             statusLabel.isHidden = false
             statusLabel.text = reason == "token" || reason == "empty" ? "Pairing rejected" : "Not paired (\(reason))"
@@ -878,5 +978,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
     func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double) {
         audio.setClockOffset(clockOffsetClientMinusHost)
+    }
+    func inputChannel(_ channel: InputChannel, nowPlaying: XANowPlaying) {
+        mediaPanel?.show(nowPlaying)
     }
 }

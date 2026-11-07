@@ -90,6 +90,8 @@ The XA host **does not** turn `touch` or `scroll` on this port into CGEvents. Pa
 | 12 | audio | session, sample rate, channels, codec (0 PCM, 1 AAC), f64 hostTimeMs, bytes. Cap 8,192 |
 | 13 | preset | session, seq, name. Reserved. The dispatcher drops it |
 | 14 | chrome | session, seq, op (1 resize, 2 menu), u16 index, u16 window index, f64 dx, f64 dy |
+| 15 | media | session, seq, action u8, f64 scrub. Actions: play/pause 1, next 2, previous 3, volume up 4, volume down 5, seek forward 6, seek backward 7. Scrub is a signed fraction; zero means the action stands alone |
+| 16 | nowPlaying | Host to iPad. session, app name, title, artist, f64 position, f64 duration, artwork byte count and bytes. Position and duration are -1 when unknown. Artwork may be empty |
 
 Session id is chosen by the host in `helloAck`. Sequence numbers are monotonic per session. Replays are dropped. Moves and scrolls are rate-limited. Button-up and `release` are not.
 
