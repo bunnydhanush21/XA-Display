@@ -110,11 +110,11 @@ enum BatteryCareClient {
         }
         let length = socklen_t(MemoryLayout<sockaddr_un>.size)
         let connected = withUnsafePointer(to: &address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, length) }
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, length) }
         }
         guard connected == 0 else { return false }
         var bytes = Array("\(token)\n\(command)\n".utf8)
-        let sent = bytes.withUnsafeMutableBytes { send(fd, $0.baseAddress, $0.count, 0) }
+        let sent = bytes.withUnsafeMutableBytes { Darwin.send(fd, $0.baseAddress, $0.count, 0) }
         return sent > 0
     }
 }
