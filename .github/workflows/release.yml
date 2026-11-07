@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Draft release
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build unsigned iPad IPA
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+          APP=$(find build/Build/Products -name 'XADisplay.app' -type d | head -n 1)
+          test -n "$APP"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry ../XADisplay.ipa Payload
+      - name: Build Mac host zip
+        working-directory: macos
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplayHost.xcodeproj \
+            -scheme XADisplayHost \
+            -destination 'platform=macOS' \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          APP=$(find build/Build/Products -name 'XADisplayHost.app' -type d | head -n 1)
+          test -n "$APP"
+          codesign --force --deep --sign - "$APP" || true
+          ditto -c -k --keepParent "$APP" ../XADisplayHost.zip
+      - name: Attach a draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body: |
+            Draft release of XA Display. The IPA is unsigned. Fakesign it on the jailbroken iPad with `ldid -S` before install.
+
+            `XADisplayHost.zip` is XA Display Host. Preset figures in the README are targets, not measured latency.
+
+            See CHANGELOG.md.
+          files: |
+            XADisplay.ipa
+            XADisplayHost.zip
