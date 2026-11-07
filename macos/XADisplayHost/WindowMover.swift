@@ -69,7 +69,8 @@ enum WindowMover {
         let ordered = orderedWindows(on: display)
         publishedWindows = ordered
         let rects = ordered.map { ChromeWire.normalized($0.snapshot.bounds, in: display) }
-        let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? ordered.first?.snapshot.ownerPID ?? 0
+        let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let pid = frontPID ?? pid_t(ordered.first?.snapshot.ownerPID ?? 0)
         let menus = menuEntries(pid: pid)
         let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         return (rects, menus, bundle)
@@ -111,8 +112,8 @@ enum WindowMover {
         guard let window = front(on: display) else { return false }
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(window.element, attribute as CFString, &value) == .success,
-              let button = value as? AXUIElement else { return false }
-        return AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
+              let value = value else { return false }
+        return AXUIElementPerformAction(value as! AXUIElement, kAXPressAction as CFString) == .success
     }
 
     static func pressMenu(index: Int) -> Bool {
@@ -219,8 +220,8 @@ enum WindowMover {
 
     private static func axElements(_ value: CFTypeRef?) -> [AXUIElement] {
         if let list = value as? [AXUIElement] { return list }
-        if let one = value as? AXUIElement { return axChildren(one) }
-        return []
+        guard let value = value else { return [] }
+        return axChildren(value as! AXUIElement)
     }
 
     private static func axChildren(_ element: AXUIElement) -> [AXUIElement] {
