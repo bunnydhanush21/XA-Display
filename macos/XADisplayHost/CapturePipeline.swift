@@ -2,6 +2,7 @@ import AVFoundation
 import CoreMedia
 import Foundation
 import ScreenCaptureKit
+import XADisplayProtocol
 
 enum CaptureError: Error {
     case displayNotFound

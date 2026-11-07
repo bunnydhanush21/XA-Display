@@ -1,6 +1,7 @@
 import AudioToolbox
 import Foundation
 import UIKit
+import XADisplayProtocol
 
 enum LocalSettings {
     static let tokenKey = "XADisplay.pairingToken"

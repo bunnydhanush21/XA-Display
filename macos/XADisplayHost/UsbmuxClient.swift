@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import XADisplayProtocol
 
 struct UsbmuxDevice {
     var deviceID: Int
@@ -34,22 +35,34 @@ enum UsbmuxClient {
     }
 
     static func connect(deviceID: Int, port: UInt16) -> Int32? {
-        for candidate in UsbmuxPort.candidates(port) {
+        let candidates = UsbmuxPort.candidates(port)
+        var index = 0
+        while index < candidates.count {
+            let candidate = candidates[index]
+            index += 1
             guard let fd = openSocket() else { return nil }
-            let body: [String: Any] = [
-                "MessageType": "Connect",
-                "DeviceID": deviceID,
-                "PortNumber": Int(candidate),
-            ]
-            if sendPlist(body, tag: 2, fd: fd),
-               let reply = readPlist(fd: fd),
-               let number = (reply["Number"] as? Int) ?? (reply["Number"] as? NSNumber)?.intValue,
-               number == 0 {
+            if attemptConnect(deviceID: deviceID, portNumber: Int(candidate), fd: fd) {
                 return fd
             }
             close(fd)
         }
         return nil
+    }
+
+    private static func attemptConnect(deviceID: Int, portNumber: Int, fd: Int32) -> Bool {
+        var body: [String: Any] = [:]
+        body["MessageType"] = "Connect"
+        body["DeviceID"] = deviceID
+        body["PortNumber"] = portNumber
+        if sendPlist(body, tag: 2, fd: fd) == false { return false }
+        guard let reply = readPlist(fd: fd) else { return false }
+        if let number = reply["Number"] as? Int {
+            return number == 0
+        }
+        if let number = reply["Number"] as? NSNumber {
+            return number.intValue == 0
+        }
+        return false
     }
 
     private static func openSocket() -> Int32? {

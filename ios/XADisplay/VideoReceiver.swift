@@ -15,6 +15,7 @@ import CoreMedia
 import Foundation
 import Network
 import UIKit
+import XADisplayProtocol
 
 struct ReceiverStats {
     var fpsDelivered: Double = 0

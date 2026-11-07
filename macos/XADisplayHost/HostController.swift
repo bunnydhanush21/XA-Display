@@ -3,6 +3,7 @@ import ApplicationServices
 import Darwin
 import Foundation
 import Network
+import XADisplayProtocol
 
 final class HostController {
     var onState: ((String) -> Void)?

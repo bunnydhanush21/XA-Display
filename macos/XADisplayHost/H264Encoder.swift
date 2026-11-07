@@ -1,6 +1,7 @@
 import CoreMedia
 import Foundation
 import VideoToolbox
+import XADisplayProtocol
 
 final class FrameMark: NSObject {
     let captureMs: Double

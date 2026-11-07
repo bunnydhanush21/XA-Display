@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import XADisplayProtocol
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {

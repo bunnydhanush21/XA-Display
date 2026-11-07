@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import XADisplayProtocol
 
 final class EventPoster {
     func post(_ event: PostedEvent) {

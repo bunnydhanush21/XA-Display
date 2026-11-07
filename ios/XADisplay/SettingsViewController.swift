@@ -1,4 +1,5 @@
 import UIKit
+import XADisplayProtocol
 
 final class SettingsViewController: UITableViewController {
     var features: XAFeatureSettings

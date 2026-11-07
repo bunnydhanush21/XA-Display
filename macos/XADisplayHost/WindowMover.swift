@@ -1,6 +1,7 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import XADisplayProtocol
 
 struct LiveWindow {
     var snapshot: WindowSnapshot

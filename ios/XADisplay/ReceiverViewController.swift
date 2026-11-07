@@ -1,5 +1,6 @@
 import AVFoundation
 import UIKit
+import XADisplayProtocol
 
 final class ReceiverViewController: UIViewController, VideoReceiverDelegate, InputChannelDelegate {
     private let videoView = VideoContainerView()

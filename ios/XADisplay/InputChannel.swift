@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import UIKit
+import XADisplayProtocol
 
 protocol InputChannelDelegate: AnyObject {
     func inputChannel(_ channel: InputChannel, armed: Bool, reason: String)
