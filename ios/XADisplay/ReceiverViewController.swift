@@ -60,6 +60,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private let batteryLoop = BatteryCareLoop()
     private var chargeConfig = ChargeLimitConfig()
     private var settingsDocument = XASettingsDocument.defaults
+    private var localCursor = false
+    private var keepalive: Timer?
     private var scrollRecognizer: UIPanGestureRecognizer?
     private var directory = MacDirectory()
     private var discoveredMacs: [String] = []
@@ -262,6 +264,12 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             dragOriginTime = touch.timestamp
             loupeImage = nil
             resizing = resizeHit(at: raw)
+        }
+        if features.lowLatencyWiFi, !features.trackpadMode, let predicted = normalize(XAPoint(x: Double(point.x), y: Double(point.y))) {
+            cursorNorm = CGPoint(x: predicted.x, y: predicted.y)
+            cursorVisible = true
+            localCursor = phase != .ended && phase != .cancelled
+            layoutCursor()
         }
         let sample = TouchSample(time: touch.timestamp, phase: phase, location: XAPoint(x: Double(point.x), y: Double(point.y)), activeTouches: count)
         let gestures = interpreter.feed(sample) { [weak self] location in
@@ -759,6 +767,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         audio.volume = document.audioVolume
         collapsed = !document.sidebarVisible
         scrollRecognizer?.isEnabled = document.twoFingerScroll
+        receiver.lowLatency = document.features.lowLatencyWiFi
+        updateKeepalive()
         LocalSettings.save(token: token, features: features)
         LocalSettings.saveDocument(document)
         applyChrome()
@@ -772,6 +782,15 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         titleArbiter = TitleBarArbiter(window: features.gestureTuning.clamped().doubleTapWindow)
         if broadcast, SettingsSync.encode(document) != previous {
             receiver.sendSettings(SettingsSync.encode(document))
+        }
+    }
+
+    private func updateKeepalive() {
+        keepalive?.invalidate()
+        keepalive = nil
+        guard features.lowLatencyWiFi, receiver.isConnected else { return }
+        keepalive = Timer.scheduledTimer(withTimeInterval: WiFiPowerSave.keepaliveSeconds, repeats: true) { [weak self] _ in
+            self?.input.sendPing()
         }
     }
 
@@ -865,8 +884,9 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         let pipeline = pipelineMs.map { String(format: "%.0f ms", $0) } ?? "—"
         let rtt = rttMs.map { String(format: "%.0f ms", $0) } ?? "—"
         let batteryLines = features.batteryTelemetry ? "\n" + batteryLoop.lastText : ""
+        let measured = pipelineMs == nil ? "not measured yet" : "\(pipeline) measured, includes return, not glass-to-glass"
         statsLabel.text =
-            "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Capture→ack \(pipeline)\n  Input RTT \(rtt)\n  \(streamLabel)\(batteryLines)  "
+            "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Link delay \(measured)\n  Input RTT \(rtt)\n  \(streamLabel)\(batteryLines)  "
     }
 
     @objc private func foreground() {
@@ -902,6 +922,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
     func videoReceiver(_ receiver: VideoReceiver, connected: Bool, transport: TransportKind) {
         UIApplication.shared.isIdleTimerDisabled = connected
+        updateKeepalive()
         statusLabel.isHidden = connected
         if connected {
             switch transport {
@@ -926,7 +947,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         refreshStats()
     }
     func videoReceiver(_ receiver: VideoReceiver, cursor point: CGPoint, visible: Bool) {
-        guard !features.trackpadMode else { return }
+        guard !features.trackpadMode, !localCursor else { return }
         cursorNorm = point
         cursorVisible = visible
         layoutCursor()

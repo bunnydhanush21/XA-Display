@@ -114,6 +114,7 @@ final class InputChannel {
             let tcp = NWProtocolTCP.Options()
             tcp.noDelay = true
             let params = NWParameters(tls: nil, tcp: tcp)
+            params.serviceClass = .responsiveData
             params.allowLocalEndpointReuse = true
             guard let port = NWEndpoint.Port(rawValue: XADisplayProtocolInfo.inputPort) else { return }
             listener = try NWListener(using: params, on: port)

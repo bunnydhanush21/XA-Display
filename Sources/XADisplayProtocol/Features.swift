@@ -50,6 +50,7 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var mediaRemote: Bool
     public var batteryTelemetry: Bool
     public var chargeLimit: Bool
+    public var lowLatencyWiFi: Bool
 
     public init(
         requirePairing: Bool = true,
@@ -73,7 +74,8 @@ public struct XAFeatureSettings: Equatable, Codable {
         rememberMacs: Bool = true,
         mediaRemote: Bool = false,
         batteryTelemetry: Bool = true,
-        chargeLimit: Bool = false
+        chargeLimit: Bool = false,
+        lowLatencyWiFi: Bool = true
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -97,6 +99,7 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.mediaRemote = mediaRemote
         self.batteryTelemetry = batteryTelemetry
         self.chargeLimit = chargeLimit
+        self.lowLatencyWiFi = lowLatencyWiFi
     }
 }
 
@@ -105,7 +108,7 @@ extension XAFeatureSettings {
         case requirePairing, clipboardSync, threeFingerShortcuts, pinchMagnifier, commandStrip
         case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
         case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
-        case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit
+        case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit, lowLatencyWiFi
     }
 
     public init(from decoder: Decoder) throws {
@@ -133,6 +136,7 @@ extension XAFeatureSettings {
         mediaRemote = try values.decodeIfPresent(Bool.self, forKey: .mediaRemote) ?? fallback.mediaRemote
         batteryTelemetry = try values.decodeIfPresent(Bool.self, forKey: .batteryTelemetry) ?? fallback.batteryTelemetry
         chargeLimit = try values.decodeIfPresent(Bool.self, forKey: .chargeLimit) ?? fallback.chargeLimit
+        lowLatencyWiFi = try values.decodeIfPresent(Bool.self, forKey: .lowLatencyWiFi) ?? fallback.lowLatencyWiFi
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -159,6 +163,7 @@ extension XAFeatureSettings {
         try values.encode(mediaRemote, forKey: .mediaRemote)
         try values.encode(batteryTelemetry, forKey: .batteryTelemetry)
         try values.encode(chargeLimit, forKey: .chargeLimit)
+        try values.encode(lowLatencyWiFi, forKey: .lowLatencyWiFi)
     }
 }
 

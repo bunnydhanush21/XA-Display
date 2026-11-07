@@ -113,8 +113,16 @@ final class H264Encoder {
         VTSessionSetProperty(created, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
         VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: profileLevel as CFString)
         VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: fps as CFNumber)
-        VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: max(fps, 1) as CFNumber)
-        VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 1 as CFNumber)
+        VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: LowLatencyEncoderRequest.maxFrameDelayCount as CFNumber)
+        let intra = VTSessionSetProperty(created, key: LowLatencyEncoderRequest.intraRefreshKey as CFString, value: kCFBooleanTrue)
+        let slices = VTSessionSetProperty(created, key: LowLatencyEncoderRequest.sliceBytesKey as CFString, value: LowLatencyEncoderRequest.sliceBytes as CFNumber)
+        if intra == noErr || slices == noErr {
+            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: max(fps * 8, 1) as CFNumber)
+            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 8 as CFNumber)
+        } else {
+            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: max(fps, 1) as CFNumber)
+            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 1 as CFNumber)
+        }
         updateBitrate(bitrate)
         VTCompressionSessionPrepareToEncodeFrames(created)
         return true

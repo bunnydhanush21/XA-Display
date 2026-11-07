@@ -191,6 +191,11 @@ final class HostController {
         if on { tick() }
     }
 
+    func setLowLatencyWiFi(_ on: Bool) {
+        settings.lowLatencyWiFi = on
+        persist()
+    }
+
     func setSavedPresets(_ on: Bool) {
         settings.savedPresets = on
         library.enabled = on
@@ -250,6 +255,7 @@ final class HostController {
         if merged.features.audio != current.features.audio { setAudio(merged.features.audio) }
         if merged.features.wifiFallback != current.features.wifiFallback { setWiFi(merged.features.wifiFallback) }
         if merged.features.autoConnectUSB != current.features.autoConnectUSB { setAutoConnect(merged.features.autoConnectUSB) }
+        if merged.features.lowLatencyWiFi != current.features.lowLatencyWiFi { setLowLatencyWiFi(merged.features.lowLatencyWiFi) }
         if merged.features.windowSnapping != current.features.windowSnapping { setWindowSnapping(merged.features.windowSnapping) }
         if merged.features.mediaRemote != current.features.mediaRemote { setMediaRemote(merged.features.mediaRemote) }
         if merged.audioMode != current.audioMode, let mode = AudioRouteMode(rawValue: merged.audioMode) { setAudioMode(mode) }
@@ -298,6 +304,7 @@ final class HostController {
         } else if let host = wifiHost {
             openNW(host: host, port: XADisplayProtocolInfo.videoPort, video: true)
             openNW(host: host, port: XADisplayProtocolInfo.inputPort, video: false)
+            if settings.lowLatencyWiFi { udpSender.connect(host: host) }
             sendControl(.xaHello, onVideo: true)
         }
         adaptation = AdaptationController(preset: preset.id, usb: kind == .usb)
@@ -307,7 +314,9 @@ final class HostController {
     private func openNW(host: String, port: UInt16, video: Bool) {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
-        let connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: NWParameters(tls: nil, tcp: tcp))
+        let params = NWParameters(tls: nil, tcp: tcp)
+        params.serviceClass = video ? .interactiveVideo : .responsiveData
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: params)
         connection.stateUpdateHandler = { [weak self] state in
             if case .ready = state, video {
                 self?.sendControl(.xaHello, onVideo: true)
@@ -370,6 +379,7 @@ final class HostController {
             let now = Date().timeIntervalSince1970 * 1000
             if let ms = LatencyMath.captureToAck(captureMs: ack.captureMs, ackMs: now) {
                 sendControl(.xaMetrics(XAMetrics(captureToAckMs: ms, encodeMs: nil)), onVideo: true)
+                tuneWiFi(rttMs: ms)
             }
         case .health(let health):
             queue.async { [weak self] in
@@ -386,6 +396,9 @@ final class HostController {
             publish()
         case .xaSettings(let body):
             applySharedSettings(body, broadcast: false)
+        case .xaNack(let body):
+            let sequences = body.split(separator: ",").compactMap { UInt16($0) }
+            udpSender.retransmit(sequences)
         case .touch, .scroll:
             if LegacyInputPolicy.acceptsUnauthenticatedVideoInput {
                 log("ignored unauthenticated video input")
@@ -400,6 +413,11 @@ final class HostController {
     private var lastBatteryHeat = false
     private var pairedIDs: [String] = []
     private var applyingRemoteSettings = false
+    private let udpSender = UDPVideoSender()
+    private var udpSequence: UInt16 = 1
+    private var udpFrameID: UInt16 = 1
+    private var linkTuner = WiFiLinkTuner()
+    private var ackJitter = JitterEstimate()
 
     private func handleInput(_ message: XAInputMessage) {
         let outcome = dispatcher.handle(message, hostNowMs: Date().timeIntervalSince1970 * 1000)
@@ -567,10 +585,29 @@ final class HostController {
         }
     }
 
+    private func tuneWiFi(rttMs: Double) {
+        guard settings.lowLatencyWiFi, transport == .wifi else { return }
+        let jitter = ackJitter.add(sampleMs: rttMs)
+        let tune = linkTuner.observe(rttMs: rttMs, jitterMs: jitter)
+        guard tune.changed else { return }
+        if tune.preset != preset.id {
+            linkTuner = WiFiLinkTuner(preferred: tune.preset)
+            selectPreset(tune.preset)
+        } else {
+            capture.updateBitrate(tune.bitrate)
+        }
+    }
+
     private func sendVideo(_ annex: Data, keyframe: Bool, captureMs: Double, encodeMs: Double) {
         let decision = sendBudget.admit(pending: pendingSends, isKeyframe: keyframe)
         guard decision == .send else { return }
         guard annex.count <= FrameLimits.video.maxPayload else { return }
+        if transport == .wifi, settings.lowLatencyWiFi {
+            let packets = UDPVideoPacketizer.packetize(frame: annex, frameID: udpFrameID, nextSequence: &udpSequence, keyframe: keyframe)
+            udpFrameID &+= 1
+            udpSender.send(packets)
+            return
+        }
         pendingSends += 1
         let frame = LengthPrefixedFraming.encode(annex)
         sendRaw(frame, video: true) { [weak self] in
@@ -661,6 +698,7 @@ final class HostController {
     }
 
     private func adapt(dt: Double) {
+        if settings.lowLatencyWiFi, transport == .wifi { return }
         var signals = AdaptationSignals()
         signals.thermal = lastHealth.thermal
         signals.batteryFraction = lastHealth.batteryFraction
@@ -764,6 +802,7 @@ final class HostController {
         wifiInput?.cancel()
         wifiVideo = nil
         wifiInput = nil
+        udpSender.stop()
         videoParser = FrameParser(limits: .video)
         inputParser = FrameParser(limits: .input)
         pendingSends = 0

@@ -53,7 +53,11 @@ final class VideoReceiver {
     private var connection: NWConnection?
     private let queue = DispatchQueue(label: "xa.video")
     private var parser = FrameParser(limits: .video)
+    var lowLatency = true
     private var admission = FrameAdmission()
+    private var udpListener: NWListener?
+    private var reassembler = UDPReassembler()
+    private let udpQueue = DispatchQueue(label: "xa.udp.video")
     private var inflight = 0
     private let lock = NSLock()
     private var formatDesc: CMVideoFormatDescription?
@@ -95,6 +99,8 @@ final class VideoReceiver {
         queue.async {
             self.connection?.cancel()
             self.connection = nil
+            self.udpListener?.cancel()
+            self.udpListener = nil
             self.setConnected(false, transport: .none)
         }
     }
@@ -168,6 +174,7 @@ final class VideoReceiver {
             let tcp = NWProtocolTCP.Options()
             tcp.noDelay = true
             let params = NWParameters(tls: nil, tcp: tcp)
+            params.serviceClass = .interactiveVideo
             params.allowLocalEndpointReuse = true
             guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
             listener = try NWListener(using: params, on: nwPort)
@@ -198,6 +205,40 @@ final class VideoReceiver {
             }
         }
         listener?.start(queue: queue)
+        if lowLatency { startUDP() }
+    }
+
+    private func startUDP() {
+        udpListener?.cancel()
+        let params = NWParameters.udp
+        params.serviceClass = .interactiveVideo
+        guard let port = NWEndpoint.Port(rawValue: XADisplayProtocolInfo.udpVideoPort) else { return }
+        guard let listener = try? NWListener(using: params, on: port) else { return }
+        listener.newConnectionHandler = { [weak self] connection in
+            connection.stateUpdateHandler = { state in
+                if case .ready = state { self?.receiveUDP(connection) }
+            }
+            connection.start(queue: self?.udpQueue ?? .main)
+        }
+        listener.start(queue: udpQueue)
+        udpListener = listener
+    }
+
+    private func receiveUDP(_ connection: NWConnection) {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            if let data = data { self?.ingestDatagram(data) }
+            if error == nil { self?.receiveUDP(connection) }
+        }
+    }
+
+    private func ingestDatagram(_ data: Data) {
+        guard let packet = UDPVideoPacket.decode(data) else { return }
+        if let frame = reassembler.ingest(packet) {
+            queue.async { self.handle(frame) }
+        }
+        let holes = reassembler.missing()
+        guard !holes.isEmpty else { return }
+        send(.xaNack(holes.map(String.init).joined(separator: ",")))
     }
 
     private func accept(_ connection: NWConnection) {
@@ -288,8 +329,10 @@ final class VideoReceiver {
         guard !vcl.isEmpty, formatDesc != nil else { return }
         let age = unit.timing.map { max(0, received * 1000 - $0.captureMs) } ?? 0
         lock.lock()
-        let decision = admission.decide(isKeyframe: idr, queued: inflight, ageMs: age.isFinite ? age : 0)
-        let allow = decision == .show && inflight < 3
+        let maxAge = lowLatency ? 80.0 : 150.0
+        let cap = lowLatency ? 1 : 3
+        let decision = admission.decide(isKeyframe: idr, queued: inflight, ageMs: age.isFinite ? age : 0, maxAgeMs: maxAge)
+        let allow = decision == .show && inflight < cap
         if allow { inflight += 1 }
         lock.unlock()
         guard allow else { return }

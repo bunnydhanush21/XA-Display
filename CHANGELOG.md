@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Low Latency Wi-Fi mode: UDP video with sequencing, XOR parity, and NACKs. TCP stays the control and input path. The overlay shows capture-to-ack only after a sample exists.
 - Read-only iPad battery telemetry, shown on the iPad and in the Mac menu. Missing registry fields stay unavailable.
 - Experimental charge limit, off by default, with a separate root helper. Hysteresis, watchdog, and a kill-switch file restore normal charging.
 - One-tap reconnect, a saved-Mac picker, and Bonjour discovery of the host. Wake-on-demand is a Bonjour connection, not a Wake-on-LAN packet.

@@ -42,6 +42,7 @@ public enum SettingsCatalog {
         SettingsRow(id: "connection.wifi", title: "Wi-Fi fallback", section: "Connection", kind: "toggle", onHost: true),
         SettingsRow(id: "connection.oneTap", title: "Auto-connect last Mac", section: "Connection", kind: "toggle", onHost: true),
         SettingsRow(id: "connection.remember", title: "Remember Macs", section: "Connection", kind: "toggle", onHost: true),
+        SettingsRow(id: "connection.lowLatency", title: "Low Latency Wi-Fi", section: "Connection", kind: "toggle", onHost: true),
         SettingsRow(id: "display.preset", title: "Preset", section: "Display", kind: "choice", choices: ["balanced", "safe", "native"], onHost: true),
         SettingsRow(id: "display.detail", title: "Resolution, FPS, bitrate", section: "Display", kind: "info", onHost: true),
         SettingsRow(id: "touch.mode", title: "Pointer mode", section: "Touch", kind: "choice", choices: ["direct", "trackpad"]),
@@ -167,6 +168,7 @@ public struct XASettingsDocument: Equatable, Codable {
         case "connection.wifi": return .bool(features.wifiFallback)
         case "connection.oneTap": return .bool(features.oneTapReconnect)
         case "connection.remember": return .bool(features.rememberMacs)
+        case "connection.lowLatency": return .bool(features.lowLatencyWiFi)
         case "display.preset": return .choice(preset)
         case "display.detail":
             let spec = StreamPreset.preset(StreamPreset.ID(rawValue: preset) ?? .balanced)
@@ -209,6 +211,7 @@ public struct XASettingsDocument: Equatable, Codable {
         case "connection.wifi": if case .bool(let on) = value { features.wifiFallback = on }
         case "connection.oneTap": if case .bool(let on) = value { features.oneTapReconnect = on }
         case "connection.remember": if case .bool(let on) = value { features.rememberMacs = on }
+        case "connection.lowLatency": if case .bool(let on) = value { features.lowLatencyWiFi = on }
         case "display.preset": if case .choice(let choice) = value { preset = choice }
         case "touch.mode": if case .choice(let choice) = value { features.trackpadMode = choice == "trackpad" }
         case "touch.scroll": if case .bool(let on) = value { twoFingerScroll = on }
@@ -255,6 +258,7 @@ public enum SettingsSync {
             "mediaRemote": document.features.mediaRemote,
             "windowSnapping": document.features.windowSnapping,
             "autoConnectUSB": document.features.autoConnectUSB,
+            "lowLatencyWiFi": document.features.lowLatencyWiFi,
             "preset": document.preset,
             "audioMode": document.audioMode,
             "audioVolume": document.audioVolume
@@ -275,6 +279,7 @@ public enum SettingsSync {
         if let value = object["mediaRemote"] as? Bool { copy.features.mediaRemote = value }
         if let value = object["windowSnapping"] as? Bool { copy.features.windowSnapping = value }
         if let value = object["autoConnectUSB"] as? Bool { copy.features.autoConnectUSB = value }
+        if let value = object["lowLatencyWiFi"] as? Bool { copy.features.lowLatencyWiFi = value }
         if let value = object["preset"] as? String { copy.preset = value }
         if let value = object["audioMode"] as? String { copy.audioMode = value }
         if let value = object["audioVolume"] as? Double { copy.audioVolume = value }

@@ -10,6 +10,8 @@ public enum XADisplayProtocolInfo {
     /// Host advertisement the iPad browses. Connecting to it is the wake poke.
     public static let hostBonjourType = "_xahost._tcp"
     public static let hostWakePort: UInt16 = 9002
+    /// UDP video when Low Latency Wi-Fi is on. TCP 9000 stays the control fallback.
+    public static let udpVideoPort: UInt16 = 9003
 }
 
 public struct XAPoint: Equatable, Codable {
