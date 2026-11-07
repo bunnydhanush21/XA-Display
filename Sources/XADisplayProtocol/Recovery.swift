@@ -108,7 +108,7 @@ public enum DiagnosticsText {
             "thermal: \(snapshot.thermal)",
             "battery: \(snapshot.battery)",
             "pairing: \(redactToken(snapshot.pairingToken))",
-            "permissions:",
+            "permissions:"
         ]
         for key in snapshot.permissions.keys.sorted() {
             lines.append("  \(key): \(snapshot.permissions[key] == true ? "granted" : "missing")")

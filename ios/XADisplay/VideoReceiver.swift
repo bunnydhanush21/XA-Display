@@ -120,14 +120,16 @@ final class VideoReceiver {
     }
 
     func announcePanel() {
-        send(VideoControlMessage.hello(LegacyHello(
-            pixelsWide: devicePixelsWide,
-            pixelsHigh: devicePixelsHigh,
-            scale: deviceScale,
-            device: "iPad",
-            id: Self.installID,
-            orientation: orientation
-        )))
+        send(
+            VideoControlMessage.hello(
+                LegacyHello(
+                    pixelsWide: devicePixelsWide,
+                    pixelsHigh: devicePixelsHigh,
+                    scale: deviceScale,
+                    device: "iPad",
+                    id: Self.installID,
+                    orientation: orientation
+                )))
     }
 
     func sendHealth(_ health: HealthReport) {
@@ -252,9 +254,15 @@ final class VideoReceiver {
         for nalu in unit.nalus {
             switch nalu.type {
             case 7:
-                if sps != nalu.data { sps = nalu.data; formatDesc = nil }
+                if sps != nalu.data {
+                    sps = nalu.data
+                    formatDesc = nil
+                }
             case 8:
-                if pps != nalu.data { pps = nalu.data; formatDesc = nil }
+                if pps != nalu.data {
+                    pps = nalu.data
+                    formatDesc = nil
+                }
             case 6:
                 break
             case 5:
@@ -351,7 +359,7 @@ final class VideoReceiver {
             pps.withUnsafeBytes { ppsRaw in
                 let pointers = [
                     spsRaw.bindMemory(to: UInt8.self).baseAddress!,
-                    ppsRaw.bindMemory(to: UInt8.self).baseAddress!,
+                    ppsRaw.bindMemory(to: UInt8.self).baseAddress!
                 ]
                 let sizes = [sps.count, pps.count]
                 var desc: CMVideoFormatDescription?
@@ -400,22 +408,26 @@ final class VideoReceiver {
             avcc.append(nalu)
         }
         var block: CMBlockBuffer?
-        guard CMBlockBufferCreateWithMemoryBlock(
-            allocator: kCFAllocatorDefault, memoryBlock: nil, blockLength: avcc.count,
-            blockAllocator: kCFAllocatorDefault, customBlockSource: nil, offsetToData: 0,
-            dataLength: avcc.count, flags: 0, blockBufferOut: &block
-        ) == noErr, let block = block else { return false }
+        guard
+            CMBlockBufferCreateWithMemoryBlock(
+                allocator: kCFAllocatorDefault, memoryBlock: nil, blockLength: avcc.count,
+                blockAllocator: kCFAllocatorDefault, customBlockSource: nil, offsetToData: 0,
+                dataLength: avcc.count, flags: 0, blockBufferOut: &block
+            ) == noErr, let block = block
+        else { return false }
         let copied = avcc.withUnsafeBytes { raw -> OSStatus in
             CMBlockBufferReplaceDataBytes(with: raw.baseAddress!, blockBuffer: block, offsetIntoDestination: 0, dataLength: avcc.count)
         }
         guard copied == noErr else { return false }
         var sample: CMSampleBuffer?
         var sizes = [avcc.count]
-        guard CMSampleBufferCreateReady(
-            allocator: kCFAllocatorDefault, dataBuffer: block, formatDescription: formatDesc,
-            sampleCount: 1, sampleTimingEntryCount: 0, sampleTimingArray: nil,
-            sampleSizeEntryCount: 1, sampleSizeArray: &sizes, sampleBufferOut: &sample
-        ) == noErr, let sample = sample else { return false }
+        guard
+            CMSampleBufferCreateReady(
+                allocator: kCFAllocatorDefault, dataBuffer: block, formatDescription: formatDesc,
+                sampleCount: 1, sampleTimingEntryCount: 0, sampleTimingArray: nil,
+                sampleSizeEntryCount: 1, sampleSizeArray: &sizes, sampleBufferOut: &sample
+            ) == noErr, let sample = sample
+        else { return false }
         if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true), CFArrayGetCount(attachments) > 0 {
             let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
             CFDictionarySetValue(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(), Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())

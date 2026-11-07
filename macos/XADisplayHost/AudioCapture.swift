@@ -56,7 +56,8 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
         guard running, type == .audio, let pcm = Self.pcm16(from: sampleBuffer), pcm.count >= 4 else { return }
         let hostMs = Date().timeIntervalSince1970 * 1000
         if let encoded = encoder.encode(pcm), let packed = AACPacket.pack(cookie: encoder.cookie, frame: encoded),
-           AudioPolicy.accept(enabled: true, armed: true, byteCount: packed.count, channels: 2, codec: .aac) {
+            AudioPolicy.accept(enabled: true, armed: true, byteCount: packed.count, channels: 2, codec: .aac)
+        {
             onPacket?(XAAudio(session: 0, sampleRate: 48_000, channels: 2, pcm: packed, codec: .aac, hostTimeMs: hostMs))
             return
         }
@@ -98,7 +99,8 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
 
     private static func pcm16(from sample: CMSampleBuffer) -> Data? {
         guard let format = CMSampleBufferGetFormatDescription(sample),
-              let asbdPointer = CMAudioFormatDescriptionGetStreamBasicDescription(format) else { return nil }
+            let asbdPointer = CMAudioFormatDescriptionGetStreamBasicDescription(format)
+        else { return nil }
         let asbd = asbdPointer.pointee
         var sizeNeeded = 0
         CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
@@ -146,13 +148,14 @@ final class AACLCEncoder {
 
     func start() -> Bool {
         guard let input = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
-              let output = AVAudioFormat(settings: [
+            let output = AVAudioFormat(settings: [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
                 AVSampleRateKey: 48_000,
                 AVNumberOfChannelsKey: 2,
-                AVEncoderBitRateKey: 64_000,
-              ]),
-              let converter = AVAudioConverter(from: input, to: output) else { return false }
+                AVEncoderBitRateKey: 64_000
+            ]),
+            let converter = AVAudioConverter(from: input, to: output)
+        else { return false }
         self.converter = converter
         let description = output.formatDescription
         var size = 0
@@ -164,12 +167,13 @@ final class AACLCEncoder {
 
     func encode(_ pcm: Data) -> Data? {
         guard let converter = converter,
-              let inputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
-              let outputFormat = AVAudioFormat(settings: [
+            let inputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
+            let outputFormat = AVAudioFormat(settings: [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
                 AVSampleRateKey: 48_000,
-                AVNumberOfChannelsKey: 2,
-              ]) else { return nil }
+                AVNumberOfChannelsKey: 2
+            ])
+        else { return nil }
         let bytesPerFrame = Int(inputFormat.streamDescription.pointee.mBytesPerFrame)
         guard bytesPerFrame > 0 else { return nil }
         let frames = AVAudioFrameCount(pcm.count / bytesPerFrame)

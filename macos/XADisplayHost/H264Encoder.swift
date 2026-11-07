@@ -88,7 +88,7 @@ final class H264Encoder {
 
     private func createSession(lowLatency: Bool) -> Bool {
         var spec: [CFString: Any] = [
-            kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true,
+            kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true
         ]
         if lowLatency {
             spec[kVTVideoEncoderSpecification_EnableLowLatencyRateControl] = true
@@ -143,7 +143,8 @@ private func encoderOutput(refcon: UnsafeMutableRawPointer?, sourceFrameRefCon: 
 
 private func isNotSync(_ sample: CMSampleBuffer) -> Bool {
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false) as? [[CFString: Any]],
-          let value = attachments.first?[kCMSampleAttachmentKey_NotSync] else { return false }
+        let value = attachments.first?[kCMSampleAttachmentKey_NotSync]
+    else { return false }
     return (value as? Bool) == true
 }
 
@@ -152,7 +153,8 @@ private func annexB(from sample: CMSampleBuffer, sequence: UInt64, captureMs: Do
     var total = 0
     var pointer: UnsafeMutablePointer<Int8>?
     guard CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &total, dataPointerOut: &pointer) == noErr,
-          let pointer = pointer, total > 0 else { return nil }
+        let pointer = pointer, total > 0
+    else { return nil }
     let bytes = UnsafeRawBufferPointer(start: pointer, count: total)
     var nalus: [Data] = []
     var offset = 0
@@ -168,11 +170,14 @@ private func annexB(from sample: CMSampleBuffer, sequence: UInt64, captureMs: Do
     var parameterSets: [Data] = []
     if let format = CMSampleBufferGetFormatDescription(sample), !isNotSync(sample) {
         var count = 0
-        CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: 0, parameterSetPointerOut: nil, parameterSetSizeOut: nil, parameterSetCountOut: &count, nalUnitHeaderLengthOut: nil)
+        CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+            format, parameterSetIndex: 0, parameterSetPointerOut: nil, parameterSetSizeOut: nil, parameterSetCountOut: &count, nalUnitHeaderLengthOut: nil)
         for index in 0..<count {
             var ptr: UnsafePointer<UInt8>?
             var size = 0
-            if CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: index, parameterSetPointerOut: &ptr, parameterSetSizeOut: &size, parameterSetCountOut: nil, nalUnitHeaderLengthOut: nil) == noErr, let ptr = ptr {
+            if CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+                format, parameterSetIndex: index, parameterSetPointerOut: &ptr, parameterSetSizeOut: &size, parameterSetCountOut: nil, nalUnitHeaderLengthOut: nil) == noErr, let ptr = ptr
+            {
                 parameterSets.append(Data(bytes: ptr, count: size))
             }
         }

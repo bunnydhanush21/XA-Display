@@ -125,7 +125,10 @@ public struct InputDispatcher {
     private var limiter: RateLimiter
     private var fallbackSession: UInt32 = 1
 
-    public init(expectedToken: String, displayFrame: XARect = XARect(x: 0, y: 0, width: 0, height: 0), videoPixelSize: XASize = .zero, maxInputPerSecond: Int = 500, requirePairing: Bool = true, clipboardEnabled: Bool = false, windowActionsEnabled: Bool = false) {
+    public init(
+        expectedToken: String, displayFrame: XARect = XARect(x: 0, y: 0, width: 0, height: 0), videoPixelSize: XASize = .zero, maxInputPerSecond: Int = 500, requirePairing: Bool = true,
+        clipboardEnabled: Bool = false, windowActionsEnabled: Bool = false
+    ) {
         self.expectedToken = expectedToken
         self.displayFrame = displayFrame
         self.videoPixelSize = videoPixelSize
@@ -148,7 +151,12 @@ public struct InputDispatcher {
             let versionOK = hello.protocolVersion == XADisplayProtocolInfo.inputVersion
             let decision = PairingGate.evaluate(presented: hello.token, expected: expectedToken)
             let mustPair = requirePairing || (hello.flags & XAHello.flagRequiresPairing) != 0
-            let pairingOK = !mustPair || { if case .accept = decision { return true }; return false }()
+            let pairingOK =
+                !mustPair
+                || {
+                    if case .accept = decision { return true }
+                    return false
+                }()
             let ack: XAHelloAck
             if versionOK, pairingOK {
                 var generated = sessionGenerator()

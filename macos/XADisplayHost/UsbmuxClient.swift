@@ -19,8 +19,9 @@ enum UsbmuxClient {
         guard let fd = openSocket() else { return [] }
         defer { close(fd) }
         guard sendPlist(["MessageType": "ListDevices"], tag: 1, fd: fd),
-              let reply = readPlist(fd: fd),
-              let list = reply["DeviceList"] as? [Any] else { return [] }
+            let reply = readPlist(fd: fd),
+            let list = reply["DeviceList"] as? [Any]
+        else { return [] }
         var devices: [UsbmuxDevice] = []
         for item in list {
             guard let dict = item as? [String: Any] else { continue }
@@ -172,7 +173,10 @@ final class FDStream {
                 var sent = 0
                 while sent < raw.count {
                     let n = write(self.fd, base.advanced(by: sent), raw.count - sent)
-                    if n <= 0 { self.closeStream(); return }
+                    if n <= 0 {
+                        self.closeStream()
+                        return
+                    }
                     sent += n
                 }
             }

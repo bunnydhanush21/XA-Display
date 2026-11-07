@@ -66,8 +66,9 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
         }
         guard sampleBuffer.isValid, let pixel = sampleBuffer.imageBuffer else { return }
         if let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-           let raw = attachments.first?[.status] as? Int,
-           SCFrameStatus(rawValue: raw) == .idle {
+            let raw = attachments.first?[.status] as? Int,
+            SCFrameStatus(rawValue: raw) == .idle
+        {
             return
         }
         encoder.encode(pixel, captureMs: Date().timeIntervalSince1970 * 1000)
@@ -79,7 +80,8 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
 
     private static func pcm16(from sample: CMSampleBuffer) -> Data? {
         guard let format = CMSampleBufferGetFormatDescription(sample),
-              let asbdPointer = CMAudioFormatDescriptionGetStreamBasicDescription(format) else { return nil }
+            let asbdPointer = CMAudioFormatDescriptionGetStreamBasicDescription(format)
+        else { return nil }
         let asbd = asbdPointer.pointee
         var sizeNeeded = 0
         CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(

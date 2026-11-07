@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let modes: [(String, AudioRouteMode)] = [
             ("All system audio", .all),
             ("Selected apps only", .selected),
-            ("Apps on the iPad display", .displayApps),
+            ("Apps on the iPad display", .displayApps)
         ]
         for (index, mode) in modes.enumerated() {
             let item = NSMenuItem(title: mode.0, action: #selector(audioMode(_:)), keyEquivalent: "")
@@ -142,13 +142,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOnboarding() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 360), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "XA Display Host"
-        let text = NSTextField(wrappingLabelWithString: """
-        XA Display Host creates a virtual display and injects pointer and keyboard events. Those events are CGEvent mouse and keyboard events. They are not native Mac touchscreen input.
+        let text = NSTextField(
+            wrappingLabelWithString: """
+                XA Display Host creates a virtual display and injects pointer and keyboard events. Those events are CGEvent mouse and keyboard events. They are not native Mac touchscreen input.
 
-        Grant Screen Recording so this app can capture only the XA Display. Grant Accessibility so pointer, keyboard, and window recovery can work. Quit and reopen after granting Screen Recording if capture stays denied.
+                Grant Screen Recording so this app can capture only the XA Display. Grant Accessibility so pointer, keyboard, and window recovery can work. Quit and reopen after granting Screen Recording if capture stays denied.
 
-        USB is preferred. Wi-Fi is used only when the cable is gone and Wi-Fi fallback is enabled. Only a paired iPad can control the Mac while Require pairing is on.
-        """)
+                USB is preferred. Wi-Fi is used only when the cable is gone and Wi-Fi fallback is enabled. Only a paired iPad can control the Mac while Require pairing is on.
+                """)
         text.frame = NSRect(x: 20, y: 120, width: 480, height: 210)
         let screen = NSButton(title: "Request Screen Recording", target: self, action: #selector(requestScreen))
         screen.frame = NSRect(x: 20, y: 70, width: 220, height: 32)

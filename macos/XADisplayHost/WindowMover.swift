@@ -20,7 +20,8 @@ enum WindowMover {
             let app = AXUIElementCreateApplication(pid_t(pid))
             var value: CFTypeRef?
             guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
-                  let windows = value as? [AXUIElement] else { continue }
+                let windows = value as? [AXUIElement]
+            else { continue }
             for element in windows {
                 guard let frame = axFrame(element) else { continue }
                 let title = axString(element, kAXTitleAttribute) ?? ""
@@ -112,7 +113,8 @@ enum WindowMover {
         guard let window = front(on: display) else { return false }
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(window.element, attribute as CFString, &value) == .success,
-              let value = value else { return false }
+            let value = value
+        else { return false }
         return AXUIElementPerformAction(value as! AXUIElement, kAXPressAction as CFString) == .success
     }
 
@@ -163,11 +165,14 @@ enum WindowMover {
         for entry in info {
             let pid = (entry[kCGWindowOwnerPID as String] as? NSNumber)?.intValue ?? (entry[kCGWindowOwnerPID as String] as? Int) ?? 0
             guard pid > 0,
-                  let frame = cgFrame(entry), frame.intersects(display) else { continue }
-            guard let match = live.first(where: { item in
-                item.snapshot.ownerPID == pid && framesClose(item.snapshot.bounds, frame)
-                    && !result.contains(where: { $0.snapshot.id == item.snapshot.id && $0.snapshot.ownerPID == item.snapshot.ownerPID })
-            }) else { continue }
+                let frame = cgFrame(entry), frame.intersects(display)
+            else { continue }
+            guard
+                let match = live.first(where: { item in
+                    item.snapshot.ownerPID == pid && framesClose(item.snapshot.bounds, frame)
+                        && !result.contains(where: { $0.snapshot.id == item.snapshot.id && $0.snapshot.ownerPID == item.snapshot.ownerPID })
+                })
+            else { continue }
             result.append(match)
             if result.count == 16 { break }
         }
@@ -243,12 +248,14 @@ enum WindowMover {
         var positionValue: CFTypeRef?
         var sizeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
-              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
-              let positionRef = positionValue, let sizeRef = sizeValue else { return nil }
+            AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+            let positionRef = positionValue, let sizeRef = sizeValue
+        else { return nil }
         var position = CGPoint.zero
         var size = CGSize.zero
         guard AXValueGetValue(positionRef as! AXValue, .cgPoint, &position),
-              AXValueGetValue(sizeRef as! AXValue, .cgSize, &size) else { return nil }
+            AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
+        else { return nil }
         return XARect(x: Double(position.x), y: Double(position.y), width: Double(size.width), height: Double(size.height))
     }
 

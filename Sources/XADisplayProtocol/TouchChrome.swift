@@ -39,7 +39,7 @@ public enum WindowChrome {
             (.topLeft, XAPoint(x: window.minX, y: window.minY)),
             (.topRight, XAPoint(x: window.maxX, y: window.minY)),
             (.bottomLeft, XAPoint(x: window.minX, y: window.maxY)),
-            (.bottomRight, XAPoint(x: window.maxX, y: window.maxY)),
+            (.bottomRight, XAPoint(x: window.maxX, y: window.maxY))
         ]
         return corners.first { _, origin in
             abs(point.x - origin.x) <= size && abs(point.y - origin.y) <= size
@@ -74,7 +74,8 @@ public enum FillToggle {
 public enum TitleBarFlick {
     public static func region(start: XAPoint, dx: Double, dy: Double, speed: Double, windows: [XARect], minimumSpeed: Double = 700) -> TileRegion? {
         guard speed >= minimumSpeed, let window = WindowChrome.window(containing: start, windows: windows),
-              WindowChrome.isTitleBar(start, window: window) else { return nil }
+            WindowChrome.isTitleBar(start, window: window)
+        else { return nil }
         let horizontal = abs(dx) >= abs(dy)
         if horizontal && abs(dy) < 30 {
             return dx < 0 ? .leftHalf : .rightHalf
@@ -150,7 +151,8 @@ public struct TitleBarArbiter {
 
     public mutating func tap(point: XAPoint, time: Double, windows: [XARect], titleHeight: Double = WindowChrome.titleBarPoints) -> TitleBarDecision {
         guard let hit = WindowChrome.window(containing: point, windows: windows),
-              WindowChrome.isTitleBar(point, window: hit, titleHeight: titleHeight) else {
+            WindowChrome.isTitleBar(point, window: hit, titleHeight: titleHeight)
+        else {
             pendingPoint = nil
             pendingWindow = nil
             return .click(point)
@@ -375,7 +377,7 @@ public struct TouchAssist: Equatable, Codable {
         EdgeBinding(action: .appExpose, input: "UIKeyInputDownArrow", modifiers: XAModifierMask.control.rawValue),
         EdgeBinding(action: .launchpad, input: "UIKeyInputF4", modifiers: 0),
         EdgeBinding(action: .notificationCenter, input: "", modifiers: 0),
-        EdgeBinding(action: .controlCenter, input: "", modifiers: 0),
+        EdgeBinding(action: .controlCenter, input: "", modifiers: 0)
     ]
 
     public init(

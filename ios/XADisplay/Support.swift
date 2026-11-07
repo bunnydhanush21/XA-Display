@@ -1,5 +1,5 @@
-import AudioToolbox
 import AVFoundation
+import AudioToolbox
 import Foundation
 import UIKit
 import XADisplayProtocol
@@ -12,7 +12,8 @@ enum LocalSettings {
     static func load() -> (token: String, features: XAFeatureSettings) {
         let token = UserDefaults.standard.string(forKey: tokenKey) ?? ""
         if let data = UserDefaults.standard.data(forKey: featuresKey),
-           let features = try? JSONDecoder().decode(XAFeatureSettings.self, from: data) {
+            let features = try? JSONDecoder().decode(XAFeatureSettings.self, from: data)
+        {
             return (token, features)
         }
         return (token, XAFeatureSettings())
@@ -27,7 +28,8 @@ enum LocalSettings {
 
     static func loadAssist() -> TouchAssist {
         guard let data = UserDefaults.standard.data(forKey: assistKey),
-              let assist = try? JSONDecoder().decode(TouchAssist.self, from: data) else { return TouchAssist() }
+            let assist = try? JSONDecoder().decode(TouchAssist.self, from: data)
+        else { return TouchAssist() }
         return assist
     }
 
@@ -151,12 +153,14 @@ final class RoutedAudioPlayer {
 
 final class AACLCDecoder {
     func decode(cookie: Data, frame: Data) -> Data? {
-        guard let aac = AVAudioFormat(settings: [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: 48_000,
-            AVNumberOfChannelsKey: 2,
-        ]), let pcmFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
-        let converter = AVAudioConverter(from: aac, to: pcmFormat) else { return nil }
+        guard
+            let aac = AVAudioFormat(settings: [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: 48_000,
+                AVNumberOfChannelsKey: 2
+            ]), let pcmFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 2, interleaved: true),
+            let converter = AVAudioConverter(from: aac, to: pcmFormat)
+        else { return nil }
         _ = cookie
         let compressed = AVAudioCompressedBuffer(format: aac, packetCapacity: 1, maximumPacketSize: frame.count)
         frame.withUnsafeBytes { raw in
@@ -228,15 +232,16 @@ final class ClipboardBridge {
 
 enum DiagnosticsCopy {
     static func text(features: XAFeatureSettings, token: String, transport: String, preset: String, thermal: String, battery: String, notes: [String]) -> String {
-        DiagnosticsText.render(DiagnosticsSnapshot(
-            appVersion: "1.0.0",
-            transport: transport,
-            preset: preset,
-            permissions: ["localNetwork": true],
-            pairingToken: token,
-            thermal: thermal,
-            battery: battery,
-            notes: notes
-        ))
+        DiagnosticsText.render(
+            DiagnosticsSnapshot(
+                appVersion: "1.0.0",
+                transport: transport,
+                preset: preset,
+                permissions: ["localNetwork": true],
+                pairingToken: token,
+                thermal: thermal,
+                battery: battery,
+                notes: notes
+            ))
     }
 }

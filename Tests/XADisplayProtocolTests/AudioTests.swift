@@ -1,12 +1,14 @@
 import XCTest
+
 @testable import XADisplayProtocol
 
 final class AudioTests: XCTestCase {
     func testAudioPacketRoundTripCarriesCodecAndTimestamp() throws {
-        let packet = XAInputMessage.audio(XAAudio(
-            session: 9, sampleRate: 48_000, channels: 2,
-            pcm: Data([1, 2, 3, 4, 5, 6]), codec: .aac, hostTimeMs: 1_700_000_123.5
-        ))
+        let packet = XAInputMessage.audio(
+            XAAudio(
+                session: 9, sampleRate: 48_000, channels: 2,
+                pcm: Data([1, 2, 3, 4, 5, 6]), codec: .aac, hostTimeMs: 1_700_000_123.5
+            ))
         let decoded = try XAInputMessage.decode(try packet.encode())
         XCTAssertEqual(decoded, packet)
         let pcm = XAInputMessage.audio(XAAudio(session: 1, sampleRate: 48_000, channels: 2, pcm: Data([0, 1, 2, 3])))

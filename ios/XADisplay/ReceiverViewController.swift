@@ -82,7 +82,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             videoView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             videoView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             videoView.topAnchor.constraint(equalTo: view.topAnchor),
-            videoView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            videoView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         cursorLayer.bounds = CGRect(x: 0, y: 0, width: 18, height: 18)
         cursorLayer.backgroundColor = UIColor.white.cgColor
@@ -99,7 +99,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             sidebar.topAnchor.constraint(equalTo: view.topAnchor),
             sidebar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarWidth,
-            sidebarLeading,
+            sidebarLeading
         ])
         wireSidebar()
 
@@ -108,7 +108,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         NSLayoutConstraint.activate([
             commandStrip.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             commandStrip.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            commandStrip.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            commandStrip.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         commandStripHeight = commandStrip.heightAnchor.constraint(equalToConstant: 52)
         commandStripHeight.isActive = true
@@ -141,7 +141,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             warningLabel.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 6),
             warningLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             precisionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            precisionLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            precisionLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
         keyInput.isHidden = true
         view.addSubview(keyInput)
@@ -398,14 +398,15 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         default: rotation = .identity
         }
         let video = videoSize == .zero ? XASize(width: 1440, height: 1080) : XASize(width: Double(videoSize.width), height: Double(videoSize.height))
-        return CoordinateMapper.normalize(MapRequest(
-            point: location,
-            pointSpace: .viewPoints,
-            viewSizePoints: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
-            pixelsPerPoint: Double(UIScreen.main.scale),
-            videoPixelSize: video,
-            rotation: rotation
-        ))
+        return CoordinateMapper.normalize(
+            MapRequest(
+                point: location,
+                pointSpace: .viewPoints,
+                viewSizePoints: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
+                pixelsPerPoint: Double(UIScreen.main.scale),
+                videoPixelSize: video,
+                rotation: rotation
+            ))
     }
 
     private func contentSize() -> XASize {
@@ -461,7 +462,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             let velocity = gesture.velocity(in: videoView)
             let steps = MacTouchScroll.steps(velocityX: Double(velocity.x) * 0.016 * gain, velocityY: Double(velocity.y) * 0.016 * gain)
             for step in steps {
-                let extra = CoordinateMapper.scrollPixels(viewDelta: XAPoint(x: step.dx, y: step.dy), contentSize: contentSize(), videoPixelSize: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1))))
+                let extra = CoordinateMapper.scrollPixels(
+                    viewDelta: XAPoint(x: step.dx, y: step.dy), contentSize: contentSize(), videoPixelSize: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1))))
                 input.send(intent: .scroll(dx: extra.x, dy: extra.y, inertia: true))
                 receiver.sendScroll(dx: extra.x, dy: extra.y)
             }
@@ -598,7 +600,12 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
 
     private func toggleKeyboard() {
         keyboardOn.toggle()
-        if keyboardOn { keyInput.becomeFirstResponder() } else { keyInput.resignFirstResponder(); becomeFirstResponder() }
+        if keyboardOn {
+            keyInput.becomeFirstResponder()
+        } else {
+            keyInput.resignFirstResponder()
+            becomeFirstResponder()
+        }
     }
 
     private func userDisconnect() {
@@ -695,13 +702,14 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         let thermal = ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue)
         warningLabel.isHidden = thermal != .serious && thermal != .critical
         warningLabel.text = thermal == .critical ? "Very warm. The Mac should drop quality." : "Warm. Quality may step down."
-        receiver.sendHealth(HealthReport(
-            thermal: thermal,
-            batteryFraction: level < 0 ? nil : Double(level),
-            batteryState: state,
-            fpsDelivered: fps,
-            decodeFails: 0
-        ))
+        receiver.sendHealth(
+            HealthReport(
+                thermal: thermal,
+                batteryFraction: level < 0 ? nil : Double(level),
+                batteryState: state,
+                fpsDelivered: fps,
+                decodeFails: 0
+            ))
         refreshStats()
     }
 

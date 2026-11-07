@@ -190,19 +190,20 @@ final class HostController {
     }
 
     func diagnostics() -> String {
-        DiagnosticsText.render(DiagnosticsSnapshot(
-            appVersion: "1.0.0",
-            transport: transport.rawValue,
-            preset: "\(preset.id.rawValue) \(preset.width)x\(preset.height)@\(adaptation.fps)",
-            permissions: [
-                "screenRecording": CGPreflightScreenCaptureAccess(),
-                "accessibility": AXIsProcessTrusted(),
-            ],
-            pairingToken: token,
-            thermal: "mac",
-            battery: "mac",
-            notes: logs.suffix(12).map { $0 }
-        ))
+        DiagnosticsText.render(
+            DiagnosticsSnapshot(
+                appVersion: "1.0.0",
+                transport: transport.rawValue,
+                preset: "\(preset.id.rawValue) \(preset.width)x\(preset.height)@\(adaptation.fps)",
+                permissions: [
+                    "screenRecording": CGPreflightScreenCaptureAccess(),
+                    "accessibility": AXIsProcessTrusted()
+                ],
+                pairingToken: token,
+                thermal: "mac",
+                battery: "mac",
+                notes: logs.suffix(12).map { $0 }
+            ))
     }
 
     func settingsSnapshot() -> XAFeatureSettings { settings }
@@ -221,11 +222,15 @@ final class HostController {
         apply(dispatcher.disconnect())
         closeLinks()
         transport = kind
-        guard kind != .none else { publish(); return }
+        guard kind != .none else {
+            publish()
+            return
+        }
         log("Connecting over \(kind.rawValue)")
         if kind == .usb {
             guard let device = UsbmuxClient.listUSBDevices().first,
-                  let video = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.videoPort) else {
+                let video = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.videoPort)
+            else {
                 transport = .none
                 publish()
                 return
@@ -542,14 +547,15 @@ final class HostController {
     private func sendAudio(_ packet: XAAudio) {
         guard settings.audio, dispatcher.armed else { return }
         guard AudioPolicy.accept(enabled: true, armed: true, byteCount: packet.payload.count, channels: Int(packet.channels), codec: packet.codec) else { return }
-        let message = XAInputMessage.audio(XAAudio(
-            session: dispatcher.session,
-            sampleRate: packet.sampleRate,
-            channels: packet.channels,
-            pcm: packet.payload,
-            codec: packet.codec,
-            hostTimeMs: packet.hostTimeMs
-        ))
+        let message = XAInputMessage.audio(
+            XAAudio(
+                session: dispatcher.session,
+                sampleRate: packet.sampleRate,
+                channels: packet.channels,
+                pcm: packet.payload,
+                codec: packet.codec,
+                hostTimeMs: packet.hostTimeMs
+            ))
         sendInput(message)
     }
 

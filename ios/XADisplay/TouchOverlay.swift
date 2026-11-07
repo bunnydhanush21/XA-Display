@@ -90,7 +90,7 @@ final class TouchChromeController {
             drawerWidth!,
             drawerStack.leadingAnchor.constraint(equalTo: drawer.leadingAnchor, constant: 10),
             drawerStack.trailingAnchor.constraint(equalTo: drawer.trailingAnchor, constant: -10),
-            drawerStack.topAnchor.constraint(equalTo: drawer.topAnchor, constant: 16),
+            drawerStack.topAnchor.constraint(equalTo: drawer.topAnchor, constant: 16)
         ])
         let titles = ["Notifications", "Mission Control", "App Exposé", "Apps", "Control Center", "Menus", "Zoom in", "Zoom out"]
         for (index, title) in titles.enumerated() {
@@ -116,7 +116,7 @@ final class TouchChromeController {
             menuStack.trailingAnchor.constraint(equalTo: menuPanel.trailingAnchor, constant: -10),
             menuStack.topAnchor.constraint(equalTo: menuPanel.topAnchor, constant: 16),
             menuStack.bottomAnchor.constraint(equalTo: menuPanel.bottomAnchor, constant: -16),
-            menuStack.widthAnchor.constraint(equalTo: menuPanel.widthAnchor, constant: -20),
+            menuStack.widthAnchor.constraint(equalTo: menuPanel.widthAnchor, constant: -20)
         ])
     }
 
@@ -160,7 +160,7 @@ final class TouchChromeController {
             CGPoint(x: window.minX, y: window.minY),
             CGPoint(x: window.maxX, y: window.minY),
             CGPoint(x: window.minX, y: window.maxY),
-            CGPoint(x: window.maxX, y: window.maxY),
+            CGPoint(x: window.maxX, y: window.maxY)
         ]
         for (view, corner) in zip(handles, corners) {
             view.isHidden = !showHandles

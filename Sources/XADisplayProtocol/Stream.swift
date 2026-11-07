@@ -125,7 +125,10 @@ public struct AdaptationSignals: Equatable {
     public var sendBacklogFrames: Int
     public var decodeFailed: Bool
 
-    public init(thermal: ThermalBucket = .nominal, batteryFraction: Double? = 1, onExternalPower: Bool = true, inputRTTMs: Double? = 10, pipelineMs: Double? = 20, sendBacklogFrames: Int = 0, decodeFailed: Bool = false) {
+    public init(
+        thermal: ThermalBucket = .nominal, batteryFraction: Double? = 1, onExternalPower: Bool = true, inputRTTMs: Double? = 10, pipelineMs: Double? = 20, sendBacklogFrames: Int = 0,
+        decodeFailed: Bool = false
+    ) {
         self.thermal = thermal
         self.batteryFraction = batteryFraction
         self.onExternalPower = onExternalPower
@@ -268,7 +271,10 @@ public struct FrameAdmission: Equatable {
 public struct InFlightGate: Equatable {
     public var inFlight: Bool
     public var needsKeyframe: Bool
-    public enum Permit: Equatable { case encode(forceKeyframe: Bool), drop }
+    public enum Permit: Equatable {
+        case encode(forceKeyframe: Bool)
+        case drop
+    }
     public init(inFlight: Bool = false, needsKeyframe: Bool = true) {
         self.inFlight = inFlight
         self.needsKeyframe = needsKeyframe

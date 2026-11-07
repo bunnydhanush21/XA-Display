@@ -151,13 +151,15 @@ final class InputChannel {
 
     private func sendHello() {
         let flags: UInt8 = requirePairing ? XAHello.flagRequiresPairing : 0
-        send(.hello(XAHello(
-            protocolVersion: XADisplayProtocolInfo.inputVersion,
-            token: token,
-            deviceName: deviceName,
-            deviceID: VideoReceiver.installID,
-            flags: flags
-        )))
+        send(
+            .hello(
+                XAHello(
+                    protocolVersion: XADisplayProtocolInfo.inputVersion,
+                    token: token,
+                    deviceName: deviceName,
+                    deviceID: VideoReceiver.installID,
+                    flags: flags
+                )))
     }
 
     private func receive(_ connection: NWConnection) {

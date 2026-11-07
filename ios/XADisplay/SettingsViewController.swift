@@ -20,7 +20,7 @@ final class SettingsViewController: UITableViewController {
         ("Trackpad mode", \.trackpadMode),
         ("Momentum scroll", \.scrollInertia),
         ("Stats overlay", \.showStats),
-        ("Precision overlay", \.precisionMode),
+        ("Precision overlay", \.precisionMode)
     ]
 
     init(features: XAFeatureSettings, assist: TouchAssist, token: String) {
@@ -79,10 +79,12 @@ final class SettingsViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if section == 3 {
-            return "Pointer events are mouse and keyboard events on the Mac, not native touch input. The slider is iPad playback volume. Audio stays off until you enable it here and in XA Display Host. The host chooses all audio, selected apps, or apps on the iPad display. Mute-on-Mac is not available."
+            return
+                "Pointer events are mouse and keyboard events on the Mac, not native touch input. The slider is iPad playback volume. Audio stays off until you enable it here and in XA Display Host. The host chooses all audio, selected apps, or apps on the iPad display. Mute-on-Mac is not available."
         }
         if section == 2 {
-            return "Title-bar double-tap fills or restores that window. A double-tap in the window contents stays a click. Flicks tile only from the title bar. Notification Center and Control Center use Accessibility menu extras unless you set a key here. Mission Control is Control-Up, App Exposé is Control-Down, and Apps is F4. Hold duration and movement threshold are the long-press and tap slop rows in About. Hit targets stay at least 36 points."
+            return
+                "Title-bar double-tap fills or restores that window. A double-tap in the window contents stays a click. Flicks tile only from the title bar. Notification Center and Control Center use Accessibility menu extras unless you set a key here. Mission Control is Control-Up, App Exposé is Control-Down, and Apps is F4. Hold duration and movement threshold are the long-press and tap slop rows in About. Hit targets stay at least 36 points."
         }
         if section == 0 { return "Type the token shown in the Mac menu bar." }
         return nil

@@ -169,7 +169,7 @@ public struct CommandStripItem: Equatable, Codable {
         CommandStripItem(id: "paste", title: "Paste", input: "v", modifiers: XAModifierMask.command.rawValue),
         CommandStripItem(id: "snap-left", title: "Left", input: "", modifiers: 0),
         CommandStripItem(id: "snap-right", title: "Right", input: "", modifiers: 0),
-        CommandStripItem(id: "fill", title: "Fill", input: "", modifiers: 0),
+        CommandStripItem(id: "fill", title: "Fill", input: "", modifiers: 0)
     ]
 
     public func shortcutIntents() -> [InputIntent] {

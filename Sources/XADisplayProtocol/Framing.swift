@@ -240,9 +240,10 @@ public enum AnnexB {
 
     private static func parseTiming(_ data: Data) -> TimingPrefix? {
         guard data.first == UInt8(ascii: "{"),
-              let obj = JSON.object(data),
-              JSON.string(obj["type"]) == "timing",
-              let capture = JSON.double(obj["captureMs"]) else { return nil }
+            let obj = JSON.object(data),
+            JSON.string(obj["type"]) == "timing",
+            let capture = JSON.double(obj["captureMs"])
+        else { return nil }
         let seq = UInt64(JSON.int(obj["seq"]) ?? 0)
         return TimingPrefix(seq: seq, captureMs: capture, encodeMs: JSON.double(obj["encodeMs"]))
     }

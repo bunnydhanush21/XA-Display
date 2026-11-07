@@ -32,7 +32,7 @@ final class SidebarView: UIView {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 12)
         ])
         add(title: "Menu") { [weak self] in self?.onCollapse?() }
         addModifier("Cmd", .command)
@@ -122,7 +122,7 @@ final class CommandStripView: UIView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
         ])
         for item in CommandStripItem.standard {
             let button = UIButton(type: .system)

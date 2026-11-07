@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import XADisplayProtocol
 
 final class ProtocolTests: XCTestCase {
@@ -77,7 +78,7 @@ final class ProtocolTests: XCTestCase {
             .release(XARelease(session: 7, seq: 9)),
             .clipboard(XAClipboard(session: 7, seq: 10, revision: 3, text: "copied")),
             .window(XAWindowCommand(session: 7, seq: 11, action: .snapLeft)),
-            .audio(XAAudio(session: 7, sampleRate: 48_000, channels: 2, pcm: Data([1, 2, 3, 4]))),
+            .audio(XAAudio(session: 7, sampleRate: 48_000, channels: 2, pcm: Data([1, 2, 3, 4])))
         ]
         for sample in samples {
             let data = try sample.encode()
@@ -110,9 +111,12 @@ final class ProtocolTests: XCTestCase {
     }
 
     func testLegacyHelloOmitsProtocolVersionField() throws {
-        let data = try XCTUnwrap(VideoControlMessage.hello(LegacyHello(
-            pixelsWide: 2048, pixelsHigh: 1536, scale: 2, device: "iPad", id: "abc", orientation: "landscape"
-        )).jsonData())
+        let data = try XCTUnwrap(
+            VideoControlMessage.hello(
+                LegacyHello(
+                    pixelsWide: 2048, pixelsHigh: 1536, scale: 2, device: "iPad", id: "abc", orientation: "landscape"
+                )
+            ).jsonData())
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertNil(object["pv"])
         XCTAssertEqual(object["type"] as? String, "hello")

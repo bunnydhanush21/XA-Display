@@ -50,7 +50,8 @@ public struct ByteReader {
     }
     public mutating func u32() throws -> UInt32 {
         guard remaining >= 4 else { throw ProtocolError.truncated }
-        let value = (UInt32(data[offset]) << 24) | (UInt32(data[offset + 1]) << 16)
+        let value =
+            (UInt32(data[offset]) << 24) | (UInt32(data[offset + 1]) << 16)
             | (UInt32(data[offset + 2]) << 8) | UInt32(data[offset + 3])
         offset += 4
         return value
@@ -392,7 +393,9 @@ public enum XAInputMessage: Equatable {
             payload.f64(scroll.dxPixels)
             payload.f64(scroll.dyPixels)
             payload.u8(scroll.inertia ? 1 : 0)
-            payload.u8(0); payload.u8(0); payload.u8(0)
+            payload.u8(0)
+            payload.u8(0)
+            payload.u8(0)
             return Self.wrap(type: 4, payload: payload.data)
         case .key(let key):
             var payload = ByteWriter()
@@ -509,8 +512,9 @@ public enum XAInputMessage: Equatable {
             let session = try reader.u32()
             let seq = try reader.u32()
             guard let phase = XAMousePhase(rawValue: try reader.u8()),
-                  let button = XAMouseButton(rawValue: try reader.u8()),
-                  let space = XAPointerSpace(rawValue: try reader.u8()) else { throw ProtocolError.badEnum }
+                let button = XAMouseButton(rawValue: try reader.u8()),
+                let space = XAPointerSpace(rawValue: try reader.u8())
+            else { throw ProtocolError.badEnum }
             _ = try reader.u8()
             return .mouse(XAMouse(session: session, seq: seq, phase: phase, button: button, x: try reader.f64(), y: try reader.f64(), space: space))
         case 4:
@@ -728,7 +732,7 @@ public enum VideoControlMessage: Equatable {
                 "scale": hello.scale,
                 "device": hello.device,
                 "id": hello.id,
-                "orientation": hello.orientation,
+                "orientation": hello.orientation
             ]
         case .touch(let phase, let x, let y):
             object = ["type": "touch", "phase": phase, "x": x, "y": y]
@@ -752,7 +756,7 @@ public enum VideoControlMessage: Equatable {
                 "thermal": health.thermal.rawValue,
                 "batteryState": health.batteryState,
                 "fps": health.fpsDelivered,
-                "decodeFails": health.decodeFails,
+                "decodeFails": health.decodeFails
             ]
             if let fraction = health.batteryFraction { object["battery"] = fraction }
             return JSON.data(object)
@@ -761,7 +765,7 @@ public enum VideoControlMessage: Equatable {
         case .xaStream(let stream):
             object = [
                 "type": "xa.stream", "preset": stream.preset, "w": stream.width, "h": stream.height,
-                "fps": stream.fps, "bitrate": stream.bitrate, "experimental": stream.experimental,
+                "fps": stream.fps, "bitrate": stream.bitrate, "experimental": stream.experimental
             ]
         case .xaMetrics(let metrics):
             var object: [String: Any] = ["type": "xa.metrics"]
@@ -782,19 +786,21 @@ public enum VideoControlMessage: Equatable {
 
     public static func parse(_ data: Data) -> VideoControlMessage {
         guard data.count <= 32_768, PayloadKind.classify(data) == .controlJSON,
-              let obj = JSON.object(data), obj.count <= 32,
-              let type = JSON.string(obj["type"]), type.count <= 64 else { return .ignored }
+            let obj = JSON.object(data), obj.count <= 32,
+            let type = JSON.string(obj["type"]), type.count <= 64
+        else { return .ignored }
         switch type {
         case "hello":
             guard let wide = JSON.int(obj["pixelsWide"]), let high = JSON.int(obj["pixelsHigh"]) else { return .ignored }
-            return .hello(LegacyHello(
-                pixelsWide: wide,
-                pixelsHigh: high,
-                scale: JSON.double(obj["scale"]) ?? 1,
-                device: JSON.string(obj["device"]) ?? "iPad",
-                id: JSON.string(obj["id"]) ?? "",
-                orientation: JSON.string(obj["orientation"]) ?? "landscape"
-            ))
+            return .hello(
+                LegacyHello(
+                    pixelsWide: wide,
+                    pixelsHigh: high,
+                    scale: JSON.double(obj["scale"]) ?? 1,
+                    device: JSON.string(obj["device"]) ?? "iPad",
+                    id: JSON.string(obj["id"]) ?? "",
+                    orientation: JSON.string(obj["orientation"]) ?? "landscape"
+                ))
         case "touch":
             guard let phase = JSON.string(obj["phase"]) else { return .ignored }
             return .touch(phase: phase, x: JSON.double(obj["x"]) ?? 0, y: JSON.double(obj["y"]) ?? 0)
@@ -809,43 +815,48 @@ public enum VideoControlMessage: Equatable {
             return .cursor(x: JSON.double(obj["x"]) ?? 0, y: JSON.double(obj["y"]) ?? 0, visible: visible)
         case "cursorImg":
             guard let b64 = JSON.string(obj["png"]), b64.count <= maxCursorBase64,
-                  let png = Data(base64Encoded: b64), png.count <= maxCursorPNG, !png.isEmpty else { return .ignored }
+                let png = Data(base64Encoded: b64), png.count <= maxCursorPNG, !png.isEmpty
+            else { return .ignored }
             let id = JSON.string(obj["id"]) ?? "default"
             return .cursorImage(CursorImage(id: id, png: png))
         case "xa.hello":
             return .xaHello
         case "frameAck":
             guard let capture = JSON.double(obj["captureMs"]),
-                  let receive = JSON.double(obj["receiveMs"]),
-                  let enqueue = JSON.double(obj["enqueueMs"]) else { return .ignored }
+                let receive = JSON.double(obj["receiveMs"]),
+                let enqueue = JSON.double(obj["enqueueMs"])
+            else { return .ignored }
             let seq = UInt64(JSON.int(obj["seq"]) ?? 0)
             return .frameAck(FrameAck(seq: seq, captureMs: capture, receiveMs: receive, enqueueMs: enqueue))
         case "health":
             let thermal = ThermalBucket(rawValue: JSON.string(obj["thermal"]) ?? "") ?? .unknown
             let battery = JSON.double(obj["battery"])
-            return .health(HealthReport(
-                thermal: thermal,
-                batteryFraction: battery,
-                batteryState: JSON.string(obj["batteryState"]) ?? "unknown",
-                fpsDelivered: JSON.double(obj["fps"]) ?? 0,
-                decodeFails: JSON.int(obj["decodeFails"]) ?? 0
-            ))
+            return .health(
+                HealthReport(
+                    thermal: thermal,
+                    batteryFraction: battery,
+                    batteryState: JSON.string(obj["batteryState"]) ?? "unknown",
+                    fpsDelivered: JSON.double(obj["fps"]) ?? 0,
+                    decodeFails: JSON.int(obj["decodeFails"]) ?? 0
+                ))
         case "decodeFailed":
             return .decodeFailed(preset: JSON.string(obj["preset"]) ?? "")
         case "xa.stream":
-            return .xaStream(StreamAnnouncement(
-                preset: JSON.string(obj["preset"]) ?? "",
-                width: JSON.int(obj["w"]) ?? 0,
-                height: JSON.int(obj["h"]) ?? 0,
-                fps: JSON.int(obj["fps"]) ?? 0,
-                bitrate: JSON.int(obj["bitrate"]) ?? 0,
-                experimental: JSON.bool(obj["experimental"]) ?? false
-            ))
+            return .xaStream(
+                StreamAnnouncement(
+                    preset: JSON.string(obj["preset"]) ?? "",
+                    width: JSON.int(obj["w"]) ?? 0,
+                    height: JSON.int(obj["h"]) ?? 0,
+                    fps: JSON.int(obj["fps"]) ?? 0,
+                    bitrate: JSON.int(obj["bitrate"]) ?? 0,
+                    experimental: JSON.bool(obj["experimental"]) ?? false
+                ))
         case "xa.metrics":
-            return .xaMetrics(XAMetrics(
-                captureToAckMs: JSON.double(obj["captureToAckMs"]),
-                encodeMs: JSON.double(obj["encodeMs"])
-            ))
+            return .xaMetrics(
+                XAMetrics(
+                    captureToAckMs: JSON.double(obj["captureToAckMs"]),
+                    encodeMs: JSON.double(obj["encodeMs"])
+                ))
         case "xa.windows":
             return .xaWindows(JSON.string(obj["body"]) ?? "")
         case "xa.menus":

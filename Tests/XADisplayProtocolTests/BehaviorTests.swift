@@ -1,31 +1,36 @@
 import XCTest
+
 @testable import XADisplayProtocol
 
 final class BehaviorTests: XCTestCase {
     func testLetterboxScaleRotationAndDisplayOrigin() {
         let view = XASize(width: 1024, height: 768)
         let video = XASize(width: 2048, height: 1536)
-        let center = CoordinateMapper.normalize(MapRequest(
-            point: XAPoint(x: 1024, y: 768),
-            pointSpace: .pixels,
-            viewSizePoints: view,
-            pixelsPerPoint: 2,
-            videoPixelSize: video,
-            rotation: .identity
-        ))
+        let center = CoordinateMapper.normalize(
+            MapRequest(
+                point: XAPoint(x: 1024, y: 768),
+                pointSpace: .pixels,
+                viewSizePoints: view,
+                pixelsPerPoint: 2,
+                videoPixelSize: video,
+                rotation: .identity
+            ))
         XCTAssertEqual(center?.x ?? -1, 0.5, accuracy: 0.0001)
         XCTAssertEqual(center?.y ?? -1, 0.5, accuracy: 0.0001)
 
         let square = XASize(width: 1000, height: 1000)
         let wide = XASize(width: 2000, height: 1000)
-        XCTAssertNil(CoordinateMapper.normalize(MapRequest(
-            point: XAPoint(x: 0, y: 0), pointSpace: .viewPoints, viewSizePoints: square,
-            pixelsPerPoint: 1, videoPixelSize: wide, rotation: .identity
-        )))
-        let topOfPicture = CoordinateMapper.normalize(MapRequest(
-            point: XAPoint(x: 0, y: 250), pointSpace: .viewPoints, viewSizePoints: square,
-            pixelsPerPoint: 1, videoPixelSize: wide, rotation: .identity
-        ))
+        XCTAssertNil(
+            CoordinateMapper.normalize(
+                MapRequest(
+                    point: XAPoint(x: 0, y: 0), pointSpace: .viewPoints, viewSizePoints: square,
+                    pixelsPerPoint: 1, videoPixelSize: wide, rotation: .identity
+                )))
+        let topOfPicture = CoordinateMapper.normalize(
+            MapRequest(
+                point: XAPoint(x: 0, y: 250), pointSpace: .viewPoints, viewSizePoints: square,
+                pixelsPerPoint: 1, videoPixelSize: wide, rotation: .identity
+            ))
         XCTAssertEqual(topOfPicture?.x ?? -1, 0, accuracy: 0.0001)
         XCTAssertEqual(topOfPicture?.y ?? -1, 0, accuracy: 0.0001)
 
@@ -355,12 +360,13 @@ final class BehaviorTests: XCTestCase {
         let decoded = try JSONDecoder().decode(LayoutSnapshot.self, from: data)
         XCTAssertEqual(LayoutMath.absolute(relative: decoded.windows[0].relative, display: display).origin.x, -1400, accuracy: 0.0001)
 
-        let report = DiagnosticsText.render(DiagnosticsSnapshot(
-            appVersion: "1.0.0", transport: "usb", preset: "balanced",
-            permissions: ["accessibility": false, "screenRecording": true],
-            pairingToken: "ABCD-EFGH", thermal: "nominal", battery: "80%",
-            notes: ["capture started"]
-        ))
+        let report = DiagnosticsText.render(
+            DiagnosticsSnapshot(
+                appVersion: "1.0.0", transport: "usb", preset: "balanced",
+                permissions: ["accessibility": false, "screenRecording": true],
+                pairingToken: "ABCD-EFGH", thermal: "nominal", battery: "80%",
+                notes: ["capture started"]
+            ))
         XCTAssertFalse(report.contains("ABCD"))
         XCTAssertTrue(report.contains("••••GH"))
         XCTAssertTrue(report.contains(DiagnosticsText.honesty))

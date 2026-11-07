@@ -253,7 +253,8 @@ public struct DirectTouchInterpreter {
             lastTapTime = -10
             return [.longPress(point)]
         }
-        let isDouble = sample.time - lastTapTime <= doubleTapWindow
+        let isDouble =
+            sample.time - lastTapTime <= doubleTapWindow
             && xaHypot(start.x - lastTapPoint.x, start.y - lastTapPoint.y) <= slop * 2
         lastTapTime = sample.time
         lastTapPoint = start
@@ -297,7 +298,7 @@ public enum GestureMapper {
         case .relativeClick(let button):
             return [
                 .mouse(phase: .down, button: button, x: 0, y: 0, space: .relativeNormalized),
-                .mouse(phase: .up, button: button, x: 0, y: 0, space: .relativeNormalized),
+                .mouse(phase: .up, button: button, x: 0, y: 0, space: .relativeNormalized)
             ]
         }
     }
@@ -305,7 +306,7 @@ public enum GestureMapper {
     private static func click(_ button: XAMouseButton, at point: XAPoint) -> [InputIntent] {
         [
             .mouse(phase: .down, button: button, x: point.x, y: point.y, space: .absoluteNormalized),
-            .mouse(phase: .up, button: button, x: point.x, y: point.y, space: .absoluteNormalized),
+            .mouse(phase: .up, button: button, x: point.x, y: point.y, space: .absoluteNormalized)
         ]
     }
 }
@@ -343,7 +344,7 @@ public struct KeyShortcut: Equatable {
         guard let code = Self.keyCode(for: input) else { return [] }
         return [
             .key(phase: .down, keyCode: code, modifiers: modifiers, text: ""),
-            .key(phase: .up, keyCode: code, modifiers: modifiers, text: ""),
+            .key(phase: .up, keyCode: code, modifiers: modifiers, text: "")
         ]
     }
 
@@ -376,7 +377,7 @@ public enum TextEntry {
     public static func delete() -> [InputIntent] {
         [
             .key(phase: .down, keyCode: MacKeyCode.delete, modifiers: [], text: ""),
-            .key(phase: .up, keyCode: MacKeyCode.delete, modifiers: [], text: ""),
+            .key(phase: .up, keyCode: MacKeyCode.delete, modifiers: [], text: "")
         ]
     }
 }
