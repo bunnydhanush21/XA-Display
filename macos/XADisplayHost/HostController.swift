@@ -370,8 +370,10 @@ final class HostController {
                 case .snapLeft: zone = .leftHalf
                 case .snapRight: zone = .rightHalf
                 case .fill, .snapFull: zone = .full
-                case .moveToMain: zone = .mainDisplay
+                case .moveToMain, .moveAcross: zone = .mainDisplay
                 case .moveToVirtual: zone = .full
+                case .saveLayout, .restoreLayout:
+                    continue
                 }
                 _ = WindowMover.apply(zone: zone, virtual: lastDisplayFrame, main: WindowMover.mainDisplayFrame())
             default:

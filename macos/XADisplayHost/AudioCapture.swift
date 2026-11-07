@@ -76,7 +76,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
         case .includingBundles(let ids):
             let apps = content.applications.filter { ids.contains($0.bundleIdentifier) }
             guard !apps.isEmpty else { throw CaptureError.displayNotFound }
-            return SCContentFilter(display: display, includingApplications: apps, exceptingWindows: [])
+            return SCContentFilter(display: display, including: apps, exceptingWindows: [])
         }
     }
 
@@ -154,11 +154,10 @@ final class AACLCEncoder {
               ]),
               let converter = AVAudioConverter(from: input, to: output) else { return false }
         self.converter = converter
-        if let description = output.formatDescription {
-            var size = 0
-            if let pointer = CMAudioFormatDescriptionGetMagicCookie(description, sizeOut: &size), size > 0 {
-                cookie = Data(bytes: pointer, count: size)
-            }
+        let description = output.formatDescription
+        var size = 0
+        if let pointer = CMAudioFormatDescriptionGetMagicCookie(description, sizeOut: &size), size > 0 {
+            cookie = Data(bytes: pointer, count: size)
         }
         return true
     }
