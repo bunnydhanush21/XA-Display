@@ -232,6 +232,30 @@ final class HostController {
 
     func settingsSnapshot() -> XAFeatureSettings { settings }
     func batterySummary() -> String { lastBatteryText }
+    func settingsDocument() -> XASettingsDocument {
+        XASettingsDocument(
+            features: settings,
+            audioVolume: 1,
+            audioMode: audioMode.rawValue,
+            preset: preset.id.rawValue,
+            pairedIDs: pairedIDs
+        )
+    }
+
+    func applySharedSettings(_ body: String, broadcast: Bool) {
+        let current = settingsDocument()
+        let merged = SettingsSync.apply(body, to: current)
+        if merged.features.requirePairing != current.features.requirePairing { setRequirePairing(merged.features.requirePairing) }
+        if merged.features.clipboardSync != current.features.clipboardSync { setClipboard(merged.features.clipboardSync) }
+        if merged.features.audio != current.features.audio { setAudio(merged.features.audio) }
+        if merged.features.wifiFallback != current.features.wifiFallback { setWiFi(merged.features.wifiFallback) }
+        if merged.features.autoConnectUSB != current.features.autoConnectUSB { setAutoConnect(merged.features.autoConnectUSB) }
+        if merged.features.windowSnapping != current.features.windowSnapping { setWindowSnapping(merged.features.windowSnapping) }
+        if merged.features.mediaRemote != current.features.mediaRemote { setMediaRemote(merged.features.mediaRemote) }
+        if merged.audioMode != current.audioMode, let mode = AudioRouteMode(rawValue: merged.audioMode) { setAudioMode(mode) }
+        if merged.preset != current.preset, let id = StreamPreset.ID(rawValue: merged.preset) { selectPreset(id) }
+        if broadcast { sendControl(.xaSettings(SettingsSync.encode(settingsDocument())), onVideo: true) }
+    }
 
     private func tick() {
         guard running, settings.autoConnectUSB || transport != .none else { return }
@@ -338,6 +362,7 @@ final class HostController {
         guard PayloadKind.classify(payload) == .controlJSON else { return }
         switch VideoControlMessage.parse(payload) {
         case .hello(let hello):
+            if !hello.id.isEmpty, !pairedIDs.contains(hello.id) { pairedIDs.append(hello.id) }
             portrait = hello.orientation == "portrait" || hello.pixelsHigh > hello.pixelsWide
             preset = StreamPreset.preset(preset.id).oriented(portrait: portrait)
             rebuildDisplay()
@@ -359,6 +384,8 @@ final class HostController {
             lastBatteryText = text.isEmpty ? "iPad battery: off" : text
             lastBatteryHeat = heat
             publish()
+        case .xaSettings(let body):
+            applySharedSettings(body, broadcast: false)
         case .touch, .scroll:
             if LegacyInputPolicy.acceptsUnauthenticatedVideoInput {
                 log("ignored unauthenticated video input")
@@ -371,6 +398,8 @@ final class HostController {
     private var lastHealth = HealthReport(thermal: .unknown, batteryFraction: nil, batteryState: "unknown", fpsDelivered: 0, decodeFails: 0)
     private var lastBatteryText = "iPad battery: waiting"
     private var lastBatteryHeat = false
+    private var pairedIDs: [String] = []
+    private var applyingRemoteSettings = false
 
     private func handleInput(_ message: XAInputMessage) {
         let outcome = dispatcher.handle(message, hostNowMs: Date().timeIntervalSince1970 * 1000)

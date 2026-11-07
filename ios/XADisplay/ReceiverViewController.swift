@@ -59,6 +59,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private let macBrowser = MacBrowser()
     private let batteryLoop = BatteryCareLoop()
     private var chargeConfig = ChargeLimitConfig()
+    private var settingsDocument = XASettingsDocument.defaults
+    private var scrollRecognizer: UIPanGestureRecognizer?
     private var directory = MacDirectory()
     private var discoveredMacs: [String] = []
     private var mediaPanel: MediaRemoteViewController?
@@ -77,6 +79,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         features = loaded.features
         assist = LocalSettings.loadAssist()
         directory = LocalSettings.loadMacs()
+        settingsDocument = LocalSettings.loadDocument(features: features, assist: assist)
+        features = settingsDocument.features
+        assist = settingsDocument.assist
+        chargeConfig = settingsDocument.charge
         applyLaunchRoute()
         interpreter = DirectTouchInterpreter(
             slop: features.gestureTuning.clamped().slop,
@@ -445,6 +451,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         scroll.minimumNumberOfTouches = 2
         scroll.maximumNumberOfTouches = 2
         view.addGestureRecognizer(scroll)
+        scrollRecognizer = scroll
         let three = UIPanGestureRecognizer(target: self, action: #selector(threePan(_:)))
         three.minimumNumberOfTouches = 3
         three.maximumNumberOfTouches = 3
@@ -469,7 +476,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     @objc private func scrollPan(_ gesture: UIPanGestureRecognizer) {
-        guard gesture.state == .changed || gesture.state == .ended else { return }
+        guard settingsDocument.twoFingerScroll, gesture.state == .changed || gesture.state == .ended else { return }
         let translation = gesture.translation(in: videoView)
         gesture.setTranslation(.zero, in: videoView)
         let gain = features.gestureTuning.clamped().scrollGain
@@ -510,6 +517,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     @objc private func twoTap() {
+        guard settingsDocument.rightClick != "longPress" else { return }
         let point = cursorNorm
         let gesture = FingerGesture.twoFingerTap(XAPoint(x: Double(point.x), y: Double(point.y)))
         for intent in GestureMapper.intents(for: gesture) { input.send(intent: intent) }
@@ -694,6 +702,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     private func toggleKeyboard() {
+        guard settingsDocument.keyboardEnabled else { return }
         keyboardOn.toggle()
         if keyboardOn {
             keyInput.becomeFirstResponder()
@@ -715,44 +724,63 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     private func showSettings() {
-        let settings = SettingsViewController(features: features, assist: assist, token: token)
+        settingsDocument.features = features
+        settingsDocument.assist = assist
+        settingsDocument.pairedIDs = directory.sorted().map(\.name)
+        let settings = SettingsViewController(document: settingsDocument, token: token)
         settings.onRestoreCharging = { [weak self] in self?.batteryLoop.restore() }
-        settings.onDisableBatteryCare = { [weak self, weak settings] in
+        settings.onDisableBatteryCare = { [weak self] in self?.batteryLoop.disable() }
+        settings.onDiagnostics = { [weak self] in self?.copyDiagnostics() }
+        settings.onRevoke = { [weak self] in
             guard let self = self else { return }
-            self.features.chargeLimit = false
-            settings?.features.chargeLimit = false
-            self.batteryLoop.disable()
-            LocalSettings.save(token: self.token, features: self.features)
+            self.token = ""
+            self.directory = MacDirectory()
+            LocalSettings.saveMacs(self.directory)
+            self.input.token = ""
         }
-        settings.onChange = { [weak self] features, assist, token in
-            guard let self = self else { return }
-            self.features = features
-            self.assist = assist
-            self.token = token
-            self.input.token = token
-            self.input.requirePairing = features.requirePairing
-            self.clipboard.enabled = features.clipboardSync
-            self.precisionLabel.isHidden = !features.precisionMode
-            if features.audio { self.audio.start() } else { self.audio.stop() }
-            self.audio.volume = UserDefaults.standard.object(forKey: "XADisplay.audioVolume") as? Double ?? self.audio.volume
-            LocalSettings.save(token: token, features: features)
-            LocalSettings.saveAssist(assist)
-            self.applyChrome()
-            if features.oneTapReconnect || features.rememberMacs {
-                self.macBrowser.start()
-            } else {
-                self.macBrowser.stop()
-            }
-            self.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
-            self.interpreter = DirectTouchInterpreter(
-                slop: features.gestureTuning.clamped().slop,
-                doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
-                longPressDuration: features.gestureTuning.clamped().longPressDuration
-            )
-            self.titleArbiter = TitleBarArbiter(window: features.gestureTuning.clamped().doubleTapWindow)
+        settings.onLive = { [weak self] document, token in
+            self?.apply(document: document, token: token, broadcast: true)
         }
-        let nav = UINavigationController(rootViewController: settings)
-        present(nav, animated: true)
+        present(UINavigationController(rootViewController: settings), animated: true)
+    }
+
+    private func apply(document: XASettingsDocument, token: String, broadcast: Bool) {
+        let previous = SettingsSync.encode(settingsDocument)
+        settingsDocument = document
+        features = document.features
+        assist = document.assist
+        chargeConfig = document.charge
+        self.token = token
+        input.token = token
+        input.requirePairing = features.requirePairing
+        clipboard.enabled = features.clipboardSync
+        precisionLabel.isHidden = !features.precisionMode
+        if features.audio { audio.start() } else { audio.stop() }
+        audio.volume = document.audioVolume
+        collapsed = !document.sidebarVisible
+        scrollRecognizer?.isEnabled = document.twoFingerScroll
+        LocalSettings.save(token: token, features: features)
+        LocalSettings.saveDocument(document)
+        applyChrome()
+        if features.oneTapReconnect || features.rememberMacs { macBrowser.start() } else { macBrowser.stop() }
+        setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
+        interpreter = DirectTouchInterpreter(
+            slop: features.gestureTuning.clamped().slop,
+            doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
+            longPressDuration: features.gestureTuning.clamped().longPressDuration
+        )
+        titleArbiter = TitleBarArbiter(window: features.gestureTuning.clamped().doubleTapWindow)
+        if broadcast, SettingsSync.encode(document) != previous {
+            receiver.sendSettings(SettingsSync.encode(document))
+        }
+    }
+
+    private func copyDiagnostics() {
+        UIPasteboard.general.string = DiagnosticsCopy.text(
+            features: features, token: token, transport: streamLabel, preset: settingsDocument.preset,
+            thermal: ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue).rawValue,
+            battery: batteryLoop.lastText, notes: ["settings"]
+        )
     }
 
     private func applyChrome() {

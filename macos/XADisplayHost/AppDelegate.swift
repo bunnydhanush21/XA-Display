@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: HostController!
     private var statusItem: NSStatusItem!
     private var onboarding: NSWindow?
+    private var settingsPanel: HostSettingsPanel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu(state: String) {
         let menu = NSMenu()
+        menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(withTitle: state, action: nil, keyEquivalent: "")
         let settings = controller.settingsSnapshot()
         menu.addItem(withTitle: "Pairing token \(DiagnosticsText.redactToken(controller.currentToken()))", action: #selector(copyToken), keyEquivalent: "")
@@ -146,6 +148,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func presetNative() { controller.selectPreset(.native) }
     @objc private func savePreset() { controller.saveNamedPreset("Last") }
     @objc private func showPermissions() { showOnboarding() }
+    @objc private func showSettings() {
+        let panel = settingsPanel ?? HostSettingsPanel(document: controller.settingsDocument())
+        settingsPanel = panel
+        panel.update(controller.settingsDocument())
+        panel.onChange = { [weak self] document in
+            self?.controller.applySharedSettings(SettingsSync.encode(document), broadcast: true)
+        }
+        panel.onRevoke = { [weak self] in self?.controller.regenerateToken() }
+        panel.onScreen = { [weak self] in self?.requestScreen() }
+        panel.onAccessibility = { [weak self] in self?.requestAccess() }
+        panel.window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
     @objc private func quit() {
         controller.stop()
         NSApp.terminate(nil)

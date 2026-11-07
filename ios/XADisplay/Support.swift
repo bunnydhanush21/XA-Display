@@ -39,7 +39,22 @@ enum LocalSettings {
         }
     }
 
+    static let documentKey = "XADisplay.settings"
     static let macsKey = "XADisplay.macs"
+
+    static func loadDocument(features: XAFeatureSettings, assist: TouchAssist) -> XASettingsDocument {
+        if let data = UserDefaults.standard.data(forKey: documentKey) {
+            return XASettingsDocument.decode(data)
+        }
+        return XASettingsDocument(features: features, assist: assist)
+    }
+
+    static func saveDocument(_ document: XASettingsDocument) {
+        UserDefaults.standard.set(document.encode(), forKey: documentKey)
+        save(token: UserDefaults.standard.string(forKey: tokenKey) ?? "", features: document.features)
+        saveAssist(document.assist)
+        UserDefaults.standard.set(document.audioVolume, forKey: "XADisplay.audioVolume")
+    }
 
     static func loadMacs() -> MacDirectory {
         guard let data = UserDefaults.standard.data(forKey: macsKey),

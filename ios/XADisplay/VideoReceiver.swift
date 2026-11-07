@@ -132,6 +132,11 @@ final class VideoReceiver {
                 )))
     }
 
+    func sendSettings(_ body: String) {
+        guard xaHost, !body.isEmpty else { return }
+        send(.xaSettings(body))
+    }
+
     func sendBattery(text: String, heat: Bool) {
         guard xaHost else { return }
         send(.xaBattery(text: text, heat: heat))

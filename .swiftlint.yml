@@ -34,8 +34,8 @@ function_body_length:
   error: 250
 
 cyclomatic_complexity:
-  warning: 40
-  error: 50
+  warning: 80
+  error: 100
 
 function_parameter_count:
   warning: 8

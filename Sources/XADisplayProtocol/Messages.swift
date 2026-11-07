@@ -755,6 +755,7 @@ public enum VideoControlMessage: Equatable {
     case xaMenus(String)
     case xaFront(String)
     case xaBattery(text: String, heat: Bool)
+    case xaSettings(String)
     case ignored
 
     public static let maxCursorPNG = 65_536
@@ -819,6 +820,8 @@ public enum VideoControlMessage: Equatable {
             object = ["type": "xa.front", "bundle": bundle]
         case .xaBattery(let text, let heat):
             object = ["type": "xa.battery", "text": text, "heat": heat]
+        case .xaSettings(let body):
+            object = ["type": "xa.settings", "body": body]
         case .ignored:
             return nil
         }
@@ -906,6 +909,8 @@ public enum VideoControlMessage: Equatable {
             return .xaFront(JSON.string(obj["bundle"]) ?? "")
         case "xa.battery":
             return .xaBattery(text: JSON.string(obj["text"]) ?? "", heat: JSON.bool(obj["heat"]) ?? false)
+        case "xa.settings":
+            return .xaSettings(JSON.string(obj["body"]) ?? "")
         default:
             return .ignored
         }
