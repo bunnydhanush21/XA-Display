@@ -1,102 +1,89 @@
 # XA Display
 
-XA Display turns a jailbroken iPad mini 3 (iPad4,7, A7, 1 GB, iOS 12.5.8, 2048×1536) into an extended display for an Apple silicon Mac. The iPad app is a UIKit iOS 12 receiver. **XA Display Host** on the Mac creates the virtual display, encodes H.264, and injects pointer and keyboard events.
+[![CI](https://github.com/bunnydhanush21/XA-Display/actions/workflows/ci.yml/badge.svg)](https://github.com/bunnydhanush21/XA-Display/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![iOS 12+](https://img.shields.io/badge/iOS-12%2B-black.svg)](docs/ARCHITECTURE.md)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](docs/ARCHITECTURE.md)
+[![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138.svg)](Package.swift)
 
-Pointer input is **CGEvent mouse and keyboard injection**. It is not native macOS touchscreen input, and it will not grow touch targets the way a touchscreen MacBook does.
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="XA Display banner: a Mac window mirrored onto an iPad" width="100%">
+</p>
 
-## Features
+**XA Display** is an extended display and pointer for an Apple silicon Mac and a jailbroken iPad mini 3. The Mac creates the display, encodes H.264, and injects paired mouse and keyboard events. The iPad decodes the picture and sends touch, scroll, and keys back.
 
-Each item has a switch. Pairing, clipboard, and audio default as noted.
+Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window and menu actions. It is not native macOS touchscreen input.
 
-| Switch | Default | Where it applies |
+<p align="center">
+  <img src="docs/assets/screenshot-placeholder.svg" alt="Placeholder frame. This is not a screenshot of the app." width="720">
+</p>
+
+<p align="center">
+  <img src="docs/assets/gif-placeholder.svg" alt="Placeholder frame. This is not a recording of the app." width="720">
+</p>
+
+## Feature grid
+
+| Area | What ships | Where |
 |---|---|---|
-| Require pairing | On | Mac enforces it. The iPad can also set the flag. Control is accepted only when the token matches, unless **both** sides turn pairing off. |
-| Clipboard sync | Off | Plain text, 12 KB cap, both sides must enable it. |
-| Three-finger shortcuts | On | Swipe left undo, right redo, up copy, down paste. |
-| Pinch magnifier | On | Local zoom of the picture. Touches stay mapped through the zoom. Not a Mac pinch gesture. |
-| Command strip | On | Esc, undo, redo, copy, paste, snap left/right, fill. |
-| Window snapping | On | Moves windows with Accessibility. Also returns them to the main display when the virtual display closes. |
-| Audio to iPad | Off | Separate ScreenCaptureKit audio stream. Modes: all system audio, selected apps, or apps whose windows are on the virtual display. AAC-LC when the encoder accepts it, otherwise PCM. iPad jitter buffer and volume slider. |
-| Saved presets | On | Host remembers Balanced / Safe / Native. |
-| Sidebar side and gesture timing | Left, medium | iPad settings. |
-| Auto-connect on USB | On | Host menu. |
-| Touch-style window gestures | On | Title-bar fill and flick, corner handles, loupe, traffic lights, menu overlay, right-edge drawer, momentum scroll. Pointer and Accessibility actions, not native touch. |
-| Wi-Fi fallback | On | Used only when USB is gone. |
+| Picture | H.264 Main, no B-frames, hardware decode | Mac encode, iPad `AVSampleBufferDisplayLayer` |
+| Presets | Balanced, Safe, experimental Native | Host menu. See the targets table below |
+| Transport | USB first through Apple usbmuxd, Wi-Fi fallback | TCP 9000 video, TCP 9001 input |
+| Pairing | Token required unless both sides turn it off | Input hello. Video touch JSON is ignored |
+| Pointer | Tap, double-tap, drag, two-finger scroll, trackpad mode | CGEvent on the virtual display |
+| Keys | Sidebar modifiers, software keyboard, hardware shortcuts | CGEvent key and flags |
+| Windows | Snap, fill, title-bar flick, corner resize, recovery | Public AXUIElement |
+| Touch-style gestures | Loupe, traffic lights, menu overlay, right-edge drawer | Settings. Still pointer and Accessibility |
+| Audio | Off by default. AAC-LC or PCM, jitter buffer, volume | Second ScreenCaptureKit stream |
+| Clipboard | Off by default. Text, 12 KB | Images are framed and not applied |
+| Quality | Thermal, battery, and send-queue bitrate steps | iPad health reports |
+| Metrics | Delivered FPS, handoff, capture→ack, input RTT | Named for what they measure |
 
-Core path, always available: H.264 video, direct pointer, two-finger scroll, keyboard, sidebar modifiers, USB-first reconnect.
+Deferred: MIDI, multitouch app integrations, image clipboard apply, three-finger pinch and spread, per-app command strips, launch at login, and a jailbreak launchd helper. See [Roadmap](#roadmap).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph mac [Mac XA Display Host MIT]
-    VD[CGVirtualDisplay]
-    CAP[ScreenCaptureKit]
-    ENC[VideoToolbox H.264]
-    IN[InputDispatcher]
-    VD --> CAP --> ENC
+  subgraph mac [Mac host]
+    CAP[ScreenCaptureKit capture]
+    ENC[VideoToolbox H.264 encode]
+    CAP --> ENC
   end
-  subgraph ipad [iPad XA Display MIT]
-    DEC[AVSampleBufferDisplayLayer]
-    UI[UIKit pointer and keys]
-  end
-  ENC -->|TCP 9000 length-prefixed Annex-B| DEC
-  UI -->|TCP 9001 paired input| IN
-  IN -->|CGEvent| VD
-  mac ---|usbmuxd USB or Bonjour Wi-Fi| ipad
+  ENC --> USB[usbmuxd USB]
+  ENC --> WIFI[Bonjour Wi-Fi]
+  USB --> DEC[iPad hardware decode]
+  WIFI --> DEC
+  DEC --> REN[AVSampleBufferDisplayLayer render]
+  REN --> UI[Touch, scroll, keys]
+  UI --> IN[Paired input TCP 9001]
+  IN --> POST[CGEvent and AXUIElement]
+  POST --> mac
 ```
 
-Port 9000 stays compatible with the OpenDisplay-style video contract (length prefix, JSON control, Annex-B). Port 9001 is XA's versioned input protocol. The host ignores touch JSON on port 9000 so an unpaired peer cannot inject input that way. OpenDisplay 1.30.x can still be the sender for basic video, touch, and scroll; keyboard, pairing, clipboard, audio, and window actions need XA Display Host. Do not run both senders at once.
+The iPad listens. The Mac connects. Video is length-prefixed Annex-B on port 9000. Input is a versioned binary session on port 9001. Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-Presets:
+## Protocol
 
-- **Balanced** (default): 1440×1080 @ 30, H.264 Main Level 4.1, no B-frames, 8 Mb/s USB or 6 Mb/s Wi-Fi.
-- **Safe**: 1024×768 @ 30, Main Level 3.1, 4 Mb/s USB or 3 Mb/s Wi-Fi.
-- **Native** (experimental): 2048×1536 @ 30, Main Level 5.0, about 18 Mb/s USB. This is outside Apple's published Level 4.2 playback envelope. If encode or decode fails, the host steps down to Balanced, then Safe.
+Input protocol **version 1**. A frame is `version (u8) | type (u8) | flags (u16) | length (u32) | payload`, big-endian. Video frames are a 4-byte big-endian length and either a JSON control object or an H.264 Annex-B access unit. Declared lengths are rejected before the body is read. The full map of message types, caps, and the OpenDisplay compatibility boundary is [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-The host lowers bitrate when the iPad reports heat, a low battery, or a backed-up send queue. Frames that would break the reference chain are dropped until the next keyframe. Queues are capped.
+## Performance presets
 
-### Audio
+These are **engineering targets**, chosen so the stream fits published H.264 level limits on an A7 iPad. They are not measured glass-to-glass, FPS, or bitrate results. No benchmark numbers are claimed. The method for measuring them later is [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
-Audio is off until both the iPad switch and the Mac **Audio to iPad** switch are on. The picture stream does not carry audio. A second ScreenCaptureKit stream uses `capturesAudio = true` and `excludesCurrentProcessAudio = true`.
+| Preset | Pixels | FPS target | Profile / level | Bitrate target | Status |
+|---|---|---|---|---|---|
+| Balanced (default) | 1440×1080 | 30 | Main 4.1, no B-frames | 8 Mb/s USB, 6 Mb/s Wi-Fi | Target. Fits Level 4.1 MaxFS |
+| Safe | 1024×768 | 30 | Main 3.1, no B-frames | 4 Mb/s USB, 3 Mb/s Wi-Fi | Target. Fits Level 3.1 MaxFS |
+| Native | 2048×1536 | 30 | Main 5.0, no B-frames | 18 Mb/s USB, 12 Mb/s Wi-Fi | Experimental target. Does not fit Level 4.2 |
 
-- **All system audio** uses a display filter with an empty exclude list.
-- **Selected apps only** uses `SCContentFilter(display:includingApplications:exceptingWindows:)` for the checked bundle ids.
-- **Apps on the iPad display** rebuilds that include list from windows that intersect the virtual display.
-
-Packets are AAC-LC (1024 samples, about 21 ms at 48 kHz) when AudioToolbox accepts the converter, otherwise little-endian PCM. Each packet carries the host capture time. The iPad estimates clock offset from input ping/pong and holds packets in a jitter queue (target 60 ms, drop if more than 140 ms late, at most 6 packets). Playback is AudioQueue on iOS 12. The settings slider scales PCM before it is queued.
-
-**Mute on Mac while routed** is not implemented. Public Core Audio can mute the output device, which silences the speakers and usually the capture as well. There is no public per-app mute that keeps a process tap alive without a virtual audio driver. Opus is not used; it would need a third-party codec.
-
-### Touch-style window gestures
-
-These imitate some gestures from the touchscreen MacBook Pro. They are still **CGEvent pointer events** plus **AXUIElement** window and menu actions. XA Display does not synthesize undocumented touch or `NSTouch` events, and macOS will not treat the iPad as a touchscreen.
-
-The iPad waits to tell a tap, scroll, and drag apart before it sends mouse-down. A long-press is a right-click. Cancel and disconnect release the buttons. Direct Touch and Trackpad stay separate modes.
-
-- **Title bar.** A double-tap on a window's title bar fills the virtual display, or restores the frame from before the fill. A double-tap in the window contents is a double-click. A fast title-bar drag tiles the window to a half or a quarter. Corner handles are 36 points and resize through Accessibility.
-- **Precision.** A drag can show a local loupe. Settings can offset the pointer from the finger. The frontmost window's close, minimize, and zoom buttons are large local targets and press the Accessibility buttons. The menu overlay reads the menu bar with Accessibility and `AXPress`es the item you tap.
-- **Right-edge drawer.** A swipe from the right edge opens Notification Center, Mission Control (Control-Up), App Exposé (Control-Down), Apps/Launchpad (F4), and Control Center. Notification Center and Control Center use the Accessibility menu extra unless you set a key in iPad settings. The right edge defers the iOS system gesture. The left edge still opens a left sidebar.
-- **Zoom.** Pinch magnifies the picture on the iPad. Zoom in and Zoom out in the drawer send the per-app key binding, or Command-= and Command-Minus when the app has no binding.
-- **Scroll.** Momentum stays in the finger direction and stops. It does not reverse into a rubber band.
-- **Accessibility.** Settings cover hold duration, ignore-repeat, movement threshold, 36-point targets, large buttons, and a left or right sidebar.
-
-### Roadmap
-
-MIDI and multitouch app integrations are deferred. So are image clipboard apply, three-finger pinch-to-copy and spread-to-paste, per-app command strips, launch at login, and a jailbreak launchd helper.
-
-Metrics on the iPad:
-
-- **FPS delivered** counts frames handed to the display layer.
-- **Handoff** is receive-to-enqueue on the iPad clock. The hardware decode itself stays inside `AVSampleBufferDisplayLayer` and is not a separate callback.
-- **Capture→ack** is host-clock time from capture until the iPad's echo comes back. It includes the return trip. It is not glass-to-glass.
-- **Input RTT** is a ping on the input channel.
+Native steps down to Balanced, then Safe, if encode or decode fails. The host also lowers bitrate when the iPad reports heat, a low battery, or a backed-up send queue.
 
 ## Install
 
-The GitHub Action on `macos-15` with **Xcode 16.4** builds an unsigned `XADisplay.ipa` and `XADisplayHost.zip`. Xcode 26 cannot target iOS 12.
+CI on `macos-15` with **Xcode 16.4** builds an unsigned `XADisplay.ipa` and `XADisplayHost.zip`. Xcode 26 cannot target iOS 12. A tag `v*` runs [Release](.github/workflows/release.yml) and attaches those files to a **draft** GitHub Release.
 
-On the jailbroken iPad:
+Jailbroken iPad (device is trusted, `ldid` is installed):
 
 ```bash
 unzip XADisplay.ipa
@@ -105,40 +92,74 @@ cp -R Payload/XADisplay.app /Applications/
 uicache -p /Applications/XADisplay.app
 ```
 
-On the Mac, unzip the host, move `XADisplayHost.app` to `/Applications`, and if Gatekeeper complains:
+Mac:
 
 ```bash
+unzip XADisplayHost.zip
+mv XADisplayHost.app /Applications/
 xattr -dr com.apple.quarantine /Applications/XADisplayHost.app
 codesign --force --deep --sign - /Applications/XADisplayHost.app
 ```
 
-Open the iPad app. It listens on ports 9000 and 9001. Open the host from the menu bar. Copy the pairing token into the iPad settings. Grant **Screen Recording** and **Accessibility**, then quit and reopen the host if capture stays denied.
+Open the iPad app so it listens on ports 9000 and 9001. Open **XA Display Host** from the menu bar. Copy the pairing token into iPad settings. Grant **Screen Recording** and **Accessibility**, then quit and reopen the host if capture stays denied.
 
-USB is automatic when the iPad is trusted and the cable carries data. Unplug the cable and the host falls back to Wi-Fi if that switch is on and both devices are on the same network.
+USB connects when the iPad is trusted and the cable carries data. With the cable unplugged, the host uses Wi-Fi only if that switch is on and both devices share a network.
 
-## Permissions and troubleshooting
-
-- No new display: Screen Recording was denied, or the virtual display SPI failed. Export diagnostics from the menu.
-- Pointer does nothing: Accessibility is off, pairing was rejected, or the token does not match. A rejected iPad must not move the cursor.
-- Black screen after switching apps: iOS suspended the listener. Returning to the app reconnects.
-- Warm iPad: the overlay names the thermal state. The host should step the preset down. Do not disable thermal limits.
-- Windows left off-screen: quit the host. It moves windows that intersected the virtual display back onto the main display. This needs Accessibility and is best-effort.
-
-## Known limits
-
-No Apple Pencil, pressure, hover, or true multi-pointer. Pinch does not synthesize a Mac magnify event. Audio is optional AAC-LC or PCM. Clipboard is text only. Secure-input fields may ignore injected keys. Native Retina is experimental. Glass-to-glass latency is a camera measurement, not a number this app invents. A jailbreak is only required to install the unsigned iPad app; streaming itself uses public iOS decode and UIKit. MIDI and multitouch app integrations are not in this build.
-
-## Build locally
+Build from source:
 
 ```bash
 swift test
-brew install xcodegen
+brew install xcodegen swiftlint
 (cd ios && xcodegen generate && xcodebuild -scheme XADisplay -sdk iphoneos -configuration Release CODE_SIGNING_ALLOWED=NO build)
 (cd macos && xcodegen generate && xcodebuild -scheme XADisplayHost -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build)
+swiftlint lint --strict
+swift-format lint --strict --configuration .swift-format --recursive Sources Tests ios macos
 ```
 
-Use Xcode 16.x. See `TESTING.md` for the manual checklist.
+## Permissions
 
-## License
+| Permission | Why |
+|---|---|
+| Screen Recording | Capture only the XA virtual display |
+| Accessibility | Post CGEvent pointer and keys, and move or press windows |
+| Local Network | Bonjour `_opensidecar._tcp` when USB is unavailable |
+| USB trust | Apple usbmuxd forwards ports 9000 and 9001 |
 
-MIT. See `LICENSE` and `NOTICE`. The Mac host is not GPL.
+Diagnostics export redacts the pairing token. The threat model is [docs/SECURITY.md](docs/SECURITY.md).
+
+## Roadmap
+
+- MIDI and multitouch integrations with apps that expect real touch
+- Apply clipboard images, with the existing size cap
+- Three-finger pinch to copy and spread to paste
+- Per-app command-strip profiles from the frontmost bundle id
+- Launch the host at login
+- Optional jailbreak `launchd` plist, kept out of the app and away from Substrate
+- Measured latency and FPS filled into [docs/PERFORMANCE.md](docs/PERFORMANCE.md) from the method written there
+
+## Known limits
+
+No Apple Pencil, pressure, hover, or a second pointer. Pinch magnifies the iPad picture and does not synthesize a Mac magnify event. Mute-on-Mac is unavailable without a virtual audio device. Opus is not used. Clipboard apply is text only. Secure-input fields can ignore injected keys. Native Retina is experimental. Glass-to-glass latency is a camera measurement this repo does not invent. A jailbreak is required only to install the unsigned iPad app.
+
+## Docs
+
+| Doc | Contents |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Processes, threads, and data paths |
+| [docs/PROTOCOL.md](docs/PROTOCOL.md) | Versioned wire format |
+| [docs/SECURITY.md](docs/SECURITY.md) | Pairing and threat model |
+| [docs/TESTING.md](docs/TESTING.md) | Automated tests and the device checklist |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | How to measure, and what is still unmeasured |
+| [docs/adr/](docs/adr/) | Design decisions |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Build, style, commits |
+| [CHANGELOG.md](CHANGELOG.md) | Keep a Changelog |
+
+## Credits and licensing
+
+MIT. Copyright 2026 [Bunny Dhanush](https://github.com/bunnydhanush21) and the upstream author credited below. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+The iPad receiver is derived from the MIT iOS 12 client by cuongpham1: [ipad-iphone-second-monitor-ios12-free](https://github.com/cuongpham1/ipad-iphone-second-monitor-ios12-free) at commit `5ea40029a9ebf78dd83ba7651ea59cdec2ae4e54`.
+
+**GPL boundary.** XA Display Host is original MIT code. It is not a fork of OpenDisplay (GPL-3.0). This tree does not vendor OpenDisplay, Deskreen, libusbmuxd, or other GPL or LGPL source. The port 9000 video contract follows behavior documented by the MIT client so an OpenDisplay 1.30.x sender can still drive basic video, touch, and scroll. That compatibility does not copy OpenDisplay source. `CGVirtualDisplay` is Apple private API, isolated in `XAVirtualDisplay.m`, with declarations written for this project.
+
+Do not run XA Display Host and OpenDisplay as senders at the same time.
