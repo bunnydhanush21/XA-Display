@@ -152,6 +152,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = settingsPanel ?? HostSettingsPanel(document: controller.settingsDocument())
         settingsPanel = panel
         panel.update(controller.settingsDocument())
+        let audio = controller.audioMenuState()
+        panel.apps = audio.apps
+        panel.selectedBundles = audio.selected
+        panel.onToggleApp = { [weak self] bundle in
+            self?.controller.toggleAudioBundle(bundle)
+        }
         panel.onChange = { [weak self] document in
             self?.controller.applySharedSettings(SettingsSync.encode(document), broadcast: true)
         }

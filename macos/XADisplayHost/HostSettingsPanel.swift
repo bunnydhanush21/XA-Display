@@ -7,6 +7,9 @@ final class HostSettingsPanel: NSObject {
     var onRevoke: (() -> Void)?
     var onScreen: (() -> Void)?
     var onAccessibility: (() -> Void)?
+    var apps: [(bundle: String, name: String)] = []
+    var selectedBundles: [String] = []
+    var onToggleApp: ((String) -> Void)?
     private var document: XASettingsDocument
     private let tabs = NSTabView(frame: NSRect(x: 12, y: 12, width: 560, height: 420))
 
@@ -47,6 +50,14 @@ final class HostSettingsPanel: NSObject {
             ])
             for row in SettingsCatalog.rows(in: section, host: true) {
                 stack.addArrangedSubview(control(for: row))
+            }
+            if section == "Audio", document.audioMode == AudioRouteMode.selected.rawValue {
+                for app in apps.prefix(24) where !app.bundle.isEmpty {
+                    let button = NSButton(checkboxWithTitle: app.name.isEmpty ? app.bundle : app.name, target: self, action: #selector(toggledApp(_:)))
+                    button.identifier = NSUserInterfaceItemIdentifier("app:" + app.bundle)
+                    button.state = selectedBundles.contains(app.bundle) ? .on : .off
+                    stack.addArrangedSubview(button)
+                }
             }
             let item = NSTabViewItem(identifier: section)
             item.label = section
@@ -116,6 +127,11 @@ final class HostSettingsPanel: NSObject {
         guard let id = sender.identifier?.rawValue else { return }
         document.set(.number(sender.doubleValue), for: id)
         onChange?(document)
+    }
+
+    @objc private func toggledApp(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue, id.hasPrefix("app:") else { return }
+        onToggleApp?(String(id.dropFirst(4)))
     }
 
     @objc private func acted(_ sender: NSButton) {
