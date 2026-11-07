@@ -19,6 +19,7 @@ final class SidebarView: UIView {
     var onTrackpad: (() -> Void)?
     var onCollapse: (() -> Void)?
     private var modifierButtons: [XAModifierMask: UIButton] = [:]
+    private var heights: [NSLayoutConstraint] = []
     private let stack = UIStackView()
 
     override init(frame: CGRect) {
@@ -58,6 +59,11 @@ final class SidebarView: UIView {
         stack.isHidden = collapsed
     }
 
+    func setLarge(_ large: Bool) {
+        let height = TouchMetrics.target(requested: large ? 52 : 44, large: large)
+        for constraint in heights { constraint.constant = height }
+    }
+
     private func addModifier(_ title: String, _ mask: XAModifierMask) {
         let button = makeButton(title)
         button.addTarget(self, action: #selector(modifierTapped(_:)), for: .touchUpInside)
@@ -81,7 +87,9 @@ final class SidebarView: UIView {
         button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         button.backgroundColor = UIColor(white: 0.2, alpha: 1)
         button.layer.cornerRadius = 8
-        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        let height = button.heightAnchor.constraint(equalToConstant: 44)
+        height.isActive = true
+        heights.append(height)
         button.accessibilityLabel = title
         return button
     }

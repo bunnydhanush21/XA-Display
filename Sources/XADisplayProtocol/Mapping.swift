@@ -356,6 +356,9 @@ public struct KeyShortcut: Equatable {
         case "UIKeyInputRightArrow": return MacKeyCode.rightArrow
         case "\t": return MacKeyCode.tab
         case "\r", "\n": return MacKeyCode.return
+        case "=": return 24
+        case "-": return 27
+        case "UIKeyInputF4": return 118
         default:
             guard input.count == 1, let character = input.first else { return nil }
             return MacKeyCode.letter(character) ?? MacKeyCode.digit(character)

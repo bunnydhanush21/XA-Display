@@ -219,8 +219,10 @@ public enum TouchscreenGesture: Equatable {
 }
 
 public enum TouchGestureRouter {
+    /// Screen position alone is not a title bar. Window actions use `WindowChrome`.
     public static func titleBarFill(enabled: Bool, normalizedY: Double, tapCount: Int, topBand: Double = 0.08) -> Bool {
-        enabled && tapCount >= 2 && normalizedY >= 0 && normalizedY <= topBand
+        _ = (enabled, normalizedY, tapCount, topBand)
+        return false
     }
 
     public static func edgeDrawer(enabled: Bool, startX: Double, viewWidth: Double, translationX: Double, sidebarOnLeft: Bool) -> Bool {

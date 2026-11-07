@@ -221,6 +221,19 @@ public enum WindowAction: UInt8, Equatable, Codable {
     case moveAcross = 7
     case saveLayout = 8
     case restoreLayout = 9
+    case tileTopLeft = 10
+    case tileTopRight = 11
+    case tileBottomLeft = 12
+    case tileBottomRight = 13
+    case fillToggle = 14
+    case pressClose = 15
+    case pressMinimize = 16
+    case pressZoom = 17
+    case notificationCenter = 18
+    case missionControl = 19
+    case appExpose = 20
+    case launchpad = 21
+    case controlCenter = 22
 }
 
 public enum ClipboardKind: UInt8, Equatable {
@@ -285,6 +298,30 @@ public struct XAAudio: Equatable {
     }
 }
 
+public enum ChromeOp: UInt8, Equatable {
+    case resize = 1
+    case menu = 2
+}
+
+public struct XAChromeCommand: Equatable {
+    public var session: UInt32
+    public var seq: UInt32
+    public var op: ChromeOp
+    public var index: UInt16
+    public var windowIndex: UInt16
+    public var dx: Double
+    public var dy: Double
+    public init(session: UInt32, seq: UInt32, op: ChromeOp, index: UInt16, windowIndex: UInt16, dx: Double, dy: Double) {
+        self.session = session
+        self.seq = seq
+        self.op = op
+        self.index = index
+        self.windowIndex = windowIndex
+        self.dx = dx
+        self.dy = dy
+    }
+}
+
 public struct XAPresetCommand: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -319,6 +356,7 @@ public enum XAInputMessage: Equatable {
     case window(XAWindowCommand)
     case audio(XAAudio)
     case preset(XAPresetCommand)
+    case chrome(XAChromeCommand)
 
     public func encode() throws -> Data {
         switch self {
@@ -427,6 +465,16 @@ public enum XAInputMessage: Equatable {
             payload.u32(preset.seq)
             try payload.str(preset.name)
             return Self.wrap(type: 13, payload: payload.data)
+        case .chrome(let command):
+            var payload = ByteWriter()
+            payload.u32(command.session)
+            payload.u32(command.seq)
+            payload.u8(command.op.rawValue)
+            payload.u16(command.index)
+            payload.u16(command.windowIndex)
+            payload.f64(command.dx)
+            payload.f64(command.dy)
+            return Self.wrap(type: 14, payload: payload.data)
         }
     }
 
@@ -529,6 +577,15 @@ public enum XAInputMessage: Equatable {
             let seq = try reader.u32()
             let name = try reader.str()
             return .preset(XAPresetCommand(session: session, seq: seq, name: name))
+        case 14:
+            let session = try reader.u32()
+            let seq = try reader.u32()
+            guard let op = ChromeOp(rawValue: try reader.u8()) else { throw ProtocolError.badEnum }
+            let index = try reader.u16()
+            let windowIndex = try reader.u16()
+            let dx = try reader.f64()
+            let dy = try reader.f64()
+            return .chrome(XAChromeCommand(session: session, seq: seq, op: op, index: index, windowIndex: windowIndex, dx: dx, dy: dy))
         default:
             return nil
         }
@@ -652,6 +709,9 @@ public enum VideoControlMessage: Equatable {
     case decodeFailed(preset: String)
     case xaStream(StreamAnnouncement)
     case xaMetrics(XAMetrics)
+    case xaWindows(String)
+    case xaMenus(String)
+    case xaFront(String)
     case ignored
 
     public static let maxCursorPNG = 65_536
@@ -708,6 +768,12 @@ public enum VideoControlMessage: Equatable {
             if let value = metrics.captureToAckMs { object["captureToAckMs"] = value }
             if let value = metrics.encodeMs { object["encodeMs"] = value }
             return JSON.data(object)
+        case .xaWindows(let body):
+            object = ["type": "xa.windows", "body": body]
+        case .xaMenus(let body):
+            object = ["type": "xa.menus", "body": body]
+        case .xaFront(let bundle):
+            object = ["type": "xa.front", "bundle": bundle]
         case .ignored:
             return nil
         }
@@ -780,6 +846,12 @@ public enum VideoControlMessage: Equatable {
                 captureToAckMs: JSON.double(obj["captureToAckMs"]),
                 encodeMs: JSON.double(obj["encodeMs"])
             ))
+        case "xa.windows":
+            return .xaWindows(JSON.string(obj["body"]) ?? "")
+        case "xa.menus":
+            return .xaMenus(JSON.string(obj["body"]) ?? "")
+        case "xa.front":
+            return .xaFront(JSON.string(obj["bundle"]) ?? "")
         default:
             return .ignored
         }

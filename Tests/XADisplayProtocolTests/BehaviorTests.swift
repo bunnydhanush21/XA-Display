@@ -430,8 +430,7 @@ final class BehaviorTests: XCTestCase {
         XCTAssertEqual(WindowSnap.frame(zone: .leftHalf, virtualDisplay: virtual, mainDisplay: main).width, 720, accuracy: 0.001)
         XCTAssertEqual(WindowSnap.flick(dx: -200, dy: 10, speed: 1200), .leftHalf)
         XCTAssertNil(WindowSnap.flick(dx: -200, dy: 10, speed: 100))
-        XCTAssertTrue(TouchGestureRouter.titleBarFill(enabled: true, normalizedY: 0.02, tapCount: 2))
-        XCTAssertFalse(TouchGestureRouter.titleBarFill(enabled: false, normalizedY: 0.02, tapCount: 2))
+        XCTAssertFalse(TouchGestureRouter.titleBarFill(enabled: true, normalizedY: 0.02, tapCount: 2))
         XCTAssertTrue(TouchGestureRouter.edgeDrawer(enabled: true, startX: 8, viewWidth: 1024, translationX: 40, sidebarOnLeft: true))
         XCTAssertFalse(TouchGestureRouter.edgeDrawer(enabled: true, startX: 8, viewWidth: 1024, translationX: 40, sidebarOnLeft: false))
 

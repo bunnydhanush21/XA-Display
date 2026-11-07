@@ -32,7 +32,11 @@ Run these on the iPad mini 3 and the Mac after installing the unsigned app and t
 - [ ] Saved presets restore Balanced, Safe, or Native across a relaunch.
 - [ ] Sidebar moves to the right. Tap slop, double-tap window, and long-press time change behavior.
 - [ ] Auto-connect off does not attach when the cable is plugged in. On attaches without a click.
-- [ ] Title-bar double-tap sends fill. Edge swipe opens the sidebar. Precision draws the crosshair and slows the trackpad.
+- [ ] Double-tap a window title bar fills that window, and a second double-tap restores it. Double-tap inside the window still double-clicks. A title-bar flick tiles a half or a quarter. Corner handles resize. Content drags do not tile.
+- [ ] Drag shows the loupe when that switch is on. Traffic-light buttons and the menu overlay press the Mac window and menu through Accessibility. Targets are at least 36 points.
+- [ ] Right-edge swipe opens the action drawer (Notifications, Mission Control, App Exposé, Apps, Control Center) and does not open Control Center on the iPad. Left-edge swipe opens a left sidebar.
+- [ ] Momentum scroll coasts and stops without reversing. Long-press right-clicks. Lifting a finger or disconnecting does not leave the mouse button down.
+- [ ] Trackpad mode still moves the drawn cursor. Direct Touch does not.
 
 ## Presets and heat
 

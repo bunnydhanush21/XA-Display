@@ -73,6 +73,7 @@ final class HostController {
         startBrowser()
         timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             self?.pollClipboard()
+            self?.publishChrome()
             self?.queue.async { self?.tick() }
         }
         queue.async { self.tick() }
@@ -365,21 +366,80 @@ final class HostController {
                 NSPasteboard.general.setString(text, forType: .string)
             case .window(let action):
                 guard settings.windowSnapping || settings.touchscreenGestures else { continue }
-                let zone: SnapZone
-                switch action {
-                case .snapLeft: zone = .leftHalf
-                case .snapRight: zone = .rightHalf
-                case .fill, .snapFull: zone = .full
-                case .moveToMain, .moveAcross: zone = .mainDisplay
-                case .moveToVirtual: zone = .full
-                case .saveLayout, .restoreLayout:
-                    continue
-                }
-                _ = WindowMover.apply(zone: zone, virtual: lastDisplayFrame, main: WindowMover.mainDisplayFrame())
+                applyWindow(action)
+            case .chrome(let op, let index, let windowIndex, let dx, let dy):
+                guard settings.windowSnapping || settings.touchscreenGestures else { continue }
+                applyChrome(op: op, index: index, windowIndex: windowIndex, dx: dx, dy: dy)
             default:
                 poster.post(event)
             }
         }
+    }
+
+    private func applyWindow(_ action: WindowAction) {
+        let virtual = lastDisplayFrame
+        let main = WindowMover.mainDisplayFrame()
+        switch action {
+        case .snapLeft:
+            _ = WindowMover.apply(zone: .leftHalf, virtual: virtual, main: main)
+        case .snapRight:
+            _ = WindowMover.apply(zone: .rightHalf, virtual: virtual, main: main)
+        case .fill, .snapFull, .moveToVirtual:
+            _ = WindowMover.apply(zone: .full, virtual: virtual, main: main)
+        case .moveToMain, .moveAcross:
+            _ = WindowMover.apply(zone: .mainDisplay, virtual: virtual, main: main)
+        case .saveLayout, .restoreLayout:
+            break
+        case .fillToggle:
+            _ = WindowMover.fillToggle(on: virtual)
+        case .tileTopLeft:
+            _ = WindowMover.tile(.topLeft, on: virtual)
+        case .tileTopRight:
+            _ = WindowMover.tile(.topRight, on: virtual)
+        case .tileBottomLeft:
+            _ = WindowMover.tile(.bottomLeft, on: virtual)
+        case .tileBottomRight:
+            _ = WindowMover.tile(.bottomRight, on: virtual)
+        case .pressClose, .pressMinimize, .pressZoom:
+            _ = WindowMover.pressTraffic(action, on: virtual)
+        case .notificationCenter:
+            _ = WindowMover.pressExtra(matching: "Notification Center")
+        case .controlCenter:
+            _ = WindowMover.pressExtra(matching: "Control Center")
+        case .missionControl:
+            postShortcut(EdgeSystemAction.missionControl.shortcut)
+        case .appExpose:
+            postShortcut(EdgeSystemAction.appExpose.shortcut)
+        case .launchpad:
+            postShortcut(EdgeSystemAction.launchpad.shortcut)
+        }
+    }
+
+    private func applyChrome(op: UInt8, index: UInt16, windowIndex: UInt16, dx: Double, dy: Double) {
+        guard let kind = ChromeOp(rawValue: op) else { return }
+        switch kind {
+        case .resize:
+            guard let corner = ResizeCorner(rawValue: UInt8(index)) else { return }
+            let translation = XAPoint(x: dx * lastDisplayFrame.width, y: dy * lastDisplayFrame.height)
+            _ = WindowMover.resize(windowIndex: Int(windowIndex), corner: corner, translation: translation, on: lastDisplayFrame)
+        case .menu:
+            _ = WindowMover.pressMenu(index: Int(index))
+        }
+    }
+
+    private func postShortcut(_ shortcut: KeyShortcut) {
+        for intent in shortcut.intents() {
+            guard case .key(let phase, let code, let modifiers, let text) = intent else { continue }
+            poster.post(.key(phase: phase, keyCode: code, modifiers: modifiers, text: text))
+        }
+    }
+
+    private func publishChrome() {
+        guard settings.touchscreenGestures, lastDisplayFrame.width > 1, dispatcher.armed else { return }
+        let catalog = WindowMover.catalog(on: lastDisplayFrame)
+        sendControl(.xaWindows(ChromeWire.windows(catalog.windows)), onVideo: true)
+        sendControl(.xaMenus(ChromeWire.menus(catalog.menus)), onVideo: true)
+        sendControl(.xaFront(catalog.bundleID), onVideo: true)
     }
 
     private func rebuildDisplay() {

@@ -3,8 +3,9 @@ import XADisplayProtocol
 
 final class SettingsViewController: UITableViewController {
     var features: XAFeatureSettings
+    var assist: TouchAssist
     var token: String
-    var onChange: ((XAFeatureSettings, String) -> Void)?
+    var onChange: ((XAFeatureSettings, TouchAssist, String) -> Void)?
     private let tokenField = UITextField()
     private let rows: [(String, WritableKeyPath<XAFeatureSettings, Bool>)] = [
         ("Require pairing", \.requirePairing),
@@ -22,8 +23,9 @@ final class SettingsViewController: UITableViewController {
         ("Precision overlay", \.precisionMode),
     ]
 
-    init(features: XAFeatureSettings, token: String) {
+    init(features: XAFeatureSettings, assist: TouchAssist, token: String) {
         self.features = features
+        self.assist = assist
         self.token = token
         super.init(style: .grouped)
     }
@@ -56,7 +58,7 @@ final class SettingsViewController: UITableViewController {
     }
 
     @objc private func done() {
-        onChange?(features, tokenField.text ?? "")
+        onChange?(features, assist, tokenField.text ?? "")
         dismiss(animated: true)
     }
 
@@ -64,22 +66,30 @@ final class SettingsViewController: UITableViewController {
         token = tokenField.text ?? ""
     }
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 4 }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        section == 0 ? 1 : (section == 1 ? rows.count : 5)
+        switch section {
+        case 0: return 1
+        case 1: return rows.count
+        case 2: return 10
+        default: return 5
+        }
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        if section == 2 {
+        if section == 3 {
             return "Pointer events are mouse and keyboard events on the Mac, not native touch input. The slider is iPad playback volume. Audio stays off until you enable it here and in XA Display Host. The host chooses all audio, selected apps, or apps on the iPad display. Mute-on-Mac is not available."
+        }
+        if section == 2 {
+            return "Title-bar double-tap fills or restores that window. A double-tap in the window contents stays a click. Flicks tile only from the title bar. Notification Center and Control Center use Accessibility menu extras unless you set a key here. Mission Control is Control-Up, App Exposé is Control-Down, and Apps is F4. Hold duration and movement threshold are the long-press and tap slop rows in About. Hit targets stay at least 36 points."
         }
         if section == 0 { return "Type the token shown in the Mac menu bar." }
         return nil
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        ["Pairing", "Features", "About"][section]
+        ["Pairing", "Features", "Touch", "About"][section]
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -94,6 +104,19 @@ final class SettingsViewController: UITableViewController {
             return cell
         }
         if indexPath.section == 2 {
+            cell.textLabel?.text = touchTitle(indexPath.row)
+            if indexPath.row < 6 {
+                let toggle = UISwitch()
+                toggle.isOn = touchOn(indexPath.row)
+                toggle.tag = indexPath.row
+                toggle.addTarget(self, action: #selector(touchToggled(_:)), for: .valueChanged)
+                cell.accessoryView = toggle
+            } else {
+                cell.selectionStyle = .default
+            }
+            return cell
+        }
+        if indexPath.section == 3 {
             switch indexPath.row {
             case 0: cell.textLabel?.text = "Copy diagnostics"
             case 1: cell.textLabel?.text = "Input rotation \(features.inputRotation)°"
@@ -117,33 +140,117 @@ final class SettingsViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        if indexPath.section == 2 && indexPath.row == 0 {
+        if indexPath.section == 2 {
+            guard indexPath.row >= 6 else { return }
+            cycleTouch(indexPath.row)
+            tableView.reloadRows(at: [indexPath], with: .none)
+            return
+        }
+        if indexPath.section == 3 && indexPath.row == 0 {
             UIPasteboard.general.string = DiagnosticsCopy.text(
                 features: features, token: token, transport: "see main screen", preset: "see main screen",
                 thermal: ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue).rawValue,
                 battery: batteryText(), notes: ["settings"]
             )
-        } else if indexPath.section == 2 && indexPath.row == 1 {
+        } else if indexPath.section == 3 && indexPath.row == 1 {
             let order = [0, 90, 180, 270]
             let next = order.firstIndex(of: features.inputRotation).map { order[($0 + 1) % order.count] } ?? 0
             features.inputRotation = next
             tableView.reloadRows(at: [indexPath], with: .none)
-        } else if indexPath.section == 2 && indexPath.row == 2 {
+        } else if indexPath.section == 3 && indexPath.row == 2 {
             let order = [8.0, 12.0, 20.0, 32.0]
             let next = order.firstIndex(of: features.gestureTuning.slop).map { order[($0 + 1) % order.count] } ?? order[0]
             features.gestureTuning.slop = next
             tableView.reloadRows(at: [indexPath], with: .none)
-        } else if indexPath.section == 2 && indexPath.row == 3 {
+        } else if indexPath.section == 3 && indexPath.row == 3 {
             let order = [0.25, 0.35, 0.5]
             let next = order.firstIndex(of: features.gestureTuning.doubleTapWindow).map { order[($0 + 1) % order.count] } ?? order[0]
             features.gestureTuning.doubleTapWindow = next
             tableView.reloadRows(at: [indexPath], with: .none)
-        } else if indexPath.section == 2 {
+        } else if indexPath.section == 3 {
             let order = [0.35, 0.45, 0.7]
             let next = order.firstIndex(of: features.gestureTuning.longPressDuration).map { order[($0 + 1) % order.count] } ?? order[0]
             features.gestureTuning.longPressDuration = next
             tableView.reloadRows(at: [indexPath], with: .none)
         }
+    }
+
+    @objc private func touchToggled(_ sender: UISwitch) {
+        switch sender.tag {
+        case 0: assist.windowChrome = sender.isOn
+        case 1: assist.loupeWhileDragging = sender.isOn
+        case 2: assist.trafficLights = sender.isOn
+        case 3: assist.menuOverlay = sender.isOn
+        case 4: assist.edgeDrawer = sender.isOn
+        default: assist.largeButtons = sender.isOn
+        }
+    }
+
+    private func touchOn(_ row: Int) -> Bool {
+        switch row {
+        case 0: return assist.windowChrome
+        case 1: return assist.loupeWhileDragging
+        case 2: return assist.trafficLights
+        case 3: return assist.menuOverlay
+        case 4: return assist.edgeDrawer
+        default: return assist.largeButtons
+        }
+    }
+
+    private func touchTitle(_ row: Int) -> String {
+        switch row {
+        case 0: return "Window title actions"
+        case 1: return "Loupe while dragging"
+        case 2: return "Traffic-light buttons"
+        case 3: return "Large menu overlay"
+        case 4: return "Right-edge action drawer"
+        case 5: return "Large buttons"
+        case 6: return String(format: "Cursor offset %.0f, %.0f", assist.cursorOffsetX, assist.cursorOffsetY)
+        case 7: return String(format: "Ignore repeat %.2f s", assist.ignoreRepeat)
+        case 8: return "Notification Center: \(edgeLabel(.notificationCenter))"
+        default: return "Control Center: \(edgeLabel(.controlCenter))"
+        }
+    }
+
+    private func edgeLabel(_ action: EdgeSystemAction) -> String {
+        let binding = assist.binding(for: action)
+        if binding.input.isEmpty { return "Accessibility" }
+        return "\(binding.input) modifiers \(binding.modifiers)"
+    }
+
+    private func cycleTouch(_ row: Int) {
+        switch row {
+        case 6:
+            let order = [0.0, -24.0, -36.0]
+            let next = order.firstIndex(of: assist.cursorOffsetY).map { order[($0 + 1) % order.count] } ?? -24
+            assist.cursorOffsetY = next
+            assist.cursorOffsetX = 0
+        case 7:
+            let order = [0.0, 0.28, 0.5]
+            assist.ignoreRepeat = order.firstIndex(of: assist.ignoreRepeat).map { order[($0 + 1) % order.count] } ?? 0.28
+        case 8:
+            cycleEdge(.notificationCenter)
+        case 9:
+            cycleEdge(.controlCenter)
+        default:
+            break
+        }
+    }
+
+    private func cycleEdge(_ action: EdgeSystemAction) {
+        let choices: [(String, UInt8)] = [("", 0), ("n", XAModifierMask.option.rawValue), ("n", XAModifierMask.option.rawValue | XAModifierMask.command.rawValue)]
+        var bindings = assist.edgeBindings
+        if bindings.isEmpty { bindings = TouchAssist.defaultEdges }
+        let current = bindings.firstIndex { $0.action == action } ?? 0
+        let now = assist.binding(for: action)
+        let next = choices.firstIndex { $0.0 == now.input && $0.1 == now.modifiers }.map { choices[($0 + 1) % choices.count] } ?? choices[0]
+        let updated = EdgeBinding(action: action, input: next.0, modifiers: next.1)
+        if bindings.contains(where: { $0.action == action }) {
+            bindings = bindings.map { $0.action == action ? updated : $0 }
+        } else {
+            bindings.append(updated)
+        }
+        assist.edgeBindings = bindings
     }
 
     @objc private func toggled(_ sender: UISwitch) {

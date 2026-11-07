@@ -40,9 +40,28 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private var lastMoveTime = 0.0
     private var xaHost = false
     private var healthTimer: Timer?
+    private let chrome = TouchChromeController()
+    private var assist = TouchAssist()
+    private var titleArbiter = TitleBarArbiter()
+    private var titleTimer: Timer?
+    private var windowFrames: [XARect] = []
+    private var menuTitles: [String] = []
+    private var frontBundle = ""
+    private var resizing: (index: Int, corner: ResizeCorner)?
+    private var resizeOrigin: XAPoint?
+    private var dragOriginView: XAPoint?
+    private var dragOriginTime = 0.0
+    private var lastRepeatTime: Double?
+    private var loupeImage: UIImage?
+    private var sidebarEdge: UIScreenEdgePanGestureRecognizer?
+    private var drawerEdge: UIScreenEdgePanGestureRecognizer?
+    private var commandStripHeight: NSLayoutConstraint!
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
+    override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
+        assist.edgeDrawer ? .right : []
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,6 +69,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         let loaded = LocalSettings.load()
         token = loaded.token
         features = loaded.features
+        assist = LocalSettings.loadAssist()
         interpreter = DirectTouchInterpreter(
             slop: features.gestureTuning.clamped().slop,
             doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
@@ -89,8 +109,9 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             commandStrip.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             commandStrip.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             commandStrip.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            commandStrip.heightAnchor.constraint(equalToConstant: 52),
         ])
+        commandStripHeight = commandStrip.heightAnchor.constraint(equalToConstant: 52)
+        commandStripHeight.isActive = true
         commandStrip.onItem = { [weak self] item in self?.command(item) }
 
         statsLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -143,6 +164,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             self.input.sendClipboard(text: text, revision: UInt64(UIPasteboard.general.changeCount))
         }
         clipboard.start()
+        chrome.install(in: view)
+        wireChrome()
         addGestures()
         applyChrome()
         receiver.start()
@@ -187,49 +210,135 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         if receiver.isConnected { receiver.announcePanel() }
         layoutCursor()
         applyMagnifier()
+        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { feed(touches, .began, event) }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { feed(touches, .moved, event) }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { feed(touches, .ended, event) }
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { feed(touches, .cancelled, event) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        feed(touches, .cancelled, event)
+        chrome.loupe.hide()
+        resizing = nil
+    }
 
     private func feed(_ touches: Set<UITouch>, _ phase: TouchSample.Phase, _ event: UIEvent?) {
         guard let touch = touches.first else { return }
         let count = event?.allTouches?.filter { $0.phase != .ended && $0.phase != .cancelled }.count ?? 1
-        let point = touch.location(in: videoView)
+        let raw = touch.location(in: videoView)
+        let point = CGPoint(x: raw.x + CGFloat(assist.cursorOffsetX), y: raw.y + CGFloat(assist.cursorOffsetY))
+        if phase == .began {
+            dragOriginView = XAPoint(x: Double(raw.x), y: Double(raw.y))
+            resizeOrigin = XAPoint(x: Double(point.x), y: Double(point.y))
+            dragOriginTime = touch.timestamp
+            loupeImage = nil
+            resizing = resizeHit(at: raw)
+        }
         let sample = TouchSample(time: touch.timestamp, phase: phase, location: XAPoint(x: Double(point.x), y: Double(point.y)), activeTouches: count)
         let gestures = interpreter.feed(sample) { [weak self] location in
             self?.normalize(location)
         }
-        for gesture in gestures { perform(gesture) }
-        if phase == .moved {
-            let now = touch.timestamp
+        for gesture in gestures { perform(gesture, finger: raw, pointer: point, time: touch.timestamp) }
+        if phase == .moved || phase == .ended {
             lastMove = XAPoint(x: Double(point.x), y: Double(point.y))
-            lastMoveTime = now
+            lastMoveTime = touch.timestamp
+        }
+        if phase == .ended || phase == .cancelled {
+            chrome.loupe.hide()
+            if phase == .cancelled { resizing = nil }
         }
     }
 
-    private func perform(_ gesture: FingerGesture) {
+    private func perform(_ gesture: FingerGesture, finger: CGPoint, pointer: CGPoint, time: Double) {
         if features.trackpadMode {
+            chrome.loupe.hide()
             performTrackpad(gesture)
             return
         }
-        if case .tap(let point) = gesture, TouchGestureRouter.titleBarFill(enabled: features.touchscreenGestures, normalizedY: point.y, tapCount: 2) {
-            input.sendWindow(.fill)
+        if case .tap(let point) = gesture {
+            handleTap(point, time: time)
             return
         }
-        if case .drag(.ended, let point) = gesture, features.touchscreenGestures {
-            let speed = xaHypot(point.x - lastMove.x, point.y - lastMove.y) * 1000
-            if let zone = WindowSnap.flick(dx: point.x - lastMove.x, dy: point.y - lastMove.y, speed: speed, minimumSpeed: 0.8) {
-                sendSnap(zone)
-            }
+        if case .drag = gesture {
+            titleTimer?.invalidate()
+            titleArbiter.cancel()
         }
-        if features.trackpadMode == false {
-            forwardLegacy(gesture)
+        if case .drag(let phase, _) = gesture, let resize = resizing, assist.windowChrome {
+            sendResize(phase, pointer: pointer, resize: resize)
+            return
         }
+        if case .drag(.ended, _) = gesture, assist.windowChrome {
+            flickTitleBar(at: finger, time: time)
+        }
+        if case .drag = gesture, assist.loupeWhileDragging {
+            showLoupe(at: finger)
+        }
+        forwardLegacy(gesture)
         for intent in GestureMapper.intents(for: gesture) {
             input.send(intent: intent)
+        }
+    }
+
+    private func handleTap(_ point: XAPoint, time: Double) {
+        let tuning = features.gestureTuning.clamped()
+        let gap = time - (lastRepeatTime ?? -10)
+        if gap > tuning.doubleTapWindow && !RepeatGate.allow(now: time, last: lastRepeatTime, interval: assist.ignoreRepeat) {
+            return
+        }
+        lastRepeatTime = time
+        guard assist.windowChrome else {
+            sendClick(point)
+            return
+        }
+        let frames = windowFrames
+        switch titleArbiter.tap(point: point, time: time, windows: frames, titleHeight: titleHeightNormalized()) {
+        case .click(let clickPoint):
+            sendClick(clickPoint)
+        case .pending:
+            titleTimer?.invalidate()
+            let wait = features.gestureTuning.clamped().doubleTapWindow
+            titleTimer = Timer.scheduledTimer(withTimeInterval: wait, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                if case .click(let clickPoint) = self.titleArbiter.flush(now: time + wait + 0.05) { self.sendClick(clickPoint) }
+            }
+        case .fillToggle:
+            titleTimer?.invalidate()
+            input.sendWindow(.fillToggle)
+        }
+    }
+
+    private func sendClick(_ point: XAPoint) {
+        forwardLegacy(.tap(point))
+        for intent in GestureMapper.intents(for: .tap(point)) { input.send(intent: intent) }
+    }
+
+    private func sendResize(_ phase: FingerGesture.DragPhase, pointer: CGPoint, resize: (index: Int, corner: ResizeCorner)) {
+        guard phase == .moved || phase == .ended else { return }
+        let content = contentSize()
+        guard content.width > 1, content.height > 1, let origin = resizeOrigin else { return }
+        let current = XAPoint(x: Double(pointer.x), y: Double(pointer.y))
+        let dx = (current.x - origin.x) / content.width
+        let dy = (current.y - origin.y) / content.height
+        resizeOrigin = current
+        input.sendChrome(op: .resize, index: UInt16(resize.corner.rawValue), windowIndex: UInt16(resize.index), dx: dx, dy: dy)
+        if phase == .ended { resizing = nil }
+    }
+
+    private func flickTitleBar(at finger: CGPoint, time: Double) {
+        guard let start = dragOriginView else { return }
+        let dt = max(0.016, time - dragOriginTime)
+        let dx = Double(finger.x) - start.x
+        let dy = Double(finger.y) - start.y
+        let speed = xaHypot(dx, dy) / dt
+        let frames = windowViewFrames()
+        guard let region = TitleBarFlick.region(start: start, dx: dx, dy: dy, speed: speed, windows: frames) else { return }
+        switch region {
+        case .leftHalf: input.sendWindow(.snapLeft)
+        case .rightHalf: input.sendWindow(.snapRight)
+        case .topLeft: input.sendWindow(.tileTopLeft)
+        case .topRight: input.sendWindow(.tileTopRight)
+        case .bottomLeft: input.sendWindow(.tileBottomLeft)
+        case .bottomRight: input.sendWindow(.tileBottomRight)
         }
     }
 
@@ -325,9 +434,14 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         twoHold.numberOfTouchesRequired = 2
         twoHold.minimumPressDuration = 0.35
         view.addGestureRecognizer(twoHold)
-        let edge = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(edgePan(_:)))
-        edge.edges = features.gestureTuning.sidebarOnLeft ? .left : .right
-        view.addGestureRecognizer(edge)
+        let sidebar = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(edgePan(_:)))
+        sidebar.edges = .left
+        view.addGestureRecognizer(sidebar)
+        sidebarEdge = sidebar
+        let drawer = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(drawerPan(_:)))
+        drawer.edges = .right
+        view.addGestureRecognizer(drawer)
+        drawerEdge = drawer
     }
 
     @objc private func scrollPan(_ gesture: UIPanGestureRecognizer) {
@@ -345,7 +459,8 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         receiver.sendScroll(dx: pixels.x, dy: pixels.y)
         if sendInertia {
             let velocity = gesture.velocity(in: videoView)
-            for step in ScrollInertia.steps(velocityX: Double(velocity.x) * 0.016 * gain, velocityY: Double(velocity.y) * 0.016 * gain) {
+            let steps = MacTouchScroll.steps(velocityX: Double(velocity.x) * 0.016 * gain, velocityY: Double(velocity.y) * 0.016 * gain)
+            for step in steps {
                 let extra = CoordinateMapper.scrollPixels(viewDelta: XAPoint(x: step.dx, y: step.dy), contentSize: contentSize(), videoPixelSize: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1))))
                 input.send(intent: .scroll(dx: extra.x, dy: extra.y, inertia: true))
                 receiver.sendScroll(dx: extra.x, dy: extra.y)
@@ -383,18 +498,46 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     @objc private func edgePan(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard features.touchscreenGestures, gesture.state == .ended else { return }
+        guard features.gestureTuning.sidebarOnLeft, gesture.state == .ended, gesture.translation(in: view).x > 24 else { return }
+        collapsed = false
+        applyChrome()
+    }
+
+    @objc private func drawerPan(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard assist.edgeDrawer, gesture.state == .ended else { return }
         let start = gesture.location(in: view)
-        if TouchGestureRouter.edgeDrawer(
-            enabled: true,
-            startX: Double(start.x),
-            viewWidth: Double(view.bounds.width),
-            translationX: Double(gesture.translation(in: view).x),
-            sidebarOnLeft: features.gestureTuning.sidebarOnLeft
-        ) {
-            collapsed = false
-            applyChrome()
+        if EdgeDrawerGate.shouldOpen(startX: Double(start.x), viewWidth: Double(view.bounds.width), translationX: Double(gesture.translation(in: view).x)) {
+            chrome.toggleDrawer()
         }
+    }
+
+    private func wireChrome() {
+        chrome.onLight = { [weak self] action in self?.input.sendWindow(action) }
+        chrome.onDrawer = { [weak self] action in self?.fireEdge(action) }
+        chrome.onMenu = { [weak self] index in
+            self?.input.sendChrome(op: .menu, index: UInt16(index), windowIndex: 0, dx: 0, dy: 0)
+        }
+        chrome.onMenusRequested = { [weak self] in
+            guard let self = self, self.assist.menuOverlay else { return }
+            self.chrome.showMenus(self.menuTitles, large: self.assist.largeButtons)
+        }
+        chrome.onZoom = { [weak self] zoomIn in self?.sendZoom(zoomIn) }
+    }
+
+    private func fireEdge(_ action: EdgeSystemAction) {
+        switch EdgeRouter.route(assist.binding(for: action)) {
+        case .key(let shortcut):
+            sendShortcut(shortcut)
+        case .accessibility:
+            input.sendWindow(action.windowAction)
+        }
+        chrome.setDrawer(open: false)
+    }
+
+    private func sendZoom(_ zoomIn: Bool) {
+        let binding = ZoomProfiles.resolve(bundleID: frontBundle, bindings: assist.zoomBindings)
+        let inputName = zoomIn ? binding.zoomIn : binding.zoomOut
+        sendShortcut(KeyShortcut(input: inputName, modifiers: XAModifierMask(rawValue: binding.modifiers)))
     }
 
     private func wireSidebar() {
@@ -470,10 +613,11 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
 
     private func showSettings() {
-        let settings = SettingsViewController(features: features, token: token)
-        settings.onChange = { [weak self] features, token in
+        let settings = SettingsViewController(features: features, assist: assist, token: token)
+        settings.onChange = { [weak self] features, assist, token in
             guard let self = self else { return }
             self.features = features
+            self.assist = assist
             self.token = token
             self.input.token = token
             self.input.requirePairing = features.requirePairing
@@ -482,12 +626,15 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             if features.audio { self.audio.start() } else { self.audio.stop() }
             self.audio.volume = UserDefaults.standard.object(forKey: "XADisplay.audioVolume") as? Double ?? self.audio.volume
             LocalSettings.save(token: token, features: features)
+            LocalSettings.saveAssist(assist)
             self.applyChrome()
+            self.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
             self.interpreter = DirectTouchInterpreter(
                 slop: features.gestureTuning.clamped().slop,
                 doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
                 longPressDuration: features.gestureTuning.clamped().longPressDuration
             )
+            self.titleArbiter = TitleBarArbiter(window: features.gestureTuning.clamped().doubleTapWindow)
         }
         let nav = UINavigationController(rootViewController: settings)
         present(nav, animated: true)
@@ -499,8 +646,14 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         sidebarLeading.isActive = features.gestureTuning.sidebarOnLeft
         sidebarTrailing.isActive = !features.gestureTuning.sidebarOnLeft
         commandStrip.isHidden = !features.commandStrip
+        commandStripHeight.constant = assist.largeButtons ? 68 : 52
+        sidebar.setLarge(assist.largeButtons)
+        chrome.setLarge(assist.largeButtons)
+        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
         statsLabel.isHidden = !features.showStats
         precisionLabel.isHidden = !features.precisionMode
+        sidebarEdge?.isEnabled = features.gestureTuning.sidebarOnLeft
+        drawerEdge?.isEnabled = assist.edgeDrawer
     }
 
     private func applyMagnifier() {
@@ -603,6 +756,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             statusLabel.text = "Reconnecting"
             statusLabel.isHidden = false
             releaseModifiers()
+            input.send(intent: .mouse(phase: .up, button: .left, x: 0, y: 0, space: .relativeNormalized))
+            input.send(intent: .mouse(phase: .up, button: .right, x: 0, y: 0, space: .relativeNormalized))
+            chrome.loupe.hide()
+            resizing = nil
         }
     }
     func videoReceiver(_ receiver: VideoReceiver, videoSizeDidChange size: CGSize) {
@@ -634,6 +791,63 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     func videoReceiver(_ receiver: VideoReceiver, metrics: XAMetrics) {
         pipelineMs = metrics.captureToAckMs
         refreshStats()
+    }
+    func videoReceiver(_ receiver: VideoReceiver, windows body: String) {
+        windowFrames = ChromeWire.parseWindows(body)
+        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
+    }
+    func videoReceiver(_ receiver: VideoReceiver, menus body: String) {
+        menuTitles = ChromeWire.parseMenus(body)
+        if chrome.menuVisible { chrome.showMenus(menuTitles, large: assist.largeButtons) }
+    }
+    func videoReceiver(_ receiver: VideoReceiver, frontBundle bundle: String) {
+        frontBundle = bundle
+    }
+
+    private func resizeHit(at point: CGPoint) -> (index: Int, corner: ResizeCorner)? {
+        guard assist.windowChrome else { return nil }
+        let xa = XAPoint(x: Double(point.x), y: Double(point.y))
+        for (index, frame) in windowViewFrames().enumerated() {
+            if let corner = WindowChrome.resizeCorner(point: xa, window: frame) { return (index, corner) }
+        }
+        return nil
+    }
+
+    private func windowViewFrames() -> [XARect] {
+        windowFrames.map { normalized in
+            let rect = viewRect(for: normalized)
+            return XARect(x: Double(rect.minX), y: Double(rect.minY), width: Double(rect.width), height: Double(rect.height))
+        }
+    }
+
+    private func viewRect(for normalized: XARect) -> CGRect {
+        let content = CoordinateMapper.contentRect(
+            view: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
+            video: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1)))
+        )
+        return CGRect(
+            x: CGFloat(content.minX + normalized.minX * content.width),
+            y: CGFloat(content.minY + normalized.minY * content.height),
+            width: CGFloat(normalized.width * content.width),
+            height: CGFloat(normalized.height * content.height)
+        )
+    }
+
+    private func titleHeightNormalized() -> Double {
+        let height = contentSize().height
+        guard height > 1 else { return 0.04 }
+        return WindowChrome.titleBarPoints / height
+    }
+
+    private func showLoupe(at finger: CGPoint) {
+        if loupeImage == nil {
+            UIGraphicsBeginImageContextWithOptions(videoView.bounds.size, true, 1)
+            videoView.drawHierarchy(in: videoView.bounds, afterScreenUpdates: false)
+            loupeImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+        }
+        guard let image = loupeImage else { return }
+        chrome.loupe.show(image: image, around: finger, finger: finger)
     }
     func inputChannel(_ channel: InputChannel, armed: Bool, reason: String) {
         if !armed {

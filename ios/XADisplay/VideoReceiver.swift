@@ -33,6 +33,9 @@ protocol VideoReceiverDelegate: AnyObject {
     func videoReceiverBecameXAHost(_ receiver: VideoReceiver)
     func videoReceiver(_ receiver: VideoReceiver, stream: StreamAnnouncement)
     func videoReceiver(_ receiver: VideoReceiver, metrics: XAMetrics)
+    func videoReceiver(_ receiver: VideoReceiver, windows body: String)
+    func videoReceiver(_ receiver: VideoReceiver, menus body: String)
+    func videoReceiver(_ receiver: VideoReceiver, frontBundle bundle: String)
 }
 
 final class VideoReceiver {
@@ -322,6 +325,21 @@ final class VideoReceiver {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.delegate?.videoReceiver(self, metrics: metrics)
+            }
+        case .xaWindows(let body):
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.videoReceiver(self, windows: body)
+            }
+        case .xaMenus(let body):
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.videoReceiver(self, menus: body)
+            }
+        case .xaFront(let bundle):
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.videoReceiver(self, frontBundle: bundle)
             }
         default:
             break

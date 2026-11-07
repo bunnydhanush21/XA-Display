@@ -7,6 +7,7 @@ import XADisplayProtocol
 enum LocalSettings {
     static let tokenKey = "XADisplay.pairingToken"
     static let featuresKey = "XADisplay.features"
+    static let assistKey = "XADisplay.touchAssist"
 
     static func load() -> (token: String, features: XAFeatureSettings) {
         let token = UserDefaults.standard.string(forKey: tokenKey) ?? ""
@@ -21,6 +22,18 @@ enum LocalSettings {
         UserDefaults.standard.set(token, forKey: tokenKey)
         if let data = try? JSONEncoder().encode(features) {
             UserDefaults.standard.set(data, forKey: featuresKey)
+        }
+    }
+
+    static func loadAssist() -> TouchAssist {
+        guard let data = UserDefaults.standard.data(forKey: assistKey),
+              let assist = try? JSONDecoder().decode(TouchAssist.self, from: data) else { return TouchAssist() }
+        return assist
+    }
+
+    static func saveAssist(_ assist: TouchAssist) {
+        if let data = try? JSONEncoder().encode(assist) {
+            UserDefaults.standard.set(data, forKey: assistKey)
         }
     }
 }

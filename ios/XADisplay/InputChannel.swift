@@ -76,6 +76,14 @@ final class InputChannel {
         }
     }
 
+    func sendChrome(op: ChromeOp, index: UInt16, windowIndex: UInt16, dx: Double, dy: Double) {
+        queue.async {
+            guard self.armed else { return }
+            let command = XAChromeCommand(session: self.session, seq: self.nextSeq(), op: op, index: index, windowIndex: windowIndex, dx: dx, dy: dy)
+            self.send(.chrome(command))
+        }
+    }
+
     func sendRelease() {
         queue.async { self.sendReleaseLocked() }
     }

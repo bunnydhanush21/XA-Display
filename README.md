@@ -20,7 +20,7 @@ Each item has a switch. Pairing, clipboard, and audio default as noted.
 | Saved presets | On | Host remembers Balanced / Safe / Native. |
 | Sidebar side and gesture timing | Left, medium | iPad settings. |
 | Auto-connect on USB | On | Host menu. |
-| Touchscreen-style gestures | On | Title-bar double-tap fill, flick to tile, edge drawer, precision crosshair, momentum scroll. |
+| Touch-style window gestures | On | Title-bar fill and flick, corner handles, loupe, traffic lights, menu overlay, right-edge drawer, momentum scroll. Pointer and Accessibility actions, not native touch. |
 | Wi-Fi fallback | On | Used only when USB is gone. |
 
 Core path, always available: H.264 video, direct pointer, two-finger scroll, keyboard, sidebar modifiers, USB-first reconnect.
@@ -68,6 +68,23 @@ Packets are AAC-LC (1024 samples, about 21 ms at 48 kHz) when AudioToolbox accep
 
 **Mute on Mac while routed** is not implemented. Public Core Audio can mute the output device, which silences the speakers and usually the capture as well. There is no public per-app mute that keeps a process tap alive without a virtual audio driver. Opus is not used; it would need a third-party codec.
 
+### Touch-style window gestures
+
+These imitate some gestures from the touchscreen MacBook Pro. They are still **CGEvent pointer events** plus **AXUIElement** window and menu actions. XA Display does not synthesize undocumented touch or `NSTouch` events, and macOS will not treat the iPad as a touchscreen.
+
+The iPad waits to tell a tap, scroll, and drag apart before it sends mouse-down. A long-press is a right-click. Cancel and disconnect release the buttons. Direct Touch and Trackpad stay separate modes.
+
+- **Title bar.** A double-tap on a window's title bar fills the virtual display, or restores the frame from before the fill. A double-tap in the window contents is a double-click. A fast title-bar drag tiles the window to a half or a quarter. Corner handles are 36 points and resize through Accessibility.
+- **Precision.** A drag can show a local loupe. Settings can offset the pointer from the finger. The frontmost window's close, minimize, and zoom buttons are large local targets and press the Accessibility buttons. The menu overlay reads the menu bar with Accessibility and `AXPress`es the item you tap.
+- **Right-edge drawer.** A swipe from the right edge opens Notification Center, Mission Control (Control-Up), App Exposé (Control-Down), Apps/Launchpad (F4), and Control Center. Notification Center and Control Center use the Accessibility menu extra unless you set a key in iPad settings. The right edge defers the iOS system gesture. The left edge still opens a left sidebar.
+- **Zoom.** Pinch magnifies the picture on the iPad. Zoom in and Zoom out in the drawer send the per-app key binding, or Command-= and Command-Minus when the app has no binding.
+- **Scroll.** Momentum stays in the finger direction and stops. It does not reverse into a rubber band.
+- **Accessibility.** Settings cover hold duration, ignore-repeat, movement threshold, 36-point targets, large buttons, and a left or right sidebar.
+
+### Roadmap
+
+MIDI and multitouch app integrations are deferred. So are image clipboard apply, three-finger pinch-to-copy and spread-to-paste, per-app command strips, launch at login, and a jailbreak launchd helper.
+
 Metrics on the iPad:
 
 - **FPS delivered** counts frames handed to the display layer.
@@ -109,7 +126,7 @@ USB is automatic when the iPad is trusted and the cable carries data. Unplug the
 
 ## Known limits
 
-No Apple Pencil, pressure, hover, or true multi-pointer. Pinch does not synthesize a Mac magnify event. Audio is uncompressed PCM and optional. Clipboard is text only. Secure-input fields may ignore injected keys. Native Retina is experimental. Glass-to-glass latency is a camera measurement, not a number this app invents. A jailbreak is only required to install the unsigned iPad app; streaming itself uses public iOS decode and UIKit.
+No Apple Pencil, pressure, hover, or true multi-pointer. Pinch does not synthesize a Mac magnify event. Audio is optional AAC-LC or PCM. Clipboard is text only. Secure-input fields may ignore injected keys. Native Retina is experimental. Glass-to-glass latency is a camera measurement, not a number this app invents. A jailbreak is only required to install the unsigned iPad app; streaming itself uses public iOS decode and UIKit. MIDI and multitouch app integrations are not in this build.
 
 ## Build locally
 

@@ -91,6 +91,7 @@ public enum PostedEvent: Equatable {
     case modifier(bit: XAModifierMask, down: Bool)
     case clipboard(text: String, revision: UInt64)
     case window(WindowAction)
+    case chrome(op: UInt8, index: UInt16, windowIndex: UInt16, dx: Double, dy: Double)
 }
 
 public enum DispatchOutcome: Equatable {
@@ -222,6 +223,11 @@ public struct InputDispatcher {
             guard windowActionsEnabled else { return .drop }
             guard accept(session: command.session, seq: command.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
             return .post([.window(command.action)])
+
+        case .chrome(let command):
+            guard windowActionsEnabled else { return .drop }
+            guard accept(session: command.session, seq: command.seq, hostNowMs: hostNowMs, limited: false) else { return .drop }
+            return .post([.chrome(op: command.op.rawValue, index: command.index, windowIndex: command.windowIndex, dx: command.dx, dy: command.dy)])
 
         case .helloAck, .pong, .audio, .preset:
             return .drop

@@ -67,7 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         audioItem.submenu = audioMenu
         menu.addItem(audioItem)
         addToggle(menu, "Window snapping", settings.windowSnapping, #selector(toggleSnap(_:)))
-        addToggle(menu, "Touchscreen-style gestures", settings.touchscreenGestures, #selector(toggleTouch(_:)))
+        addToggle(menu, "Touch-style window gestures", settings.touchscreenGestures, #selector(toggleTouch(_:)))
+        let touchNote = NSMenuItem(title: "Pointer and Accessibility actions, not native touch", action: nil, keyEquivalent: "")
+        touchNote.isEnabled = false
+        menu.addItem(touchNote)
         addToggle(menu, "Wi-Fi fallback", settings.wifiFallback, #selector(toggleWiFi(_:)))
         addToggle(menu, "Auto-connect on USB", settings.autoConnectUSB, #selector(toggleAuto(_:)))
         addToggle(menu, "Saved presets", settings.savedPresets, #selector(toggleSaved(_:)))
