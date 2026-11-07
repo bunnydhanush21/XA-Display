@@ -663,7 +663,7 @@ final class HostController {
             log("Wake service unavailable")
             return
         }
-        let advertised = Host.current().localizedName
+        let advertised = Host.current().localizedName ?? ""
         listener.service = NWListener.Service(name: advertised.isEmpty ? "XA Display" : advertised, type: XADisplayProtocolInfo.hostBonjourType)
         listener.newConnectionHandler = { [weak self] connection in
             connection.start(queue: self?.queue ?? .main)
