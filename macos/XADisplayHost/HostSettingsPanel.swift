@@ -36,7 +36,7 @@ final class HostSettingsPanel: NSObject {
 
     func select(tab title: String) {
         guard let item = tabs.tabViewItems.first(where: { $0.label == title }) else { return }
-        tabs.select(item)
+        tabs.selectTabViewItem(item)
     }
 
     private func rebuild() {

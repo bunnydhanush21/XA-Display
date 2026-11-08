@@ -44,7 +44,9 @@ final class ReceiverCoverageTests: XCTestCase {
         receiver.announcePanel()
         receiver.sendOrientation("portrait", mode: "stream")
         receiver.setStatus("listening")
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        let ready = expectation(description: "video delegate")
+        DispatchQueue.main.async { ready.fulfill() }
+        wait(for: [ready], timeout: 2)
         XCTAssertGreaterThanOrEqual(delegate.events, 1)
     }
 
