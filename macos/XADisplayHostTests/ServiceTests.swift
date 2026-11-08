@@ -66,27 +66,36 @@ final class ServiceTests: XCTestCase {
     private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
         view.frame = NSRect(origin: .zero, size: size)
         view.layoutSubtreeIfNeeded()
-        guard
-            let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: Int(size.width),
-                pixelsHigh: Int(size.height),
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
+        let pixelsWide = Int(size.width)
+        let pixelsHigh = Int(size.height)
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+            let context = CGContext(
+                data: nil,
+                width: pixelsWide,
+                height: pixelsHigh,
+                bitsPerComponent: 8,
                 bytesPerRow: 0,
-                bitsPerPixel: 0
+                space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
             )
-        else { return }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        if let context = NSGraphicsContext.current {
-            view.displayIgnoringOpacity(view.bounds, in: context)
+        else {
+            XCTFail("Could not allocate the offscreen bitmap")
+            return
         }
+        NSGraphicsContext.saveGraphicsState()
+        let graphics = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.current = graphics
+        view.displayIgnoringOpacity(view.bounds, in: graphics)
         NSGraphicsContext.restoreGraphicsState()
-        guard let data = rep.representation(using: .png, properties: [:]) else { return }
+        guard let image = context.makeImage() else {
+            XCTFail("Could not read the offscreen bitmap")
+            return
+        }
+        let rep = NSBitmapImageRep(cgImage: image)
+        guard let data = rep.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode PNG")
+            return
+        }
         guard let dir = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"], !dir.isEmpty else { return }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))

@@ -7,7 +7,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         XALog.write(XALog.ui, "ipad launch")
         let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = ReceiverViewController()
+        let testing = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        window.rootViewController = testing ? UIViewController() : ReceiverViewController()
         window.backgroundColor = .black
         window.makeKeyAndVisible()
         self.window = window

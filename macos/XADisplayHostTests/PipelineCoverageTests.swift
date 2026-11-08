@@ -92,6 +92,9 @@ final class PipelineCoverageTests: XCTestCase {
         }
         Thread.sleep(forTimeInterval: 0.3)
         encoder.stop()
+        LoginItem.setEnabled(false)
+        LoginItem.setEnabled(true)
+        LoginItem.setEnabled(false)
         let coded = AACLCEncoder()
         _ = coded.start()
         _ = coded.encode(Data(count: 4096))
