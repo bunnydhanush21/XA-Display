@@ -51,6 +51,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: XADisplayHost/XADisplayHost.entitlements
         CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_TESTABILITY: YES
         ARCHS: arm64
         ONLY_ACTIVE_ARCH: NO
         GENERATE_INFOPLIST_FILE: NO
@@ -63,6 +64,7 @@ targets:
     sources:
       - path: XADisplayHostTests
     dependencies:
+      - target: XADisplayHost
       - package: XADisplayProtocol
         product: XADisplayProtocol
     settings:
@@ -72,3 +74,5 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         SWIFT_VERSION: "5.0"
         CODE_SIGNING_ALLOWED: NO
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/XADisplayHost.app/Contents/MacOS/XADisplayHost"
+        BUNDLE_LOADER: "$(TEST_HOST)"

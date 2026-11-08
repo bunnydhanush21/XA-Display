@@ -89,6 +89,18 @@ final class QualityTests: XCTestCase {
             try? encoded.write(to: URL(fileURLWithPath: dir).appendingPathComponent("loopback.json"))
         }
     }
+
+    func testExportDiagnosticsRedactsStructuredFields() {
+        let text = DiagnosticsText.render(
+            DiagnosticsSnapshot(
+                appVersion: "1.0.0", transport: "usb", preset: "balanced", permissions: ["screenRecording": false],
+                pairingToken: "ABCD2345", thermal: "mac", battery: "mac", notes: ["failure code=pairing message=denied"]
+            ))
+        XCTAssertFalse(text.contains("ABCD2345"))
+        XCTAssertTrue(text.contains("code=pairing"))
+        let zip = StoredZip.archive(name: "diagnostics.txt", data: Data(text.utf8))
+        XCTAssertNotNil(zip.range(of: Data("diagnostics.txt".utf8)))
+    }
 }
 
 private struct SplitMix64 {

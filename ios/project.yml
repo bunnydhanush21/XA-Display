@@ -63,3 +63,48 @@ targets:
         ONLY_ACTIVE_ARCH: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
+        ENABLE_TESTABILITY: YES
+  XADisplayTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - path: XADisplayTests
+    dependencies:
+      - target: XADisplay
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.tests
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/XADisplay.app/XADisplay"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  XADisplayUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - path: XADisplayUITests
+    dependencies:
+      - target: XADisplay
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.uitests
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  XADisplay:
+    build:
+      targets:
+        XADisplay: all
+        XADisplayTests: [test]
+        XADisplayUITests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - XADisplayTests
+        - XADisplayUITests

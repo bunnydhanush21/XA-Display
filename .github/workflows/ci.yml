@@ -86,6 +86,44 @@ jobs:
           cp -R "$APP" Payload/
           zip -qry XADisplay.ipa Payload
           ls -l XADisplay.ipa
+      - name: iPad simulator tests and screenshots
+        working-directory: ios
+        env:
+          XA_SCREENSHOT_DIR: ${{ github.workspace }}/docs/screenshots
+        run: |
+          mkdir -p "$XA_SCREENSHOT_DIR"
+          UDID=$(python3 - << 'PY'
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          for runtime, devices in data["devices"].items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  if device.get("isAvailable") and "iPad" in device.get("name", ""):
+                      print(device["udid"])
+                      raise SystemExit
+          raise SystemExit("no iPad simulator")
+          PY
+          )
+          xcrun simctl boot "$UDID" || true
+          xcodebuild test \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -destination "id=$UDID" \
+            -derivedDataPath build-tests \
+            -enableCodeCoverage YES \
+            -resultBundlePath build-tests/iPad.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
+          xcrun xccov view --report --json build-tests/iPad.xcresult > build-tests/ipad-coverage.json
+          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: docs/screenshots
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: XADisplay.ipa
@@ -124,15 +162,22 @@ jobs:
           ls -l XADisplayHost.zip
       - name: Host smoke tests
         working-directory: macos
+        env:
+          XA_SCREENSHOT_DIR: ${{ github.workspace }}/docs/screenshots
         run: |
+          mkdir -p "$XA_SCREENSHOT_DIR"
           xcodebuild test \
             -project XADisplayHost.xcodeproj \
             -scheme XADisplayHostTests \
             -destination 'platform=macOS' \
             -derivedDataPath build \
+            -enableCodeCoverage YES \
+            -resultBundlePath build/Host.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
+          xcrun xccov view --report --json build/Host.xcresult > build/host-coverage.json
+          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build/host-coverage.json XADisplayHost 60
       - uses: actions/upload-artifact@v4
         with:
           name: XADisplayHost.zip

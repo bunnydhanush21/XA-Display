@@ -6,7 +6,8 @@
 @preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 
-final class HostController: @unchecked Sendable {
+@MainActor
+final class HostController {
     var onState: ((String) -> Void)?
     var onPhase: ((ConnectionPhase) -> Void)?
     let poster = EventPoster()
@@ -45,7 +46,13 @@ final class HostController: @unchecked Sendable {
     var running = false
     var userPaused = false
     let queue = DispatchQueue(label: "xa.host")
-    let session = SessionCoordinator()
+    let session: any SessionDriving
+    let displayService = DisplayService()
+    let connectionService = ConnectionService()
+    let clipboardService = ClipboardService()
+    let audioService = AudioService()
+    let inputService = InputService()
+    let permissions: any PermissionChecking
     var channelGate: ChannelGate
     var pendingHello: LegacyHello?
     var lastLatency = "—"
@@ -73,6 +80,8 @@ final class HostController: @unchecked Sendable {
             mediaEnabled: settings.mediaRemote
         )
         channelGate = ChannelGate(requireAuth: settings.requirePairing)
+        session = SessionCoordinator()
+        permissions = SystemPermissions()
         dispatcher.sessionGenerator = {
             var value: UInt32 = 0
             arc4random_buf(&value, MemoryLayout<UInt32>.size)
@@ -88,12 +97,14 @@ final class HostController: @unchecked Sendable {
         startBrowser()
         startWakeService()
         timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
-            self?.pollClipboard()
-            self?.publishChrome()
-            self?.publishNowPlaying()
-            self?.queue.async { [weak self] in self?.tick() }
+            Task { @MainActor in
+                self?.pollClipboard()
+                self?.publishChrome()
+                self?.publishNowPlaying()
+                self?.tick()
+            }
         }
-        queue.async { [weak self] in self?.tick() }
+        tick()
         publish()
     }
 
@@ -140,7 +151,7 @@ final class HostController: @unchecked Sendable {
             transition(.userStop)
         } else {
             transition(.retry)
-            queue.async { [weak self] in self?.tick() }
+            tick()
         }
         publish()
     }
@@ -252,8 +263,8 @@ final class HostController: @unchecked Sendable {
                 transport: transport.rawValue,
                 preset: "\(preset.id.rawValue) \(preset.width)x\(preset.height)@\(adaptation.fps)",
                 permissions: [
-                    "screenRecording": CGPreflightScreenCaptureAccess(),
-                    "accessibility": AXIsProcessTrusted()
+                    "screenRecording": permissions.snapshot().screenRecording,
+                    "accessibility": permissions.snapshot().accessibility
                 ],
                 pairingToken: token,
                 thermal: "mac",

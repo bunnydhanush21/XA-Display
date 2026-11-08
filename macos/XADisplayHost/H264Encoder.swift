@@ -4,7 +4,7 @@
 @preconcurrency import VideoToolbox
 import XADisplayProtocol
 
-final class FrameMark: NSObject, @unchecked Sendable {
+final class FrameMark: NSObject {
     let captureMs: Double
     let started: CFTimeInterval
     let sequence: UInt64
@@ -15,7 +15,7 @@ final class FrameMark: NSObject, @unchecked Sendable {
     }
 }
 
-final class H264Encoder: @unchecked Sendable {
+final class H264Encoder {
     var onAccessUnit: ((Data, Bool, UInt64, Double, Double) -> Void)?
     private var session: VTCompressionSession?
     private var gate = InFlightGate()

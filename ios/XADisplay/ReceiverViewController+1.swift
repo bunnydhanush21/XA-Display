@@ -145,15 +145,13 @@ extension ReceiverViewController {
         default: rotation = .identity
         }
         let video = videoSize == .zero ? XASize(width: 1440, height: 1080) : XASize(width: Double(videoSize.width), height: Double(videoSize.height))
-        return CoordinateMapper.normalize(
-            MapRequest(
-                point: location,
-                pointSpace: .viewPoints,
-                viewSizePoints: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
-                pixelsPerPoint: Double(UIScreen.main.scale),
-                videoPixelSize: video,
-                rotation: rotation
-            ))
+        return PadInputService().normalized(
+            point: location,
+            view: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
+            video: video,
+            rotation: rotation,
+            pixelsPerPoint: Double(UIScreen.main.scale)
+        )
     }
     func contentSize() -> XASize {
         let rect = CoordinateMapper.contentRect(

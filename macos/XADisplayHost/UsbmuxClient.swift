@@ -147,7 +147,7 @@ enum UsbmuxClient {
     }
 }
 
-final class FDStream: @unchecked Sendable {
+final class FDStream {
     let fd: Int32
     var onData: ((Data) -> Void)?
     var onClose: (() -> Void)?

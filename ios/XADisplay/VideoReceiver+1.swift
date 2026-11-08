@@ -240,6 +240,7 @@ extension VideoReceiver {
         delegate?.videoReceiver(self, stats: snapshot)
     }
     func noteFailure() {
+        XALog.event(XALog.video, "failure", ["code": PadError.decode.userMessage])
         stats.decodeFails += 1
         layerFailures += 1
         delegate?.videoReceiver(self, stats: stats)

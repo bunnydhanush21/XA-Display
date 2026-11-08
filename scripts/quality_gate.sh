@@ -108,6 +108,9 @@ for path in list(Path("Sources").rglob("*.swift")):
 if missing:
     raise SystemExit("undocumented public types:\n" + "\n".join(missing[:20]))
 yml = Path("macos/project.yml").read_text()
+host = "\n".join(path.read_text() for path in Path("macos").rglob("*.swift"))
+if "@unchecked Sendable" in host:
+    raise SystemExit("@unchecked Sendable is still present in the Mac target")
 if "SWIFT_STRICT_CONCURRENCY: complete" not in yml:
     raise SystemExit("Mac target is not set to strict concurrency complete")
 if "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in yml or "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in Path("ios/project.yml").read_text():

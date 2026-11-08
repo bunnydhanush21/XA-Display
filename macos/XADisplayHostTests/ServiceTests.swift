@@ -1,0 +1,77 @@
+@preconcurrency import AppKit
+import XADisplayProtocol
+import XCTest
+
+@testable import XADisplayHost
+
+@MainActor
+final class ServiceTests: XCTestCase {
+    func testDisplayConnectionClipboardAndInput() {
+        let display = DisplayService()
+        let portrait = display.active(preset: .balanced, portrait: true, custom: CustomDisplaySettings())
+        XCTAssertEqual(portrait.width, 1080)
+        XCTAssertEqual(portrait.height, 1440)
+        let custom = display.active(preset: .balanced, portrait: false, custom: CustomDisplaySettings(enabled: true, width: 1280, height: 800, fps: 24, bitrate: 4_000_000))
+        XCTAssertEqual(custom.width, 1280)
+        XCTAssertEqual(custom.scale, 1)
+        let plan = display.plan(currentPortrait: false, requested: "portrait", follow: true, lock: "none", mode: "resolution", preset: .balanced)
+        XCTAssertEqual(plan, .reconfigure(width: 1080, height: 1440))
+        let connection = ConnectionService()
+        XCTAssertEqual(connection.link(running: true, userPaused: false, autoUSB: true, transport: .none, usb: true, wifiHost: nil, wifiAllowed: true), .usb)
+        XCTAssertNil(connection.link(running: true, userPaused: true, autoUSB: true, transport: .none, usb: true, wifiHost: nil, wifiAllowed: true))
+        XCTAssertEqual(connection.link(running: true, userPaused: false, autoUSB: true, transport: .none, usb: false, wifiHost: "10.0.0.2", wifiAllowed: true), .wifi)
+        let clipboard = ClipboardService()
+        XCTAssertEqual(clipboard.outbound(sync: true, armed: true, changeCount: 2, lastCount: 1, text: "hello"), "hello")
+        XCTAssertNil(clipboard.outbound(sync: false, armed: true, changeCount: 2, lastCount: 1, text: "hello"))
+        XCTAssertTrue(AudioService().shouldCapture(enabled: true, displayID: 1))
+        XCTAssertFalse(AudioService().shouldCapture(enabled: true, displayID: 0))
+        var gate = ChannelGate(requireAuth: true)
+        XCTAssertFalse(InputService().allowsVideo(gate))
+        XCTAssertEqual(InputService().failure(for: .xaSettings("{}"), allowed: false), .pairing)
+        XCTAssertNil(InputService().failure(for: .hello(LegacyHello(pixelsWide: 1, pixelsHigh: 1, scale: 2, device: "iPad", id: "a", orientation: "landscape")), allowed: false))
+        _ = gate.acceptVideo(token: "ABCD2345", nonce: "pad", proof: ChannelAuth.proof(token: "ABCD2345", channel: .video, nonce: "pad"))
+        XCTAssertTrue(InputService().allowsVideo(gate))
+        let fixed = FixedPermissions(screenRecording: false, accessibility: true).snapshot()
+        XCTAssertFalse(fixed.screenRecording)
+        XCTAssertTrue(fixed.accessibility)
+    }
+
+    func testMenuSettingsAndOnboardingSnapshots() throws {
+        let menu = MenuPopoverController()
+        menu.refresh(
+            MenuSnapshot(
+                phase: .streaming, peerName: "iPad", transport: "usb", latency: "12 ms", fps: "30 fps", preset: "balanced", audio: true, clipboard: false, touch: true, lowLatency: true,
+                screenRecording: true, accessibility: true))
+        let menuView = try XCTUnwrap(menu.popover.contentViewController?.view)
+        try writePNG(menuView, named: "mac-popover.png", size: NSSize(width: 320, height: 420))
+        let settings = HostSettingsPanel(document: .defaults)
+        try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings.png", size: NSSize(width: 640, height: 480))
+        let flow = OnboardingFlow()
+        flow.pairingCode = "ABCD2345"
+        flow.show()
+        try writePNG(try XCTUnwrap(flow.window.contentView), named: "mac-onboarding.png", size: NSSize(width: 520, height: 360))
+    }
+
+    func testDiagnosticsRedactsTheToken() {
+        let text = DiagnosticsText.render(
+            DiagnosticsSnapshot(
+                appVersion: "1.0.0", transport: "usb", preset: "balanced", permissions: ["screenRecording": true], pairingToken: "ABCD2345", thermal: "mac", battery: "mac",
+                notes: ["failure code=pairing"]))
+        XCTAssertFalse(text.contains("ABCD2345"))
+        XCTAssertTrue(text.contains("failure code=pairing") || text.contains("notes"))
+        let zip = StoredZip.archive(name: "diagnostics.txt", data: Data(text.utf8))
+        XCTAssertTrue(zip.starts(with: Data([0x50, 0x4B, 0x03, 0x04])))
+    }
+
+    private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
+        view.frame = NSRect(origin: .zero, size: size)
+        view.layoutSubtreeIfNeeded()
+        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        guard let data = rep.representation(using: .png, properties: [:]) else { return }
+        guard let dir = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+        XCTAssertGreaterThan(data.count, 1000)
+    }
+}

@@ -9,7 +9,7 @@ enum CaptureError: Error {
     case encoderFailed
 }
 
-final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
+final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
     var onAccessUnit: ((Data, Bool, UInt64, Double, Double) -> Void)?
     var onPCM: ((Data) -> Void)?
     var onLog: ((String) -> Void)?

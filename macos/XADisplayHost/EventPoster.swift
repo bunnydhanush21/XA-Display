@@ -2,7 +2,7 @@
 @preconcurrency import Foundation
 import XADisplayProtocol
 
-final class EventPoster: @unchecked Sendable {
+final class EventPoster {
     init() {
         XALog.write(XALog.input, "event poster ready")
     }

@@ -10,7 +10,12 @@ enum XALog {
     static let ui = OSLog(subsystem: subsystem, category: "ui")
 
     static func write(_ log: OSLog, _ line: String) {
-        os_log("%{public}@", log: log, type: .info, line)
+        event(log, "message", ["text": line])
+    }
+
+    static func event(_ log: OSLog, _ name: String, _ fields: [String: String]) {
+        let body = ([name] + fields.keys.sorted().map { "\($0)=\(fields[$0] ?? "")" }).joined(separator: " ")
+        os_log("%{public}@", log: log, type: .info, body)
     }
 }
 

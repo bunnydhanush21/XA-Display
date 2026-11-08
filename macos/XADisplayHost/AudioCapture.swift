@@ -5,7 +5,7 @@
 import XADisplayProtocol
 
 /// Separate from the video stream so app audio filters do not crop the picture.
-final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
+final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     var onPacket: ((XAAudio) -> Void)?
     var onLog: ((String) -> Void)?
     private var stream: SCStream?
@@ -143,7 +143,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     }
 }
 
-final class AACLCEncoder: @unchecked Sendable {
+final class AACLCEncoder {
     private var converter: AVAudioConverter?
     private(set) var cookie = Data()
 

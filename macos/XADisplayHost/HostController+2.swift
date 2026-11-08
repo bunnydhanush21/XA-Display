@@ -197,7 +197,7 @@ extension HostController {
                 self?.log("Capture \(width)x\(height) @ \(fps) \(level)")
                 self?.restartAudio()
             } catch {
-                self?.log("Capture failed: \(error.localizedDescription)")
+                self?.log(HostFailure.codec.error)
                 if self?.preset.id == .native {
                     self?.selectPreset(.balanced)
                 }
@@ -217,7 +217,7 @@ extension HostController {
         }
     }
     func sendVideo(_ annex: Data, keyframe: Bool, captureMs: Double, encodeMs: Double) {
-        guard channelGate.allows(.video) else { return }
+        guard inputService.allowsVideo(channelGate) else { return }
         let decision = sendBudget.admit(pending: pendingSends, isKeyframe: keyframe)
         guard decision == .send else { return }
         guard annex.count <= FrameLimits.video.maxPayload else { return }
@@ -237,7 +237,7 @@ extension HostController {
     }
     func restartAudio() {
         audioCapture.stop()
-        guard settings.audio, savedDisplayID != 0 else { return }
+        guard audioService.shouldCapture(enabled: settings.audio, displayID: savedDisplayID) else { return }
         let displayID = savedDisplayID
         let frame = lastDisplayFrame
         let mode = audioMode

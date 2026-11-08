@@ -71,6 +71,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     var letterboxFallback = false
     var streamTransform = CGAffineTransform.identity
     var layingVideo = false
+    let padSession = PadSession()
     let connectionOverlay = ConnectionOverlay()
     let pill = UILabel()
     var pillTimer: Timer?

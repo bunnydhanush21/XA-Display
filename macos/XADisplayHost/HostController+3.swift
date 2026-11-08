@@ -25,15 +25,11 @@ extension HostController {
         channelGate.noteInputArmed(dispatcher.armed)
         guard settings.clipboardSync, channelGate.allows(.clipboard) else { return }
         let board = NSPasteboard.general
-        guard board.changeCount != pasteboardCount, let text = board.string(forType: .string) else { return }
+        guard let text = board.string(forType: .string) else { return }
+        guard let outbound = clipboardService.outbound(sync: settings.clipboardSync, armed: dispatcher.armed, changeCount: board.changeCount, lastCount: pasteboardCount, text: text) else { return }
         pasteboardCount = board.changeCount
-        guard text.utf8.count <= XAClipboard.maxBytes else { return }
-        queue.async { [weak self] in
-            guard let self else { return }
-            guard self.dispatcher.armed else { return }
-            self.clipboardRevision &+= 1
-            self.sendInput(.clipboard(XAClipboard(session: self.dispatcher.session, seq: UInt32(truncatingIfNeeded: self.clipboardRevision), revision: self.clipboardRevision, text: text)))
-        }
+        clipboardRevision &+= 1
+        sendInput(.clipboard(XAClipboard(session: dispatcher.session, seq: UInt32(truncatingIfNeeded: clipboardRevision), revision: clipboardRevision, text: outbound)))
     }
     func adapt(dt: Double) {
         if settings.lowLatencyWiFi, transport == .wifi { return }
@@ -80,7 +76,7 @@ extension HostController {
             let queue = self?.queue ?? .main
             connection.start(queue: queue)
             self?.log("Wake poke from the iPad")
-            queue.async { [weak self] in self?.tick() }
+            Task { @MainActor in self?.tick() }
             queue.asyncAfter(deadline: .now() + 1) { connection.cancel() }
         }
         listener.stateUpdateHandler = { [weak self] state in
@@ -165,16 +161,13 @@ extension HostController {
     }
     func publish() {
         let text = "\(transport.rawValue) · \(preset.id.rawValue) \(preset.width)×\(preset.height)"
-        DispatchQueue.main.async { [weak self] in self?.onState?(text) }
+        onState?(text)
     }
     func transition(_ event: ConnectionEvent) {
-        Task { [weak self] in
-            guard let self = self else { return }
+        Task { @MainActor in
             let phase = await self.session.send(event)
-            DispatchQueue.main.async {
-                self.displayedPhase = phase
-                self.onPhase?(phase)
-            }
+            self.displayedPhase = phase
+            self.onPhase?(phase)
         }
     }
     func log(_ line: String) {
@@ -182,6 +175,10 @@ extension HostController {
         logs.append(clean)
         logRing.append(clean)
         if logs.count > 40 { logs.removeFirst(logs.count - 40) }
-        XALog.write(XALog.net, clean)
+        XALog.event(XALog.net, "note", ["message": clean])
+    }
+    func log(_ failure: HostError) {
+        log(failure.userMessage)
+        XALog.event(XALog.net, "failure", ["code": String(describing: failure)])
     }
 }

@@ -50,10 +50,10 @@ extension HostController {
         persist()
     }
     func tick() {
-        guard running, !userPaused, settings.autoConnectUSB || transport != .none else { return }
         let usb = !UsbmuxClient.listUSBDevices().isEmpty
-        let desired = LinkPreference.desired(usbAvailable: usb, wifiAvailable: wifiHost != nil, wifiAllowed: settings.wifiFallback)
-        if LinkPreference.shouldSwitch(current: transport, desired: desired) || (transport == .none && desired != .none) {
+        if let desired = connectionService.link(
+            running: running, userPaused: userPaused, autoUSB: settings.autoConnectUSB, transport: transport, usb: usb, wifiHost: wifiHost, wifiAllowed: settings.wifiFallback)
+        {
             connect(desired)
         }
         adapt(dt: 1.5)
@@ -77,13 +77,13 @@ extension HostController {
                 return
             }
             let stream = FDStream(fd: video)
-            stream.onData = { [weak self] data in self?.queue.async { [weak self] in self?.ingestVideo(data) } }
-            stream.onClose = { [weak self] in self?.queue.async { [weak self] in self?.linkClosed() } }
+            stream.onData = { [weak self] data in Task { @MainActor in self?.ingestVideo(data) } }
+            stream.onClose = { [weak self] in Task { @MainActor in self?.linkClosed() } }
             usbFD = stream
             if let input = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.inputPort) {
                 let inputStream = FDStream(fd: input)
-                inputStream.onData = { [weak self] data in self?.queue.async { [weak self] in self?.ingestInput(data) } }
-                inputStream.onClose = { [weak self] in self?.queue.async { [weak self] in self?.releaseInput(reason: "input closed") } }
+                inputStream.onData = { [weak self] data in Task { @MainActor in self?.ingestInput(data) } }
+                inputStream.onClose = { [weak self] in Task { @MainActor in self?.releaseInput(reason: "input closed") } }
                 inputFD = inputStream
             }
             sendControl(.xaHello, onVideo: true)
@@ -130,7 +130,7 @@ extension HostController {
         case .ok(let frames):
             for frame in frames { handleVideo(frame) }
         case .failed:
-            log("Video frame rejected")
+            log(HostFailure.transport.error)
             linkClosed()
         }
     }
@@ -148,7 +148,7 @@ extension HostController {
                 }
             }
         case .failed:
-            log("Input frame rejected")
+            log(HostFailure.transport.error)
             releaseInput(reason: "malformed input")
         }
     }
@@ -174,7 +174,10 @@ extension HostController {
         default:
             break
         }
-        guard channelGate.allows(.video) else { return }
+        guard inputService.allowsVideo(channelGate) else {
+            log(HostFailure.pairing.error)
+            return
+        }
         switch message {
         case .xaOrient(let orientation, let mode, _):
             lastDeviceOrientation = orientation
@@ -188,13 +191,11 @@ extension HostController {
                 tuneWiFi(rttMs: ms)
             }
         case .health(let health):
-            queue.async { [weak self] in
-                self?.lastHealth = health
-                self?.lastFPS = String(format: "%.0f fps", health.fpsDelivered)
-            }
+            lastHealth = health
+            lastFPS = String(format: "%.0f fps", health.fpsDelivered)
         case .decodeFailed:
             if let next = PresetFallback.afterDecodeFailure(preset.id) {
-                log("Decode failed. Falling back from \(preset.id.rawValue) to \(next.rawValue)")
+                log(HostFailure.codec.error)
                 selectPreset(next)
             }
         case .xaBattery(let text, let heat):

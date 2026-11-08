@@ -9,13 +9,7 @@ extension ReceiverViewController {
         defer { layingVideo = false }
         let host = view.bounds
         let devicePortrait = host.height > host.width
-        let wantPortrait =
-            OrientationPolicy.resolved(
-                device: devicePortrait ? "portrait" : "landscape",
-                follow: features.followRotation,
-                lock: features.orientationLock
-            ) == "portrait"
-        let rotate = !letterboxFallback && features.rotationMode == "stream" && wantPortrait && devicePortrait
+        let rotate = PadDisplayService().rotation(mode: features.rotationMode, portrait: devicePortrait, follow: features.followRotation, lock: features.orientationLock, letterbox: letterboxFallback)
         let placed = VideoPlacement.frame(host: host, rotateClockwise: rotate)
         let unchanged =
             videoView.bounds.equalTo(placed.bounds)
@@ -142,7 +136,8 @@ extension ReceiverViewController {
         if !receiver.isConnected { statusLabel.text = status }
     }
     func videoReceiver(_ receiver: VideoReceiver, connected: Bool, transport: TransportKind) {
-        connectionOverlay.isHidden = connected
+        connectionOverlay.isHidden = PadConnectionService().overlayVisible(connected: connected) == false
+        padSession.apply(PadConnectionService().phase(connected: connected, paused: userPaused))
         UIApplication.shared.isIdleTimerDisabled = connected
         if connected {
             orientTimer?.invalidate()

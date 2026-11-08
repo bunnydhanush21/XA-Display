@@ -12,7 +12,12 @@ enum XALog {
     static let ui = Logger(subsystem: subsystem, category: "ui")
 
     static func write(_ logger: Logger, _ line: String) {
-        let clean = LogRing.redact(line)
+        event(logger, "message", ["text": line])
+    }
+
+    static func event(_ logger: Logger, _ name: String, _ fields: [String: String]) {
+        let body = ([name] + fields.keys.sorted().map { "\($0)=\(fields[$0] ?? "")" }).joined(separator: " ")
+        let clean = LogRing.redact(body)
         logger.info("\(clean, privacy: .public)")
     }
 }
