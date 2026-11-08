@@ -96,6 +96,11 @@ public struct ChannelSeal: Sendable {
         let inputBytes = input.isEmpty ? Data([0]) : input
         var localOutput = output
         var localTag = tag
+        let keyCount = key.count
+        let nonceCount = nonce.count
+        let aadCount = aad.count
+        let inputCount = input.count
+        let tagCount = localTag.count
         let status = key.withUnsafeBytes { keyRaw in
             nonce.withUnsafeBytes { nonceRaw in
                 aadBytes.withUnsafeBytes { aadRaw in
@@ -103,12 +108,12 @@ public struct ChannelSeal: Sendable {
                         localOutput.withUnsafeMutableBytes { outputRaw in
                             localTag.withUnsafeMutableBytes { tagRaw in
                                 xa_gcm_encrypt(
-                                    keyRaw.bindMemory(to: UInt8.self).baseAddress, key.count,
-                                    nonceRaw.bindMemory(to: UInt8.self).baseAddress, nonce.count,
-                                    aadRaw.bindMemory(to: UInt8.self).baseAddress, aad.count,
-                                    inputRaw.bindMemory(to: UInt8.self).baseAddress, input.count,
+                                    keyRaw.bindMemory(to: UInt8.self).baseAddress, keyCount,
+                                    nonceRaw.bindMemory(to: UInt8.self).baseAddress, nonceCount,
+                                    aadRaw.bindMemory(to: UInt8.self).baseAddress, aadCount,
+                                    inputRaw.bindMemory(to: UInt8.self).baseAddress, inputCount,
                                     outputRaw.bindMemory(to: UInt8.self).baseAddress,
-                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, localTag.count,
+                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tagCount,
                                     encrypt ? 1 : 0
                                 )
                             }
