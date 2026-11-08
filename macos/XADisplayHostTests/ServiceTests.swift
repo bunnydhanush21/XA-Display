@@ -64,7 +64,7 @@ final class ServiceTests: XCTestCase {
     private func snapshotSettings(_ title: String, named name: String) throws {
         let settings = HostSettingsPanel(document: .defaults)
         settings.select(tab: title)
-        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 780))
+        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 1120))
     }
 
     private func snapshotOnboarding(_ step: Int, named name: String) throws {
