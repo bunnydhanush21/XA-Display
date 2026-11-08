@@ -1,6 +1,7 @@
 @preconcurrency import AppKit
 @preconcurrency import CoreVideo
 @preconcurrency import Darwin
+@preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 import XCTest
 
@@ -91,6 +92,12 @@ final class PipelineCoverageTests: XCTestCase {
         }
         Thread.sleep(forTimeInterval: 0.3)
         encoder.stop()
+        let coded = AACLCEncoder()
+        _ = coded.start()
+        _ = coded.encode(Data(count: 4096))
+        _ = coded.encode(Data(count: 64))
+        XCTAssertFalse(AudioCapture.describe(.allApplications).isEmpty)
+        XCTAssertTrue(AudioCapture.describe(.includingBundles(["com.apple.finder"])).contains("finder"))
     }
 
     func testCaptureAndAudioStartFailClosed() async {
@@ -106,6 +113,21 @@ final class PipelineCoverageTests: XCTestCase {
         await audio.start(displayID: 0, choice: .includingBundles([]))
         await audio.start(displayID: CGMainDisplayID(), choice: .allApplications)
         audio.stop()
+        if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
+            let frame = XARect(x: 0, y: 0, width: 1440, height: 900)
+            _ = AudioCapture.bundlesOnVirtualDisplay(content: content, displayFrame: frame)
+            if let display = content.displays.first {
+                _ = try? AudioCapture.filter(display: display, content: content, choice: .allApplications)
+                _ = try? AudioCapture.filter(display: display, content: content, choice: .includingBundles(["com.apple.finder"]))
+            }
+        }
+        var sequence: UInt16 = 1
+        let packets = UDPVideoPacketizer.packetize(frame: Data(repeating: 7, count: 1800), frameID: 4, nextSequence: &sequence, keyframe: true)
+        let sender = UDPVideoSender()
+        sender.connect(host: "127.0.0.1")
+        sender.send(packets)
+        sender.retransmit(packets.map(\.sequence))
+        sender.stop()
     }
 
     private func visit(_ view: NSView?) {
