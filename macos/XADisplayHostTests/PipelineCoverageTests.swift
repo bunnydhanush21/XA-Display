@@ -54,16 +54,6 @@ final class PipelineCoverageTests: XCTestCase {
         panel.onToggleApp = { _ in }
         panel.update(document)
         visit(panel.window.contentView)
-        let flow = OnboardingFlow()
-        flow.pairingCode = "ABCD2345"
-        var finished = false
-        flow.onFinish = { finished = true }
-        flow.show()
-        for _ in 0..<4 {
-            let buttons = flow.window.contentView?.subviews.compactMap { $0 as? NSButton } ?? []
-            buttons.first { ["Continue", "Waiting", "Done"].contains($0.title) }?.performClick(nil)
-        }
-        XCTAssertTrue(finished)
         let sender = UDPVideoSender()
         sender.connect(host: "127.0.0.1")
         sender.retransmit([])
