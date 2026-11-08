@@ -44,12 +44,34 @@ final class ServiceTests: XCTestCase {
                 screenRecording: true, accessibility: true))
         let menuView = try XCTUnwrap(menu.popover.contentViewController?.view)
         try writePNG(menuView, named: "mac-popover.png", size: NSSize(width: 320, height: 420))
+    }
+
+    func testSnapshotSettingsGeneral() throws { try snapshotSettings("General", named: "mac-settings.png") }
+    func testSnapshotSettingsDevices() throws { try snapshotSettings("Devices", named: "mac-settings-devices.png") }
+    func testSnapshotSettingsDisplay() throws { try snapshotSettings("Display", named: "mac-settings-display.png") }
+    func testSnapshotSettingsInput() throws { try snapshotSettings("Input", named: "mac-settings-input.png") }
+    func testSnapshotSettingsAudio() throws { try snapshotSettings("Audio", named: "mac-settings-audio.png") }
+    func testSnapshotSettingsClipboard() throws { try snapshotSettings("Clipboard", named: "mac-settings-clipboard.png") }
+    func testSnapshotSettingsBattery() throws { try snapshotSettings("Battery", named: "mac-settings-battery.png") }
+    func testSnapshotSettingsPrivacy() throws { try snapshotSettings("Privacy", named: "mac-settings-privacy.png") }
+    func testSnapshotSettingsAdvanced() throws { try snapshotSettings("Advanced", named: "mac-settings-advanced.png") }
+
+    func testSnapshotOnboardingIntro() throws { try snapshotOnboarding(0, named: "mac-onboarding.png") }
+    func testSnapshotOnboardingScreenRecording() throws { try snapshotOnboarding(1, named: "mac-onboarding-screen.png") }
+    func testSnapshotOnboardingAccessibility() throws { try snapshotOnboarding(2, named: "mac-onboarding-accessibility.png") }
+    func testSnapshotOnboardingPair() throws { try snapshotOnboarding(3, named: "mac-onboarding-pair.png") }
+
+    private func snapshotSettings(_ title: String, named name: String) throws {
         let settings = HostSettingsPanel(document: .defaults)
-        try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings.png", size: NSSize(width: 640, height: 480))
+        settings.select(tab: title)
+        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 480))
+    }
+
+    private func snapshotOnboarding(_ step: Int, named name: String) throws {
         let flow = OnboardingFlow()
         flow.pairingCode = "ABCD2345"
-        flow.show()
-        try writePNG(try XCTUnwrap(flow.window.contentView), named: "mac-onboarding.png", size: NSSize(width: 520, height: 360))
+        flow.showStep(step)
+        try writePNG(try XCTUnwrap(flow.window.contentView), named: name, size: NSSize(width: 520, height: 360))
     }
 
     func testDiagnosticsRedactsTheToken() {

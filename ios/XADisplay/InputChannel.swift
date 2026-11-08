@@ -26,12 +26,16 @@ final class InputChannel {
     var token = "" {
         didSet {
             sealLock.lock()
-            outboundSeal = ChannelSeal(token: token)
+            if oldValue != token {
+                inboundSeal = SealInbox(token: token, direction: .hostToPad)
+            }
+            outboundSeal = ChannelSeal(token: token, direction: .padToHost)
             sealLock.unlock()
         }
     }
     private let sealLock = NSLock()
-    private var outboundSeal = ChannelSeal(token: "")
+    private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
+    private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
     var deviceName = "iPad"
     var requirePairing = true
 
@@ -293,9 +297,9 @@ final class InputChannel {
 
     private func openSealed(_ frame: Data) -> Data? {
         sealLock.lock()
-        let current = token
+        let plain = inboundSeal.open(sealed: frame, aad: SealChannel.input.aad)
         sealLock.unlock()
-        return ChannelSeal.open(token: current, sealed: frame, aad: SealChannel.input.aad)
+        return plain
     }
 
     private static func messages(for intent: InputIntent, session: UInt32, nextSeq: () -> UInt32) -> [XAInputMessage] {

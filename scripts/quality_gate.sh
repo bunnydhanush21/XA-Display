@@ -124,6 +124,21 @@ if "SealChannel" not in Path("ios/XADisplay/VideoReceiver.swift").read_text() or
     raise SystemExit("iPad does not seal video and input")
 if "func testTamperedTagOrCiphertextIsRejected" not in Path("Tests/XADisplayProtocolTests/ChannelSealTests.swift").read_text():
     raise SystemExit("seal tamper test missing")
+seal_tests = Path("Tests/XADisplayProtocolTests/ChannelSealTests.swift").read_text()
+for name in ("testHKDFMatchesTheRFCVector", "testReconnectDoesNotReuseTheNonce", "testReplayOfASealedFrameIsRejected"):
+    if f"func {name}" not in seal_tests:
+        raise SystemExit(f"seal test missing: {name}")
+if "CCHmac" not in Path("Sources/XADisplayProtocol/HKDF.swift").read_text():
+    raise SystemExit("HKDF is not CommonCrypto HMAC")
+if "CC_SHA256(" in Path("Sources/XADisplayProtocol/ChannelSeal.swift").read_text():
+    raise SystemExit("channel key is still a raw SHA-256 of the token")
+for path in (
+    "macos/XADisplayHost/HostController.swift",
+    "ios/XADisplay/VideoReceiver.swift",
+    "ios/XADisplay/InputChannel.swift",
+):
+    if "SealInbox" not in Path(path).read_text():
+        raise SystemExit(f"{path} does not reject replays")
 failure_call = re.compile(r'(?:log|onLog\?|setStatus)\(\s*"[^"]*(?:fail|unavailable|missing|stopped|malformed|rejected)', re.I)
 for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swift")):
     if any("Tests" in part for part in path.parts):

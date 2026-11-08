@@ -89,4 +89,57 @@ final class ChannelSealTests: XCTestCase {
         }
         XCTAssertEqual(try XAInputMessage.decode(encoded), message)
     }
+
+    func testHKDFMatchesTheRFCVector() {
+        let ikm = hex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b")
+        let salt = hex("000102030405060708090a0b0c")
+        let info = hex("f0f1f2f3f4f5f6f7f8f9")
+        let okm = HKDF.derive(ikm: ikm, salt: salt, info: info, outputLength: 42)
+        XCTAssertEqual(okm, hex("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865"))
+    }
+
+    func testReconnectDoesNotReuseTheNonce() {
+        var first = ChannelSeal(token: "ABCD2345", direction: .hostToPad)
+        let opening = first.seal(Data([1]), aad: SealChannel.video.aad) ?? Data()
+        let next = first.seal(Data([1]), aad: SealChannel.video.aad) ?? Data()
+        XCTAssertEqual(opening.dropFirst().prefix(8), next.dropFirst().prefix(8))
+        XCTAssertEqual(Array(opening.dropFirst(9).prefix(4)), [0, 0, 0, 0])
+        XCTAssertEqual(Array(next.dropFirst(9).prefix(4)), [0, 0, 0, 1])
+        var reconnected = ChannelSeal(token: "ABCD2345", direction: .hostToPad)
+        let again = reconnected.seal(Data([1]), aad: SealChannel.video.aad) ?? Data()
+        XCTAssertNotEqual(again.dropFirst().prefix(8), opening.dropFirst().prefix(8))
+        var otherDirection = ChannelSeal(token: "ABCD2345", direction: .padToHost)
+        let crossed = otherDirection.seal(Data([1]), aad: SealChannel.video.aad) ?? Data()
+        XCTAssertNil(ChannelSeal.open(token: "ABCD2345", sealed: crossed, aad: SealChannel.video.aad, direction: .hostToPad))
+        var exhausted = ChannelSeal(token: "ABCD2345", direction: .hostToPad, testingCounter: .max)
+        XCTAssertNil(exhausted.seal(Data([1]), aad: SealChannel.video.aad))
+    }
+
+    func testReplayOfASealedFrameIsRejected() {
+        var sender = ChannelSeal(token: "ABCD2345", direction: .padToHost)
+        var inbox = SealInbox(token: "ABCD2345", direction: .padToHost)
+        var frames: [Data] = []
+        for index in 0..<70 {
+            frames.append(sender.seal(Data([UInt8(index)]), aad: SealChannel.input.aad) ?? Data())
+        }
+        XCTAssertEqual(inbox.open(sealed: frames[0], aad: SealChannel.input.aad), Data([0]))
+        XCTAssertNil(inbox.open(sealed: frames[0], aad: SealChannel.input.aad))
+        XCTAssertEqual(inbox.open(sealed: frames[69], aad: SealChannel.input.aad), Data([69]))
+        XCTAssertNil(inbox.open(sealed: frames[0], aad: SealChannel.input.aad))
+        XCTAssertEqual(inbox.open(sealed: frames[68], aad: SealChannel.input.aad), Data([68]))
+        XCTAssertNil(inbox.open(sealed: frames[68], aad: SealChannel.input.aad))
+        XCTAssertNil(inbox.open(sealed: frames[2], aad: SealChannel.input.aad))
+    }
+
+    private func hex(_ text: String) -> Data {
+        var data = Data()
+        var index = text.startIndex
+        while index < text.endIndex {
+            let next = text.index(index, offsetBy: 2)
+            guard let byte = UInt8(text[index..<next], radix: 16) else { return Data() }
+            data.append(byte)
+            index = next
+        }
+        return data
+    }
 }

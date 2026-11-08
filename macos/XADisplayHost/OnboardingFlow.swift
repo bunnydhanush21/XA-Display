@@ -39,6 +39,13 @@ final class OnboardingFlow: NSObject {
         render()
     }
 
+    func showStep(_ index: Int) {
+        step = min(3, max(0, index))
+        timer?.invalidate()
+        timer = nil
+        render()
+    }
+
     func show() {
         XALog.write(XALog.ui, "onboarding")
         step = 0

@@ -12,7 +12,7 @@ XA Display injects input into a Mac and installs an unsigned app on a jailbroken
 | Clipboard text | Optional, 12 KB, both switches on |
 | Window and menu control | Accessibility, after a paired window or chrome message |
 
-There is no TLS handshake. Each frame is AES-256-GCM from CommonCrypto. The key is SHA-256 of `xa-display-aead-v1` and the pairing token. Video, input, and UDP use different associated data, so a sealed video frame does not open on the input socket. On USB the socket is still a usbmux tunnel. On Wi-Fi a peer that does not know the token cannot read or forge frames. Pairing remains the control gate for pointer injection.
+There is no TLS handshake. Each frame is AES-256-GCM from CommonCrypto. The key is HKDF-SHA256 of the pairing token, one key for Mac-to-iPad and one for iPad-to-Mac. The nonce is a fresh connection id plus a counter, and the receiver drops a replay. Video, input, and UDP use different associated data, so a sealed video frame does not open on the input socket. On USB the socket is still a usbmux tunnel. On Wi-Fi a peer that does not know the token cannot read or forge frames. Pairing remains the control gate for pointer injection.
 
 ## Pairing model
 

@@ -20,7 +20,7 @@ Bonjour service type: `_opensidecar._tcp`.
 
 `length` is the payload size. Length 0 is a fatal parse error. A declared length above the cap is rejected **before** the body is buffered.
 
-Every TCP payload and every reassembled UDP frame is an AES-256-GCM seal (`ChannelSeal`). The key is SHA-256 of the pairing token. The 12-byte nonce travels with the frame. Video, input, and UDP each use their channel name as associated data. A frame that fails the tag is dropped. The cipher is CommonCrypto, not code in this repository.
+Every TCP payload and every reassembled UDP frame is an AES-256-GCM seal (`ChannelSeal`). The key is HKDF-SHA256 of the pairing token, with a separate result for each direction. The 12-byte nonce is an 8-byte connection id plus a counter, and a reconnect draws a new connection id. The receiver rejects a nonce it has already accepted. Video, input, and UDP each use their channel name as associated data. A frame that fails the tag is dropped. HMAC and AES-GCM are CommonCrypto, not code in this repository.
 
 | Limit | Value |
 |---|---|

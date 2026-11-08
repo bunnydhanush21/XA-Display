@@ -85,7 +85,7 @@ final class HostLogicTests: XCTestCase {
         host.tuneWiFi(rttMs: 180)
         _ = host.audioMenuState()
         host.releaseInput(.transport("The input link closed."))
-        var seal = ChannelSeal(token: host.currentToken())
+        var seal = ChannelSeal(token: host.currentToken(), direction: .padToHost)
         let hello = VideoControlMessage.xaHello.jsonData() ?? Data()
         if let sealed = seal.seal(hello, aad: SealChannel.video.aad) {
             host.ingestVideo(LengthPrefixedFraming.encode(sealed))

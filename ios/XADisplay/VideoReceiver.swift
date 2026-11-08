@@ -67,7 +67,8 @@ final class VideoReceiver {
     var port: UInt16 = XADisplayProtocolInfo.videoPort
     private let sealLock = NSLock()
     private var pairingToken = ""
-    private var outboundSeal = ChannelSeal(token: "")
+    private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
+    private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
     var lastData = Date()
     var watchdogStarted = false
     var userPaused = false
@@ -201,8 +202,11 @@ final class VideoReceiver {
 
     func setPairingToken(_ token: String) {
         sealLock.lock()
-        pairingToken = token
-        outboundSeal = ChannelSeal(token: token)
+        if pairingToken != token {
+            pairingToken = token
+            inboundSeal = SealInbox(token: token, direction: .hostToPad)
+        }
+        outboundSeal = ChannelSeal(token: token, direction: .padToHost)
         sealLock.unlock()
     }
 
@@ -220,9 +224,9 @@ final class VideoReceiver {
 
     func openSealed(_ frame: Data, channel: SealChannel) -> Data? {
         sealLock.lock()
-        let token = pairingToken
+        let plain = inboundSeal.open(sealed: frame, aad: channel.aad)
         sealLock.unlock()
-        return ChannelSeal.open(token: token, sealed: frame, aad: channel.aad)
+        return plain
     }
 
     func startListener() {

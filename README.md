@@ -14,7 +14,7 @@
 
 Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window and menu actions. It is not native macOS touchscreen input.
 
-These are CI captures: the Mac windows from the host test, and the iPad onboarding card and receiver from the simulator unit test. A separate connection-overlay bitmap came out black and is not included.
+These are CI captures: the Mac menu, settings, and onboarding from the host tests, and the iPad onboarding cards, connection overlay, and receiver from the simulator unit test.
 
 <p align="center">
   <img src="docs/screenshots/mac-popover.png" alt="Mac menu popover from CI, showing iPad, usb, 12 ms, and 30 fps" width="320">

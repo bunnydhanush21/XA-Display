@@ -303,6 +303,6 @@ extension HostController {
         return LengthPrefixedFraming.encode(sealed)
     }
     func openFrame(_ frame: Data, channel: SealChannel) -> Data? {
-        ChannelSeal.open(token: token, sealed: frame, aad: channel.aad)
+        inboundSeal.open(sealed: frame, aad: channel.aad)
     }
 }
