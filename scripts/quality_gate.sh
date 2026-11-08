@@ -22,8 +22,15 @@ swift test -Xswiftc -warnings-as-errors -Xswiftc -strict-concurrency=complete --
 
 echo "== protocol line coverage >= 80% =="
 PROF="$(find .build -name 'default.profdata' | head -n 1)"
-BIN="$(find .build -name 'XADisplayProtocolPackageTests.xctest' -o -name 'XADisplayProtocolPackageTests' | head -n 1)"
-[[ -n "$PROF" && -n "$BIN" ]] || fail "coverage profile missing"
+BUNDLE="$(find .build -name 'XADisplayProtocolPackageTests.xctest' | head -n 1)"
+if [[ -d "$BUNDLE" ]]; then
+  BIN="$BUNDLE/Contents/MacOS/XADisplayProtocolPackageTests"
+elif [[ -n "$BUNDLE" ]]; then
+  BIN="$BUNDLE"
+else
+  BIN="$(find .build -type f -name 'XADisplayProtocolPackageTests' | head -n 1)"
+fi
+[[ -n "$PROF" && -n "$BIN" && -e "$BIN" ]] || fail "coverage profile missing"
 if command -v llvm-cov >/dev/null 2>&1; then
   LLVM_COV="$(command -v llvm-cov)"
 else
