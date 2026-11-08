@@ -129,17 +129,14 @@ extension HostController {
         }
     }
     func ensureDisplay() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, self.display.displayID == 0 else { return }
-            self.rebuildDisplay()
-        }
+        if display.displayID == 0 { rebuildDisplay() }
     }
     func applyHello(_ hello: LegacyHello) {
         if !hello.id.isEmpty, !pairedIDs.contains(hello.id) { pairedIDs.append(hello.id) }
         lastDeviceOrientation = (hello.orientation == "portrait" || hello.pixelsHigh > hello.pixelsWide) ? "portrait" : "landscape"
         applyOrientation(requested: lastDeviceOrientation, mode: settings.rotationMode)
     }
-    func rebuildDisplay(completion: (@Sendable (Bool) -> Void)? = nil) {
+    func rebuildDisplay(completion: ((Bool) -> Void)? = nil) {
         if settings.custom.enabled {
             let spec = settings.custom.clamped()
             adaptation.applyOverride(fps: spec.fps, bitrate: spec.bitrate)
@@ -151,32 +148,29 @@ extension HostController {
         let pixelsWide = active.width
         let pixelsHigh = active.height
         let scale = preset.id == .native ? 2.0 : 1.0
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let ok = self.display.applyPixelWidth(UInt32(pixelsWide), height: UInt32(pixelsHigh), scale: scale, name: "XA Display")
-            guard ok, self.display.displayID != 0 else {
-                self.log(HostError.virtualDisplay.userMessage)
-                self.publish()
-                completion?(false)
-                return
-            }
-            self.savedDisplayID = self.display.displayID
-            self.lastDisplayFrame = WindowMover.displayFrame(self.display.displayID)
-            self.dispatcher.displayFrame = self.lastDisplayFrame
-            self.dispatcher.videoPixelSize = XASize(width: Double(pixelsWide), height: Double(pixelsHigh))
-            self.restartCaptureIfNeeded()
-            let announcement = StreamAnnouncement(
-                preset: self.preset.id.rawValue,
-                width: pixelsWide,
-                height: pixelsHigh,
-                fps: self.adaptation.fps,
-                bitrate: self.adaptation.bitrate,
-                experimental: self.preset.experimental
-            )
-            self.sendControl(.xaStream(announcement), onVideo: true)
-            self.publish()
-            completion?(true)
+        let ok = display.applyPixelWidth(UInt32(pixelsWide), height: UInt32(pixelsHigh), scale: scale, name: "XA Display")
+        guard ok, display.displayID != 0 else {
+            log(HostError.virtualDisplay)
+            publish()
+            completion?(false)
+            return
         }
+        savedDisplayID = display.displayID
+        lastDisplayFrame = WindowMover.displayFrame(display.displayID)
+        dispatcher.displayFrame = lastDisplayFrame
+        dispatcher.videoPixelSize = XASize(width: Double(pixelsWide), height: Double(pixelsHigh))
+        restartCaptureIfNeeded()
+        let announcement = StreamAnnouncement(
+            preset: preset.id.rawValue,
+            width: pixelsWide,
+            height: pixelsHigh,
+            fps: adaptation.fps,
+            bitrate: adaptation.bitrate,
+            experimental: preset.experimental
+        )
+        sendControl(.xaStream(announcement), onVideo: true)
+        publish()
+        completion?(true)
     }
     func restartCaptureIfNeeded() {
         guard savedDisplayID != 0, CGPreflightScreenCaptureAccess() else { return }
@@ -230,7 +224,7 @@ extension HostController {
         pendingSends += 1
         let frame = LengthPrefixedFraming.encode(annex)
         sendRaw(frame, video: true) { [weak self] in
-            self?.pendingSends = max(0, (self?.pendingSends ?? 1) - 1)
+            Task { @MainActor in self?.pendingSends = max(0, (self?.pendingSends ?? 1) - 1) }
         }
         _ = captureMs
         _ = encodeMs

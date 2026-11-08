@@ -73,16 +73,19 @@ extension HostController {
         let advertised = Host.current().localizedName ?? ""
         listener.service = NWListener.Service(name: advertised.isEmpty ? "XA Display" : advertised, type: XADisplayProtocolInfo.hostBonjourType)
         listener.newConnectionHandler = { [weak self] connection in
-            let queue = self?.queue ?? .main
-            connection.start(queue: queue)
-            self?.log("Wake poke from the iPad")
-            Task { @MainActor in self?.tick() }
-            queue.asyncAfter(deadline: .now() + 1) { connection.cancel() }
+            connection.start(queue: .main)
+            connection.cancel()
+            Task { @MainActor in
+                self?.log("Wake poke from the iPad")
+                self?.tick()
+            }
         }
         listener.stateUpdateHandler = { [weak self] state in
-            if case .failed(let error) = state {
-                self?.log("Wake service failed: \(error.localizedDescription)")
-                self?.wakeListener = nil
+            Task { @MainActor in
+                if case .failed(let error) = state {
+                    self?.log(HostError.transport(error.localizedDescription))
+                    self?.wakeListener = nil
+                }
             }
         }
         listener.start(queue: queue)
@@ -94,7 +97,7 @@ extension HostController {
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             guard let endpoint = results.first?.endpoint else { return }
             if case .service(let name, _, _, _) = endpoint {
-                self?.resolve(name: name)
+                Task { @MainActor in self?.resolve(name: name) }
             }
         }
         browser.start(queue: queue)
@@ -104,8 +107,9 @@ extension HostController {
         let connection = NWConnection(to: .service(name: name, type: XADisplayProtocolInfo.bonjourType, domain: "local", interface: nil), using: .tcp)
         connection.stateUpdateHandler = { [weak self] state in
             if case .ready = state, let path = connection.currentPath, case .hostPort(let host, _) = path.remoteEndpoint {
-                self?.wifiHost = "\(host)"
+                let name = "\(host)"
                 connection.cancel()
+                Task { @MainActor in self?.wifiHost = name }
             }
         }
         connection.start(queue: queue)

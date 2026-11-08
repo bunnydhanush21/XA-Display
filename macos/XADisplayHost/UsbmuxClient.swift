@@ -147,10 +147,11 @@ enum UsbmuxClient {
     }
 }
 
+@MainActor
 final class FDStream {
     let fd: Int32
-    var onData: ((Data) -> Void)?
-    var onClose: (() -> Void)?
+    var onData: (@Sendable (Data) -> Void)?
+    var onClose: (@Sendable () -> Void)?
     private let queue = DispatchQueue(label: "xa.fd")
     private var source: DispatchSourceRead?
     private var closed = false
@@ -159,25 +160,25 @@ final class FDStream {
         self.fd = fd
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
         source.setEventHandler { [weak self] in
-            self?.readNow()
+            Task { @MainActor in self?.readNow() }
         }
-        source.setCancelHandler { [weak self] in
-            guard let self = self else { return }
-            close(self.fd)
+        source.setCancelHandler {
+            close(fd)
         }
         self.source = source
         source.resume()
     }
 
     func send(_ data: Data) {
-        queue.async {
+        let descriptor = fd
+        queue.async { [weak self] in
             data.withUnsafeBytes { raw in
                 guard let base = raw.baseAddress else { return }
                 var sent = 0
                 while sent < raw.count {
-                    let n = write(self.fd, base.advanced(by: sent), raw.count - sent)
+                    let n = write(descriptor, base.advanced(by: sent), raw.count - sent)
                     if n <= 0 {
-                        self.closeStream()
+                        Task { @MainActor in self?.closeStream() }
                         return
                     }
                     sent += n
@@ -187,12 +188,10 @@ final class FDStream {
     }
 
     func closeStream() {
-        queue.async {
-            guard !self.closed else { return }
-            self.closed = true
-            self.source?.cancel()
-            DispatchQueue.main.async { [weak self] in self?.onClose?() }
-        }
+        guard !closed else { return }
+        closed = true
+        source?.cancel()
+        onClose?()
     }
 
     private func readNow() {

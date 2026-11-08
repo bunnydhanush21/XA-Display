@@ -106,5 +106,4 @@ schemes:
     test:
       gatherCoverageData: true
       targets:
-        - XADisplayTests
         - XADisplayUITests

@@ -107,10 +107,12 @@ extension HostController {
         params.serviceClass = video ? .interactiveVideo : .responsiveData
         let connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: params)
         connection.stateUpdateHandler = { [weak self] state in
-            if case .ready = state, video {
-                self?.sendControl(.xaHello, onVideo: true)
+            Task { @MainActor in
+                if case .ready = state, video {
+                    self?.sendControl(.xaHello, onVideo: true)
+                }
+                if case .failed = state { self?.linkClosed() }
             }
-            if case .failed = state { self?.linkClosed() }
         }
         connection.start(queue: queue)
         receiveNW(connection, video: video)
@@ -118,11 +120,13 @@ extension HostController {
     }
     func receiveNW(_ connection: NWConnection, video: Bool) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
-            if let data = data {
-                if video { self?.ingestVideo(data) } else { self?.ingestInput(data) }
+            Task { @MainActor in
+                if let data = data {
+                    if video { self?.ingestVideo(data) } else { self?.ingestInput(data) }
+                }
+                if error != nil || isComplete { return }
+                self?.receiveNW(connection, video: video)
             }
-            if error != nil || isComplete { return }
-            self?.receiveNW(connection, video: video)
         }
     }
     func ingestVideo(_ data: Data) {
