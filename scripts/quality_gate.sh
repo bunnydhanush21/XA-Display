@@ -24,10 +24,12 @@ echo "== protocol line coverage >= 80% =="
 PROF="$(find .build -name 'default.profdata' | head -n 1)"
 BIN="$(find .build -name 'XADisplayProtocolPackageTests.xctest' -o -name 'XADisplayProtocolPackageTests' | head -n 1)"
 [[ -n "$PROF" && -n "$BIN" ]] || fail "coverage profile missing"
-LINE="$(llvm-cov report -instr-profile "$PROF" -ignore-filename-regex='Tests/' "$BIN" | awk '/^TOTAL/ {print $(NF-3)}')"
-# llvm-cov columns: lines missed is NF-1 when branches are absent, cover percent is NF-2 or the third percentage.
-# Use the Lines cover field: the third percentage on the TOTAL row.
-LINE="$(llvm-cov report -instr-profile "$PROF" -ignore-filename-regex='Tests/' "$BIN" | awk '/^TOTAL/ {
+if command -v llvm-cov >/dev/null 2>&1; then
+  LLVM_COV="$(command -v llvm-cov)"
+else
+  LLVM_COV="$(xcrun --find llvm-cov)"
+fi
+LINE="$("$LLVM_COV" report -instr-profile "$PROF" -ignore-filename-regex='Tests/' "$BIN" | awk '/^TOTAL/ {
   for (i = 1; i <= NF; i++) if ($i ~ /%$/) p[++n] = $i
   print p[3]
 }')"
