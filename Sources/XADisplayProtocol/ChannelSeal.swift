@@ -82,7 +82,7 @@ public struct ChannelSeal: Sendable {
 
     private mutating func nextNonce() -> [UInt8] {
         var nonce = prefix
-        var value = counter
+        let value = counter
         counter &+= 1
         for shift in stride(from: 56, through: 0, by: -8) {
             nonce.append(UInt8((value >> UInt64(shift)) & 0xFF))
@@ -91,36 +91,22 @@ public struct ChannelSeal: Sendable {
     }
 
     private static func crypt(encrypt: Bool, key: [UInt8], nonce: [UInt8], aad: Data, input: Data, output: inout [UInt8], tag: inout [UInt8]) -> CCCryptorStatus {
-        let inputCount = input.count
-        return key.withUnsafeBytes { keyBytes in
-            nonce.withUnsafeBytes { nonceBytes in
-                aad.withUnsafeBytes { aadBytes in
-                    input.withUnsafeBytes { inputBytes in
-                        output.withUnsafeMutableBytes { outputBytes in
-                            tag.withUnsafeMutableBytes { tagBytes in
-                                var unused: UInt8 = 0
-                                let inputPointer = inputCount == 0 ? UnsafeRawPointer(&unused) : inputBytes.baseAddress
-                                let outputPointer = inputCount == 0 ? UnsafeMutableRawPointer(&unused) : outputBytes.baseAddress
-                                let aadPointer = aad.isEmpty ? UnsafeRawPointer(&unused) : aadBytes.baseAddress
-                                if encrypt {
-                                    return CCCryptorGCMOneshotEncrypt(
-                                        CCAlgorithm(kCCAlgorithmAES),
-                                        keyBytes.baseAddress, key.count,
-                                        nonceBytes.baseAddress, nonce.count,
-                                        aadPointer, aad.count,
-                                        inputPointer, inputCount,
-                                        outputPointer,
-                                        tagBytes.baseAddress, tag.count
-                                    )
-                                }
-                                return CCCryptorGCMOneshotDecrypt(
-                                    CCAlgorithm(kCCAlgorithmAES),
-                                    keyBytes.baseAddress, key.count,
-                                    nonceBytes.baseAddress, nonce.count,
-                                    aadPointer, aad.count,
-                                    inputPointer, inputCount,
-                                    outputPointer,
-                                    tagBytes.baseAddress, tag.count
+        let aadBytes = aad.isEmpty ? Data([0]) : aad
+        let inputBytes = input.isEmpty ? Data([0]) : input
+        let status = key.withUnsafeBytes { keyRaw in
+            nonce.withUnsafeBytes { nonceRaw in
+                aadBytes.withUnsafeBytes { aadRaw in
+                    inputBytes.withUnsafeBytes { inputRaw in
+                        output.withUnsafeMutableBytes { outputRaw in
+                            tag.withUnsafeMutableBytes { tagRaw in
+                                xa_gcm_encrypt(
+                                    keyRaw.bindMemory(to: UInt8.self).baseAddress, key.count,
+                                    nonceRaw.bindMemory(to: UInt8.self).baseAddress, nonce.count,
+                                    aadRaw.bindMemory(to: UInt8.self).baseAddress, aad.count,
+                                    inputRaw.bindMemory(to: UInt8.self).baseAddress, input.count,
+                                    outputRaw.bindMemory(to: UInt8.self).baseAddress,
+                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tag.count,
+                                    encrypt ? 1 : 0
                                 )
                             }
                         }
@@ -128,5 +114,6 @@ public struct ChannelSeal: Sendable {
                 }
             }
         }
+        return CCCryptorStatus(status)
     }
 }

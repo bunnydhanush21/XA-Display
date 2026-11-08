@@ -115,7 +115,7 @@ if "SWIFT_STRICT_CONCURRENCY: complete" not in yml:
     raise SystemExit("Mac target is not set to strict concurrency complete")
 if "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in yml or "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in Path("ios/project.yml").read_text():
     raise SystemExit("warnings-as-errors is not set on both apps")
-seal = Path("Sources/XADisplayProtocol/ChannelSeal.swift").read_text()
+seal = Path("Sources/XADisplayProtocol/XASeal.c").read_text()
 if "CCCryptorGCMOneshotEncrypt" not in seal or "CCCryptorGCMOneshotDecrypt" not in seal:
     raise SystemExit("channel seal is not CommonCrypto AES-GCM")
 if "SealChannel" not in Path("macos/XADisplayHost/HostController+2.swift").read_text():
