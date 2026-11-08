@@ -6,6 +6,7 @@ final class HostSettingsPanel: NSObject {
     let window: NSWindow
     var onChange: ((XASettingsDocument) -> Void)?
     var onRevoke: (() -> Void)?
+    var onDiagnostics: (() -> Void)?
     var onScreen: (() -> Void)?
     var onAccessibility: (() -> Void)?
     var apps: [(bundle: String, name: String)] = []
@@ -161,6 +162,11 @@ final class HostSettingsPanel: NSObject {
         case "security.revoke": onRevoke?()
         case "permissions.screen": onScreen?()
         case "permissions.access": onAccessibility?()
+        case "about.diagnostics": onDiagnostics?()
+        case "about.reset":
+            document.reset()
+            rebuild()
+            onChange?(document)
         default: break
         }
     }

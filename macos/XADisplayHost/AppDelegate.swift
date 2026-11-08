@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.onToggleApp = { [weak self] bundle in self?.controller.toggleAudioBundle(bundle) }
         panel.onChange = { [weak self] document in self?.controller.applyLocalDocument(document, broadcast: true) }
         panel.onRevoke = { [weak self] in self?.controller.regenerateToken() }
+        panel.onDiagnostics = { [weak self] in self?.exportDiagnostics() }
         panel.onScreen = { CGRequestScreenCaptureAccess() }
         panel.onAccessibility = {
             let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String

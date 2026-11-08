@@ -142,7 +142,8 @@ final class ServiceTests: XCTestCase {
             field.drawsBackground = false
         }
         if let button = view as? NSButton, button.title.isEmpty == false {
-            button.attributedTitle = NSAttributedString(string: button.title, attributes: [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 13)])
+            let color: NSColor = button.bezelStyle == .rounded ? .black : .white
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [.foregroundColor: color, .font: NSFont.systemFont(ofSize: 13)])
         }
         for child in view.subviews { prepareForSnapshot(child) }
     }

@@ -99,8 +99,8 @@ public enum SettingsCatalog {
         SettingsRow(id: "security.pairing", title: "Require pairing", section: "Security", kind: "toggle", onHost: true),
         SettingsRow(id: "security.devices", title: "Paired devices", section: "Security", kind: "info", onHost: true),
         SettingsRow(id: "security.revoke", title: "Revoke pairing", section: "Security", kind: "action", onHost: true),
-        SettingsRow(id: "about.diagnostics", title: "Export diagnostics", section: "About", kind: "action"),
-        SettingsRow(id: "about.reset", title: "Reset to defaults", section: "About", kind: "action"),
+        SettingsRow(id: "about.diagnostics", title: "Export diagnostics", section: "About", kind: "action", onHost: true),
+        SettingsRow(id: "about.reset", title: "Reset to defaults", section: "About", kind: "action", onHost: true),
         SettingsRow(id: "permissions.screen", title: "Screen Recording", section: "Permissions", kind: "action", onPad: false, onHost: true),
         SettingsRow(id: "permissions.access", title: "Accessibility", section: "Permissions", kind: "action", onPad: false, onHost: true)
     ]
