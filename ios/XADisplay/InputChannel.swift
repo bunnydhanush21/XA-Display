@@ -10,6 +10,7 @@ protocol InputChannelDelegate: AnyObject {
     func inputChannel(_ channel: InputChannel, roundTripMs: Double)
     func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double)
     func inputChannel(_ channel: InputChannel, nowPlaying: XANowPlaying)
+    func inputChannel(_ channel: InputChannel, failed error: PadError)
 }
 
 final class InputChannel {
@@ -128,6 +129,11 @@ final class InputChannel {
             guard let port = NWEndpoint.Port(rawValue: XADisplayProtocolInfo.inputPort) else { return }
             listener = try NWListener(using: params, on: port)
         } catch {
+            let failure = PadError.transport("The input listener did not start.")
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.inputChannel(self, failed: failure)
+            }
             return
         }
         listener?.newConnectionHandler = { [weak self] connection in
@@ -197,6 +203,10 @@ final class InputChannel {
                             }
                         } catch {
                             connection.cancel()
+                            DispatchQueue.main.async { [weak self] in
+                                guard let self = self else { return }
+                                self.delegate?.inputChannel(self, failed: PadError.decode)
+                            }
                             return
                         }
                     }

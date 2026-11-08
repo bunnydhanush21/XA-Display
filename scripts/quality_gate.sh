@@ -131,6 +131,17 @@ for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swi
     for index, line in enumerate(path.read_text().splitlines(), 1):
         if failure_call.search(line):
             raise SystemExit(f"string failure log {path}:{index}: {line.strip()}")
+catch_line = re.compile(r"\bcatch\b")
+for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swift")):
+    if "Tests" in path.parts:
+        continue
+    lines = path.read_text().splitlines()
+    for index, line in enumerate(lines):
+        if not catch_line.search(line):
+            continue
+        window = "\n".join(lines[index:index + 8])
+        if not any(token in window for token in ("HostError", "PadError", "HostFailure", "XAError")):
+            raise SystemExit(f"untyped catch {path}:{index + 1}: {line.strip()}")
 print("static checks passed")
 PY
 

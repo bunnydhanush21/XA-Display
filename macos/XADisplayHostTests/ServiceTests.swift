@@ -46,10 +46,20 @@ final class ServiceTests: XCTestCase {
         try writePNG(menuView, named: "mac-popover.png", size: NSSize(width: 320, height: 420))
         let settings = HostSettingsPanel(document: .defaults)
         try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings.png", size: NSSize(width: 640, height: 480))
+        for title in ["Devices", "Display", "Input", "Audio", "Clipboard", "Battery", "Privacy", "Advanced"] {
+            settings.select(tab: title)
+            let slug = title.lowercased().replacingOccurrences(of: " ", with: "-")
+            try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings-\(slug).png", size: NSSize(width: 640, height: 480))
+        }
         let flow = OnboardingFlow()
         flow.pairingCode = "ABCD2345"
         flow.show()
         try writePNG(try XCTUnwrap(flow.window.contentView), named: "mac-onboarding.png", size: NSSize(width: 520, height: 360))
+        for name in ["mac-onboarding-screen.png", "mac-onboarding-accessibility.png", "mac-onboarding-pair.png"] {
+            flow.perform(NSSelectorFromString("advance"))
+            try writePNG(try XCTUnwrap(flow.window.contentView), named: name, size: NSSize(width: 520, height: 360))
+        }
+        flow.perform(NSSelectorFromString("advance"))
     }
 
     func testDiagnosticsRedactsTheToken() {

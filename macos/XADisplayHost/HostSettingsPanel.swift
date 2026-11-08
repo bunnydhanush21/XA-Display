@@ -34,6 +34,11 @@ final class HostSettingsPanel: NSObject {
         rebuild()
     }
 
+    func select(tab title: String) {
+        guard let item = tabs.tabViewItems.first(where: { $0.label == title }) else { return }
+        tabs.select(item)
+    }
+
     private func rebuild() {
         tabs.tabViewItems.forEach { tabs.removeTabViewItem($0) }
         for tab in SettingsCatalog.hostTabs {

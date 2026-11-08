@@ -46,6 +46,10 @@ final class PadServiceTests: XCTestCase {
         first.view.setNeedsLayout()
         first.view.layoutIfNeeded()
         try writePNG(first.view, named: "ipad-onboarding.png")
+        tapContinue(first.view)
+        try writePNG(first.view, named: "ipad-onboarding-connect.png")
+        tapContinue(first.view)
+        try writePNG(first.view, named: "ipad-onboarding-pair.png")
         let receiver = ReceiverViewController()
         window.rootViewController = receiver
         receiver.loadViewIfNeeded()
@@ -56,6 +60,14 @@ final class PadServiceTests: XCTestCase {
         receiver.view.setNeedsLayout()
         receiver.view.layoutIfNeeded()
         try writePNG(receiver.view, named: "ipad-landscape.png")
+    }
+
+    private func tapContinue(_ view: UIView) {
+        if let button = view as? UIButton, button.title(for: .normal) == "Continue" {
+            button.sendActions(for: .touchUpInside)
+            return
+        }
+        for subview in view.subviews { tapContinue(subview) }
     }
 
     private func writePNG(_ view: UIView, named name: String) throws {

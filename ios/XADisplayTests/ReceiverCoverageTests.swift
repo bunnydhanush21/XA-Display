@@ -116,4 +116,5 @@ private final class InputDelegateBox: InputChannelDelegate {
     func inputChannel(_ channel: InputChannel, roundTripMs: Double) {}
     func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double) {}
     func inputChannel(_ channel: InputChannel, nowPlaying: XANowPlaying) {}
+    func inputChannel(_ channel: InputChannel, failed error: PadError) {}
 }

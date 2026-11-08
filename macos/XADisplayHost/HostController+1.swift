@@ -158,6 +158,7 @@ extension HostController {
                         handleInput(message)
                     }
                 } catch {
+                    log(HostError.transport("The input message could not be decoded."))
                     linkClosed()
                     return
                 }
