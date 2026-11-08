@@ -50,7 +50,9 @@ final class PadServiceTests: XCTestCase {
         let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
         let image = renderer.image { view.layer.render(in: $0.cgContext) }
         guard let data = image.pngData() else { return }
-        guard let dir = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        let fallback = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first
+        let env = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"]
+        guard let dir = (env?.isEmpty == false ? env : fallback), !dir.isEmpty else { return }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
         XCTAssertGreaterThan(data.count, 1000)

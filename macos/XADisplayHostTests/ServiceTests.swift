@@ -65,17 +65,15 @@ final class ServiceTests: XCTestCase {
 
     private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
         view.frame = NSRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = view
+        window.layoutIfNeeded()
         view.layoutSubtreeIfNeeded()
         let pixelsWide = Int(size.width)
         let pixelsHigh = Int(size.height)
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
             let context = CGContext(
-                data: nil,
-                width: pixelsWide,
-                height: pixelsHigh,
-                bitsPerComponent: 8,
-                bytesPerRow: 0,
-                space: space,
+                data: nil, width: pixelsWide, height: pixelsHigh, bitsPerComponent: 8, bytesPerRow: 0, space: space,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
             )
         else {
@@ -91,14 +89,21 @@ final class ServiceTests: XCTestCase {
             XCTFail("Could not read the offscreen bitmap")
             return
         }
-        let rep = NSBitmapImageRep(cgImage: image)
-        guard let data = rep.representation(using: .png, properties: [:]) else {
+        guard let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
             XCTFail("Could not encode PNG")
             return
         }
-        guard let dir = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        guard let dir = Self.screenshotDirectory() else { return }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
         XCTAssertGreaterThan(data.count, 1000)
+    }
+
+    private static func screenshotDirectory() -> String? {
+        if let dir = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"], !dir.isEmpty { return dir }
+        let marker = "/tmp/xa-screenshot-dir"
+        guard let text = try? String(contentsOfFile: marker, encoding: .utf8) else { return nil }
+        let dir = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return dir.isEmpty ? nil : dir
     }
 }
