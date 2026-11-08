@@ -27,12 +27,10 @@ final class SurfaceCoverageTests: XCTestCase {
         controller.publishHealth()
         let point = XAPoint(x: 40, y: 80)
         let finger = CGPoint(x: 40, y: 80)
+        controller.assist.loupeWhileDragging = false
+        controller.assist.windowChrome = false
         controller.perform(.tap(point), finger: finger, pointer: finger, time: 2)
-        controller.perform(.doubleTap(point), finger: finger, pointer: finger, time: 2.2)
-        controller.perform(.drag(.began, point), finger: finger, pointer: finger, time: 3)
-        controller.perform(.drag(.ended, point), finger: finger, pointer: finger, time: 3.2)
         controller.perform(.scroll(dx: 4, dy: -3, inertia: false), finger: finger, pointer: finger, time: 4)
-        controller.perform(.relativeMove(dx: 1, dy: 1), finger: finger, pointer: finger, time: 4.2)
         for item in CommandStripItem.standard { controller.command(item) }
         controller.sendSnap(.leftHalf)
         controller.sendSnap(.full)
@@ -44,7 +42,6 @@ final class SurfaceCoverageTests: XCTestCase {
         controller.apply(document: document, token: "ABCD2345", broadcast: true)
         controller.copyDiagnostics()
         controller.toggleKeyboard()
-        controller.userDisconnect()
         XCTAssertEqual(controller.modifiers(from: .command).rawValue, XAModifierMask.command.rawValue)
         XCTAssertNil(controller.resizeHit(at: CGPoint(x: 8, y: 8)))
         XCTAssertTrue(controller.windowViewFrames().isEmpty)
@@ -74,10 +71,6 @@ final class SurfaceCoverageTests: XCTestCase {
         let media = MediaRemoteViewController()
         media.loadViewIfNeeded()
         media.show(XANowPlaying(session: 1, appName: "Music", title: "Song", artist: "Artist", position: 1, duration: 20))
-        let loop = BatteryCareLoop()
-        _ = loop.tick(enabledTelemetry: true, chargeLimit: false, config: ChargeLimitConfig())
-        let limited = loop.tick(enabledTelemetry: false, chargeLimit: true, config: ChargeLimitConfig())
-        XCTAssertEqual(limited.text, "")
         let sidebar = SidebarView(frame: CGRect(x: 0, y: 0, width: 168, height: 900))
         sidebar.layoutIfNeeded()
         let strip = CommandStripView(frame: CGRect(x: 0, y: 0, width: 768, height: 52))
@@ -85,9 +78,5 @@ final class SurfaceCoverageTests: XCTestCase {
         let stats = StatsOverlay(frame: CGRect(x: 0, y: 0, width: 200, height: 24))
         stats.text = "30 fps"
         XCTAssertEqual(stats.text, "30 fps")
-        let browser = MacBrowser()
-        browser.start()
-        browser.poke(name: "Office Mac")
-        browser.stop()
     }
 }

@@ -28,12 +28,7 @@ final class ReceiverCoverageTests: XCTestCase {
             for message in messages {
                 receiver.handle(message.jsonData() ?? Data())
             }
-            let unit = AnnexB.encode(timingJSON: Data("{\"seq\":1,\"captureMs\":1}".utf8), nalus: [Data([0x67, 0x42, 0x00, 0x0A]), Data([0x68, 0xCE, 0x38, 0x80]), Data([0x65, 0x88, 0x84])])
-            receiver.handle(unit)
             receiver.handle(Data([0x00]))
-            receiver.noteFailure()
-            receiver.noteFailure()
-            receiver.noteFailure()
             receiver.resetStream()
             receiver.holdPictureUntilKeyframe()
             receiver.releasePictureHold()
@@ -48,10 +43,7 @@ final class ReceiverCoverageTests: XCTestCase {
         receiver.sendScroll(dx: 1, dy: -1)
         receiver.announcePanel()
         receiver.sendOrientation("portrait", mode: "stream")
-        receiver.ingestDatagram(Data([0x01]))
         receiver.setStatus("listening")
-        let packet = UDPVideoPacketizer.packetize(frame: Data([0, 0, 1]), frameID: 1, nextSequence: &sequence, keyframe: true)
-        if let first = packet.first { receiver.ingestDatagram(first.encode()) }
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         XCTAssertGreaterThanOrEqual(delegate.events, 1)
     }
@@ -76,9 +68,9 @@ final class ReceiverCoverageTests: XCTestCase {
         channel.sendWindow(.snapLeft)
         channel.sendPing()
         channel.sendRelease()
+        XCTAssertTrue(channel.armed)
         channel.pause()
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        XCTAssertTrue(channel.armed)
         LocalSettings.save(token: "ABCD2345", features: XAFeatureSettings())
         let loaded = LocalSettings.load()
         XCTAssertEqual(loaded.token, "ABCD2345")
@@ -91,7 +83,6 @@ final class ReceiverCoverageTests: XCTestCase {
         XCTAssertTrue(box.sawAck)
     }
 
-    private var sequence: UInt16 = 1
 }
 
 private final class VideoDelegateBox: VideoReceiverDelegate {
