@@ -119,8 +119,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
-          xcrun xccov view --report --json build-tests/iPad.xcresult > build-tests/ipad-coverage.json
-          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
           CONTAINER=$(xcrun simctl get_app_container "$UDID" com.bunnydhanush.xadisplay data || true)
           if [[ -n "$CONTAINER" && -d "$CONTAINER/Documents" ]]; then
             cp "$CONTAINER/Documents/"*.png "$XA_SCREENSHOT_DIR/" || true
@@ -131,10 +129,16 @@ jobs:
             -destination "id=$UDID" \
             -derivedDataPath build-tests \
             -only-testing:XADisplayUITests \
+            -enableCodeCoverage YES \
+            -resultBundlePath build-tests/iPadUI.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
+          rm -rf build-tests/merged.xcresult
+          xcrun xcresulttool merge --output-path build-tests/merged.xcresult build-tests/iPad.xcresult build-tests/iPadUI.xcresult
+          xcrun xccov view --report --json build-tests/merged.xcresult > build-tests/ipad-coverage.json
+          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
       - uses: actions/upload-artifact@v4
         if: always()
         with:

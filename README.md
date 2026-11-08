@@ -14,8 +14,12 @@
 
 Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window and menu actions. It is not native macOS touchscreen input.
 
+The Mac menu, settings, and onboarding shots below are offscreen captures from the host test on CI. Button titles are in the image. Several AppKit text fields stay blank in that bitmap. iPad shots are copied out of the simulator when the unit tests write them.
+
 <p align="center">
-  <img src="docs/assets/screenshot-placeholder.svg" alt="Placeholder frame. This is not a screenshot of the app." width="720">
+  <img src="docs/screenshots/mac-popover.png" alt="Mac menu bar popover captured in CI" width="320">
+  <img src="docs/screenshots/mac-settings.png" alt="Mac settings window captured in CI" width="320">
+  <img src="docs/screenshots/mac-onboarding.png" alt="Mac onboarding window captured in CI" width="320">
 </p>
 
 <p align="center">

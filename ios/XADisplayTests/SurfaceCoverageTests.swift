@@ -23,6 +23,8 @@ final class SurfaceCoverageTests: XCTestCase {
         controller.features.followRotation = true
         controller.features.rotationMode = "stream"
         controller.videoSize = CGSize(width: 1440, height: 1080)
+        controller.viewDidLayoutSubviews()
+        controller.viewDidAppear(false)
         controller.layoutVideo()
         controller.layoutCursor()
         controller.releaseModifiers()
@@ -53,6 +55,28 @@ final class SurfaceCoverageTests: XCTestCase {
         XCTAssertFalse(PadError.pairing.userMessage.isEmpty)
         XCTAssertFalse(PadError.transport("down").userMessage.isEmpty)
         XCTAssertFalse(PadError.protocolVersion.userMessage.isEmpty)
+        let receiver = controller.receiver!
+        controller.videoReceiver(receiver, statusDidChange: "listening")
+        controller.videoReceiver(receiver, connected: true, transport: .usb)
+        controller.xaHost = true
+        controller.videoReceiver(receiver, videoSizeDidChange: CGSize(width: 1440, height: 1080))
+        controller.videoReceiver(receiver, cursor: CGPoint(x: 0.4, y: 0.6), visible: true)
+        controller.videoReceiverBecameXAHost(receiver)
+        controller.videoReceiver(receiver, stream: StreamAnnouncement(preset: "balanced", width: 1440, height: 1080, fps: 30, bitrate: 8_000_000, experimental: false))
+        controller.videoReceiver(receiver, metrics: XAMetrics(captureToAckMs: 14, encodeMs: 3))
+        controller.videoReceiver(receiver, windows: "[]")
+        controller.videoReceiver(receiver, menus: "[]")
+        controller.videoReceiver(receiver, frontBundle: "com.apple.finder")
+        controller.videoReceiver(receiver, orientation: "portrait", mode: "stream", letterbox: false)
+        controller.videoReceiver(receiver, orientation: "landscape", mode: "resolution", letterbox: true)
+        controller.inputChannel(controller.input, armed: true, reason: "ok")
+        controller.features.clipboardSync = true
+        controller.inputChannel(controller.input, clipboard: "copied", revision: 2)
+        controller.inputChannel(controller.input, roundTripMs: 9)
+        controller.inputChannel(controller.input, clockOffsetClientMinusHost: 1)
+        controller.inputChannel(controller.input, nowPlaying: XANowPlaying(session: 1, appName: "Music", title: "Song"))
+        let packet = XAAudio(session: 1, sampleRate: 48_000, channels: 2, pcm: Data([0, 1, 2, 3]))
+        controller.inputChannel(controller.input, audio: packet)
     }
 
     func testSettingsMediaBatteryAndChromeViews() {
