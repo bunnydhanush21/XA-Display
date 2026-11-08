@@ -84,5 +84,20 @@ final class ComponentCoverageTests: XCTestCase {
         _ = controller.contentSize()
         controller.videoSize = CGSize(width: 1920, height: 1080)
         controller.layoutVideo()
+        controller.backgrounded()
+        controller.userDisconnect()
+    }
+
+    func testDecoderRejectsAShortParameterSet() {
+        let receiver = VideoReceiver(displayLayer: AVSampleBufferDisplayLayer())
+        receiver.queue.sync {
+            receiver.buildFormat(sps: Data([0x67, 0x42, 0x00, 0x0A, 0xFF]), pps: Data([0x68, 0xCE, 0x38, 0x80]))
+            XCTAssertFalse(receiver.enqueue([Data([0x65, 0x88])], keyframe: true))
+            receiver.noteFailure()
+            receiver.resetStream()
+            receiver.holdPictureUntilKeyframe()
+            receiver.releasePictureHold()
+            receiver.setConnected(false, transport: .none)
+        }
     }
 }
