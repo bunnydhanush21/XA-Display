@@ -56,5 +56,37 @@ final class ComponentCoverageTests: XCTestCase {
         XCTAssertNil(receiver.openSealed(Data([0, 1]), channel: .udp))
         XCTAssertFalse(PadError.seal.userMessage.isEmpty)
         XCTAssertFalse(PadError.malformed.userMessage.isEmpty)
+        board.checkPasteboard()
+        let loop = BatteryCareLoop()
+        _ = loop.tick(enabledTelemetry: true, chargeLimit: false, config: ChargeLimitConfig())
+        _ = loop.tick(enabledTelemetry: false, chargeLimit: true, config: ChargeLimitConfig())
+        loop.restore()
+    }
+
+    func testMoreGesturesOnAPausedReceiver() {
+        let controller = ReceiverViewController()
+        controller.loadViewIfNeeded()
+        controller.healthTimer?.invalidate()
+        controller.receiver.pause()
+        controller.input.pause()
+        controller.macBrowser.stop()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 1024, height: 768)
+        controller.view.layoutIfNeeded()
+        controller.assist.loupeWhileDragging = false
+        controller.assist.windowChrome = false
+        controller.features.touchscreenGestures = true
+        let point = XAPoint(x: 30, y: 40)
+        let finger = CGPoint(x: 30, y: 40)
+        controller.perform(.doubleTap(point), finger: finger, pointer: finger, time: 1)
+        controller.perform(.longPress(point), finger: finger, pointer: finger, time: 2)
+        controller.perform(.twoFingerTap(point), finger: finger, pointer: finger, time: 3)
+        controller.perform(.drag(.began, point), finger: finger, pointer: finger, time: 4)
+        controller.perform(.drag(.moved, point), finger: finger, pointer: finger, time: 4.1)
+        controller.perform(.drag(.ended, point), finger: finger, pointer: finger, time: 4.2)
+        controller.perform(.relativeClick(.right), finger: finger, pointer: finger, time: 5)
+        controller.normalize(point)
+        _ = controller.contentSize()
+        controller.videoSize = CGSize(width: 1920, height: 1080)
+        controller.layoutVideo()
     }
 }

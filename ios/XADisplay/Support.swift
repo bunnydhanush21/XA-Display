@@ -243,6 +243,8 @@ final class ClipboardBridge {
         timer = nil
     }
 
+    func checkPasteboard() { poll() }
+
     func applyRemote(text: String, revision: UInt64) {
         guard enabled, revision > lastRevision else { return }
         lastRevision = revision
