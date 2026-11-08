@@ -13,6 +13,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     private let encoder = AACLCEncoder()
     private var running = false
 
+    @MainActor
     func start(displayID: CGDirectDisplayID, choice: AudioFilterChoice) async {
         XALog.write(XALog.audio, "audio start")
         stop()

@@ -18,6 +18,7 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
     private let queue = DispatchQueue(label: "xa.capture")
     private var audioEnabled = false
 
+    @MainActor
     func start(displayID: CGDirectDisplayID, width: Int, height: Int, fps: Int, bitrate: Int, profileLevel: String, audio: Bool) async throws {
         XALog.write(XALog.video, "capture start \(width)x\(height)")
         audioEnabled = audio

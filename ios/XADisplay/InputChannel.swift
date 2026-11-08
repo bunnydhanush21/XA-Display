@@ -19,7 +19,7 @@ final class InputChannel {
     private var seq: UInt32 = 0
     private var listener: NWListener?
     private var connection: NWConnection?
-    private let queue = DispatchQueue(label: "xa.input")
+    let queue = DispatchQueue(label: "xa.input")
     private var parser = FrameParser(limits: .input)
     private var userPaused = false
     var token = ""
@@ -198,7 +198,7 @@ final class InputChannel {
         }
     }
 
-    private func handle(_ message: XAInputMessage) {
+    func handle(_ message: XAInputMessage) {
         dispatchPrecondition(condition: .onQueue(queue))
         switch message {
         case .helloAck(let ack):

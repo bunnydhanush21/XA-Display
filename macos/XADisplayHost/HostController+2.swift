@@ -182,11 +182,17 @@ extension HostController {
         let level = preset.profileLevelName
         let audio = settings.audio
         let displayID = savedDisplayID
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             do {
                 try await self?.capture.start(displayID: displayID, width: width, height: height, fps: fps, bitrate: bitrate, profileLevel: level, audio: audio)
                 self?.capture.onAccessUnit = { data, key, _, captureMs, encodeMs in
-                    self?.sendVideo(data, keyframe: key, captureMs: captureMs, encodeMs: encodeMs)
+                    let payload = data
+                    let isKey = key
+                    let captured = captureMs
+                    let encoded = encodeMs
+                    Task { @MainActor [weak self] in
+                        self?.sendVideo(payload, keyframe: isKey, captureMs: captured, encodeMs: encoded)
+                    }
                 }
                 self?.log("Capture \(width)x\(height) @ \(fps) \(level)")
                 self?.restartAudio()
@@ -236,20 +242,24 @@ extension HostController {
         let frame = lastDisplayFrame
         let mode = audioMode
         let selected = selectedAudioBundles
-        audioCapture.onLog = { [weak self] line in self?.log(line) }
-        audioCapture.onPacket = { [weak self] packet in
-            self?.sendAudio(packet)
+        audioCapture.onLog = { line in
+            let text = line
+            Task { @MainActor [weak self] in self?.log(text) }
         }
-        Task { [weak self] in
+        audioCapture.onPacket = { packet in
+            let copy = packet
+            Task { @MainActor [weak self] in self?.sendAudio(copy) }
+        }
+        Task { @MainActor [weak self] in
             guard let self = self else { return }
             var onDisplay: [String] = []
             if mode == .displayApps, let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
                 onDisplay = AudioCapture.bundlesOnVirtualDisplay(content: content, displayFrame: frame)
                 let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
-                DispatchQueue.main.async { [weak self] in self?.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+                self.knownAudioApps = apps.sorted { $0.0 < $1.0 }
             } else if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
                 let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
-                DispatchQueue.main.async { [weak self] in self?.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+                self.knownAudioApps = apps.sorted { $0.0 < $1.0 }
             }
             let choice = AudioRoutePlanner.choice(mode: mode, selectedBundleIDs: selected, bundlesOnDisplay: onDisplay)
             await self.audioCapture.start(displayID: displayID, choice: choice)

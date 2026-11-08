@@ -120,6 +120,7 @@ jobs:
           xcrun xccov view --report --json build-tests/iPad.xcresult > build-tests/ipad-coverage.json
           python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: screenshots
           path: docs/screenshots
@@ -178,6 +179,12 @@ jobs:
             CODE_SIGN_IDENTITY=""
           xcrun xccov view --report --json build/Host.xcresult > build/host-coverage.json
           python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build/host-coverage.json XADisplayHost 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-screenshots
+          path: docs/screenshots
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: XADisplayHost.zip

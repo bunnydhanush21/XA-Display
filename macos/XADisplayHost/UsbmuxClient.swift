@@ -171,14 +171,18 @@ final class FDStream {
 
     func send(_ data: Data) {
         let descriptor = fd
-        queue.async { [weak self] in
-            data.withUnsafeBytes { raw in
+        let payload = data
+        let close: @Sendable () -> Void = { [weak self] in
+            Task { @MainActor in self?.closeStream() }
+        }
+        queue.async {
+            payload.withUnsafeBytes { raw in
                 guard let base = raw.baseAddress else { return }
                 var sent = 0
                 while sent < raw.count {
                     let n = write(descriptor, base.advanced(by: sent), raw.count - sent)
                     if n <= 0 {
-                        Task { @MainActor in self?.closeStream() }
+                        close()
                         return
                     }
                     sent += n
