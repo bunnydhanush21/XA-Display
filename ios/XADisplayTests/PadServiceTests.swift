@@ -31,24 +31,40 @@ final class PadServiceTests: XCTestCase {
     }
 
     func testRenderedConnectionAndFirstRun() throws {
-        let overlay = ConnectionOverlay(frame: CGRect(x: 0, y: 0, width: 768, height: 1024))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 768, height: 1024))
+        let overlay = ConnectionOverlay(frame: window.bounds)
+        window.addSubview(overlay)
         overlay.show(macs: ["Office Mac"], code: "ABCD2345")
+        overlay.setNeedsLayout()
+        overlay.layoutIfNeeded()
+        window.makeKeyAndVisible()
         try writePNG(overlay, named: "ipad-connection.png")
         let first = FirstRunController()
+        window.rootViewController = first
         first.loadViewIfNeeded()
-        first.view.frame = CGRect(x: 0, y: 0, width: 768, height: 1024)
+        first.view.frame = window.bounds
+        first.view.setNeedsLayout()
         first.view.layoutIfNeeded()
         try writePNG(first.view, named: "ipad-onboarding.png")
         let receiver = ReceiverViewController()
+        window.rootViewController = receiver
         receiver.loadViewIfNeeded()
+        receiver.healthTimer?.invalidate()
+        receiver.receiver.pause()
+        receiver.input.pause()
         receiver.view.frame = CGRect(x: 0, y: 0, width: 1024, height: 768)
+        receiver.view.setNeedsLayout()
         receiver.view.layoutIfNeeded()
         try writePNG(receiver.view, named: "ipad-landscape.png")
     }
 
     private func writePNG(_ view: UIView, named name: String) throws {
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
-        let image = renderer.image { view.layer.render(in: $0.cgContext) }
+        let image = renderer.image { _ in
+            view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
         guard let data = image.pngData() else { return }
         let fallback = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first
         let env = ProcessInfo.processInfo.environment["XA_SCREENSHOT_DIR"]

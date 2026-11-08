@@ -15,9 +15,9 @@ public struct FrameLimits: Equatable, Sendable {
     }
 
     /// Video access units. A 2048×1536 keyframe stays well under 2 MB; the buffer cannot grow past 3 MB.
-    public static let video = FrameLimits(maxPayload: 2_000_000, maxBuffer: 3_000_000)
+    public static let video = FrameLimits(maxPayload: 2_000_000 + ChannelSeal.overhead, maxBuffer: 3_000_000)
     /// Input stays bounded. 256 KB covers one clipboard image and still rejects multi-megabyte frames.
-    public static let input = FrameLimits(maxPayload: 262_144, maxBuffer: 524_288, maxFramesPerAppend: 32)
+    public static let input = FrameLimits(maxPayload: 262_144 + ChannelSeal.overhead, maxBuffer: 524_288, maxFramesPerAppend: 32)
 }
 
 /// FrameParseError.

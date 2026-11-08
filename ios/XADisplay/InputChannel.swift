@@ -22,7 +22,15 @@ final class InputChannel {
     let queue = DispatchQueue(label: "xa.input")
     private var parser = FrameParser(limits: .input)
     private var userPaused = false
-    var token = ""
+    var token = "" {
+        didSet {
+            sealLock.lock()
+            outboundSeal = ChannelSeal(token: token)
+            sealLock.unlock()
+        }
+    }
+    private let sealLock = NSLock()
+    private var outboundSeal = ChannelSeal(token: "")
     var deviceName = "iPad"
     var requirePairing = true
 
@@ -179,8 +187,12 @@ final class InputChannel {
                 switch self.parser.append(data, now: Date().timeIntervalSince1970) {
                 case .ok(let frames):
                     for frame in frames {
+                        guard let plain = self.openSealed(frame) else {
+                            connection.cancel()
+                            return
+                        }
                         do {
-                            if let message = try XAInputMessage.decode(frame) {
+                            if let message = try XAInputMessage.decode(plain) {
                                 self.handle(message)
                             }
                         } catch {
@@ -254,7 +266,18 @@ final class InputChannel {
 
     private func send(_ message: XAInputMessage) {
         guard let connection = connection, let payload = try? message.encode() else { return }
-        connection.send(content: LengthPrefixedFraming.encode(payload), completion: .contentProcessed { _ in })
+        sealLock.lock()
+        let sealed = outboundSeal.seal(payload, aad: SealChannel.input.aad)
+        sealLock.unlock()
+        guard let sealed = sealed else { return }
+        connection.send(content: LengthPrefixedFraming.encode(sealed), completion: .contentProcessed { _ in })
+    }
+
+    private func openSealed(_ frame: Data) -> Data? {
+        sealLock.lock()
+        let current = token
+        sealLock.unlock()
+        return ChannelSeal.open(token: current, sealed: frame, aad: SealChannel.input.aad)
     }
 
     private static func messages(for intent: InputIntent, session: UInt32, nextSeq: () -> UInt32) -> [XAInputMessage] {

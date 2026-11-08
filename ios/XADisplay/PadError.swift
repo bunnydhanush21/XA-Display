@@ -6,6 +6,8 @@ enum PadError: Error, Equatable {
     case pairing
     case decode
     case protocolVersion
+    case malformed
+    case seal
 
     var userMessage: String {
         switch self {
@@ -13,6 +15,8 @@ enum PadError: Error, Equatable {
         case .pairing: return "Enter the pairing code from the Mac."
         case .decode: return "The picture could not be decoded. The Mac should drop to Safe."
         case .protocolVersion: return "This iPad build does not match the Mac host."
+        case .malformed: return "The video frame was malformed."
+        case .seal: return "A frame failed the channel seal."
         }
     }
 }

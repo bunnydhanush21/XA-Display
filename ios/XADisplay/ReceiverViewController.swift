@@ -175,7 +175,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         receiver = VideoReceiver(displayLayer: videoView.displayLayer)
         receiver.delegate = self
         input.delegate = self
-        input.token = token
+        adoptToken(token)
         input.requirePairing = features.requirePairing
         input.deviceName = UIDevice.current.name
         clipboard.enabled = features.clipboardSync

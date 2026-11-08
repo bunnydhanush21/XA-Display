@@ -67,7 +67,7 @@ extension HostController {
         guard let port = NWEndpoint.Port(rawValue: XADisplayProtocolInfo.hostWakePort),
             let listener = try? NWListener(using: params, on: port)
         else {
-            log("Wake service unavailable")
+            log(HostError.wakeUnavailable)
             return
         }
         let advertised = Host.current().localizedName ?? ""
@@ -122,8 +122,8 @@ extension HostController {
         transition(.linkLost)
         publish()
     }
-    func releaseInput(reason: String) {
-        log(reason)
+    func releaseInput(_ failure: HostError) {
+        log(failure)
         apply(dispatcher.disconnect())
     }
     func closeLinks() {

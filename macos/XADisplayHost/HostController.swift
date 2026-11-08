@@ -20,6 +20,7 @@ final class HostController {
     var dispatcher: InputDispatcher
     var settings: XAFeatureSettings
     var token: String
+    var outboundSeal = ChannelSeal(token: "")
     var library: PresetLibrary
     var adaptation: AdaptationController
     var preset: StreamPreset
@@ -64,6 +65,7 @@ final class HostController {
         let stored = HostStore.load()
         settings = stored.settings
         token = stored.token
+        outboundSeal = ChannelSeal(token: token)
         library = PresetLibrary(enabled: settings.savedPresets, items: stored.presets)
         if settings.savedPresets, let first = library.items.last {
             preset = StreamPreset.preset(first.preset).oriented(portrait: first.portrait)
@@ -129,6 +131,7 @@ final class HostController {
 
     func regenerateToken() {
         token = PairingToken.make()
+        outboundSeal = ChannelSeal(token: token)
         dispatcher.expectedToken = token
         dispatcher.requirePairing = settings.requirePairing
         HostStore.save(token: token, settings: settings, presets: library.items)

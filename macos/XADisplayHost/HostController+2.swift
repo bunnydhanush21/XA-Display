@@ -220,15 +220,20 @@ extension HostController {
         guard inputService.allowsVideo(channelGate) else { return }
         let decision = sendBudget.admit(pending: pendingSends, isKeyframe: keyframe)
         guard decision == .send else { return }
-        guard annex.count <= FrameLimits.video.maxPayload else { return }
-        if transport == .wifi, settings.lowLatencyWiFi {
-            let packets = UDPVideoPacketizer.packetize(frame: annex, frameID: udpFrameID, nextSequence: &udpSequence, keyframe: keyframe)
+        guard annex.count + ChannelSeal.overhead <= FrameLimits.video.maxPayload else { return }
+        let udp = transport == .wifi && settings.lowLatencyWiFi
+        guard let sealed = outboundSeal.seal(annex, aad: (udp ? SealChannel.udp : SealChannel.video).aad) else {
+            log(HostError.seal)
+            return
+        }
+        if udp {
+            let packets = UDPVideoPacketizer.packetize(frame: sealed, frameID: udpFrameID, nextSequence: &udpSequence, keyframe: keyframe)
             udpFrameID &+= 1
             udpSender.send(packets)
             return
         }
         pendingSends += 1
-        let frame = LengthPrefixedFraming.encode(annex)
+        let frame = LengthPrefixedFraming.encode(sealed)
         sendRaw(frame, video: true) { [weak self] in
             Task { @MainActor in self?.pendingSends = max(0, (self?.pendingSends ?? 1) - 1) }
         }
@@ -282,10 +287,22 @@ extension HostController {
     }
     func sendControl(_ message: VideoControlMessage, onVideo: Bool) {
         guard let payload = message.jsonData() else { return }
-        sendRaw(LengthPrefixedFraming.encode(payload), video: onVideo, done: nil)
+        let channel: SealChannel = onVideo ? .video : .input
+        guard let frame = sealedFrame(payload, channel: channel) else { return }
+        sendRaw(frame, video: onVideo, done: nil)
     }
     func sendInput(_ message: XAInputMessage) {
-        guard let payload = try? message.encode() else { return }
-        sendRaw(LengthPrefixedFraming.encode(payload), video: false, done: nil)
+        guard let payload = try? message.encode(), let frame = sealedFrame(payload, channel: .input) else { return }
+        sendRaw(frame, video: false, done: nil)
+    }
+    func sealedFrame(_ payload: Data, channel: SealChannel) -> Data? {
+        guard let sealed = outboundSeal.seal(payload, aad: channel.aad) else {
+            log(HostError.seal)
+            return nil
+        }
+        return LengthPrefixedFraming.encode(sealed)
+    }
+    func openFrame(_ frame: Data, channel: SealChannel) -> Data? {
+        ChannelSeal.open(token: token, sealed: frame, aad: channel.aad)
     }
 }

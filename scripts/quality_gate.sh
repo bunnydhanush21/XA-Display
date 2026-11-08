@@ -115,6 +115,22 @@ if "SWIFT_STRICT_CONCURRENCY: complete" not in yml:
     raise SystemExit("Mac target is not set to strict concurrency complete")
 if "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in yml or "SWIFT_TREAT_WARNINGS_AS_ERRORS: YES" not in Path("ios/project.yml").read_text():
     raise SystemExit("warnings-as-errors is not set on both apps")
+seal = Path("Sources/XADisplayProtocol/ChannelSeal.swift").read_text()
+if "CCCryptorGCMOneshotEncrypt" not in seal or "CCCryptorGCMOneshotDecrypt" not in seal:
+    raise SystemExit("channel seal is not CommonCrypto AES-GCM")
+if "SealChannel" not in Path("macos/XADisplayHost/HostController+2.swift").read_text():
+    raise SystemExit("Mac host does not seal frames")
+if "SealChannel" not in Path("ios/XADisplay/VideoReceiver.swift").read_text() or "SealChannel" not in Path("ios/XADisplay/InputChannel.swift").read_text():
+    raise SystemExit("iPad does not seal video and input")
+if "func testTamperedTagOrCiphertextIsRejected" not in Path("Tests/XADisplayProtocolTests/ChannelSealTests.swift").read_text():
+    raise SystemExit("seal tamper test missing")
+failure_call = re.compile(r'(?:log|onLog\?|setStatus)\(\s*"[^"]*(?:fail|unavailable|missing|stopped|malformed|rejected)', re.I)
+for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swift")):
+    if "Tests" in path.parts:
+        continue
+    for index, line in enumerate(path.read_text().splitlines(), 1):
+        if failure_call.search(line):
+            raise SystemExit(f"string failure log {path}:{index}: {line.strip()}")
 print("static checks passed")
 PY
 

@@ -56,8 +56,7 @@ extension ReceiverViewController {
         picker.onSelectSaved = { [weak self] mac in
             guard let self = self else { return }
             self.directory.select(mac.id, now: Date().timeIntervalSince1970)
-            self.token = mac.token
-            self.input.token = mac.token
+            self.adoptToken(mac.token)
             LocalSettings.saveMacs(self.directory)
             LocalSettings.save(token: mac.token, features: self.features)
             self.statusLabel.text = "Connecting to \(mac.name)"
@@ -71,8 +70,7 @@ extension ReceiverViewController {
             let existing = self.directory.macs.first { $0.id == name }
             let mac = SavedMac(id: name, name: name, token: existing?.token ?? self.token, lastUsed: Date().timeIntervalSince1970)
             self.directory.remember(mac)
-            self.token = mac.token
-            self.input.token = mac.token
+            self.adoptToken(mac.token)
             LocalSettings.saveMacs(self.directory)
             LocalSettings.save(token: mac.token, features: self.features)
             self.statusLabel.text = "Connecting to \(name)"
@@ -153,10 +151,9 @@ extension ReceiverViewController {
         settings.onDiagnostics = { [weak self] in self?.copyDiagnostics() }
         settings.onRevoke = { [weak self] in
             guard let self = self else { return }
-            self.token = ""
             self.directory = MacDirectory()
             LocalSettings.saveMacs(self.directory)
-            self.input.token = ""
+            self.adoptToken("")
         }
         settings.onLive = { [weak self] document, token in
             self?.apply(document: document, token: token, broadcast: true)
@@ -169,8 +166,7 @@ extension ReceiverViewController {
         features = document.features
         assist = document.assist
         chargeConfig = document.charge
-        self.token = token
-        input.token = token
+        adoptToken(token)
         input.requirePairing = features.requirePairing
         clipboard.enabled = features.clipboardSync
         precisionLabel.isHidden = !features.precisionMode
@@ -211,6 +207,12 @@ extension ReceiverViewController {
             battery: batteryLoop.lastText, notes: ["settings"]
         )
     }
+    func adoptToken(_ value: String) {
+        token = value
+        input.token = value
+        receiver?.setPairingToken(value)
+    }
+
     func installConnectionChrome() {
         connectionOverlay.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(connectionOverlay)
@@ -222,8 +224,7 @@ extension ReceiverViewController {
         ])
         connectionOverlay.onConnect = { [weak self] code in
             guard let self = self else { return }
-            self.token = code.trimmingCharacters(in: .whitespacesAndNewlines)
-            self.input.token = self.token
+            self.adoptToken(code.trimmingCharacters(in: .whitespacesAndNewlines))
             LocalSettings.save(token: self.token, features: self.features)
             self.sendAuth()
             XALog.write(XALog.ui, "pairing code saved")

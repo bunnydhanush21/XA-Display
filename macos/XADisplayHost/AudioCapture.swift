@@ -18,13 +18,13 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
         XALog.write(XALog.audio, "audio start")
         stop()
         if case .includingBundles(let ids) = choice, ids.isEmpty {
-            onLog?("Audio route has no apps")
+            onLog?(HostError.audio("The route has no apps.").userMessage)
             return
         }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
-                onLog?("Audio display missing")
+                onLog?(HostError.audio("The virtual display is missing.").userMessage)
                 return
             }
             let filter = try Self.filter(display: display, content: content, choice: choice)
@@ -44,7 +44,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
             _ = encoder.start()
             onLog?("Audio route \(Self.describe(choice))")
         } catch {
-            onLog?("Audio capture failed: \(error.localizedDescription)")
+            onLog?(HostError.audio(error.localizedDescription).userMessage)
         }
     }
 
@@ -69,7 +69,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        onLog?("Audio stopped: \(error.localizedDescription)")
+        onLog?(HostError.captureStopped(error.localizedDescription).userMessage)
     }
 
     static func filter(display: SCDisplay, content: SCShareableContent, choice: AudioFilterChoice) throws -> SCContentFilter {

@@ -83,7 +83,7 @@ extension HostController {
             if let input = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.inputPort) {
                 let inputStream = FDStream(fd: input)
                 inputStream.onData = { [weak self] data in Task { @MainActor in self?.ingestInput(data) } }
-                inputStream.onClose = { [weak self] in Task { @MainActor in self?.releaseInput(reason: "input closed") } }
+                inputStream.onClose = { [weak self] in Task { @MainActor in self?.releaseInput(.transport("The input link closed.")) } }
                 inputFD = inputStream
             }
             sendControl(.xaHello, onVideo: true)
@@ -132,7 +132,14 @@ extension HostController {
     func ingestVideo(_ data: Data) {
         switch videoParser.append(data, now: Date().timeIntervalSince1970) {
         case .ok(let frames):
-            for frame in frames { handleVideo(frame) }
+            for frame in frames {
+                guard let plain = openFrame(frame, channel: .video) else {
+                    log(HostError.seal)
+                    linkClosed()
+                    return
+                }
+                handleVideo(plain)
+            }
         case .failed:
             log(HostFailure.transport.error)
             linkClosed()
@@ -142,8 +149,12 @@ extension HostController {
         switch inputParser.append(data, now: Date().timeIntervalSince1970) {
         case .ok(let frames):
             for frame in frames {
+                guard let plain = openFrame(frame, channel: .input) else {
+                    releaseInput(.seal)
+                    return
+                }
                 do {
-                    if let message = try XAInputMessage.decode(frame) {
+                    if let message = try XAInputMessage.decode(plain) {
                         handleInput(message)
                     }
                 } catch {
@@ -153,7 +164,7 @@ extension HostController {
             }
         case .failed:
             log(HostFailure.transport.error)
-            releaseInput(reason: "malformed input")
+            releaseInput(.transport("The input frame was malformed."))
         }
     }
     func handleVideo(_ payload: Data) {
@@ -162,7 +173,11 @@ extension HostController {
         switch message {
         case .xaAuth(let id, let proof):
             let accepted = channelGate.acceptVideo(token: token, nonce: id, proof: proof)
-            log(accepted ? "Video channel accepted" : "Video channel rejected")
+            if accepted {
+                log("Video channel accepted")
+            } else {
+                log(HostError.pairing)
+            }
             transition(accepted ? .authAccepted : .authRejected)
             if accepted, let hello = pendingHello {
                 pendingHello = nil
@@ -213,7 +228,7 @@ extension HostController {
             udpSender.retransmit(sequences)
         case .touch, .scroll:
             if LegacyInputPolicy.acceptsUnauthenticatedVideoInput {
-                log("ignored unauthenticated video input")
+                log(HostError.pairing)
             }
         default:
             break

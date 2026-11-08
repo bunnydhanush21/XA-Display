@@ -13,4 +13,4 @@ Talk to `/var/run/usbmuxd` with Apple's plist protocol version 1. Connect with `
 
 ## Consequences
 
-No libimobiledevice daemon ships in the app. The iPad must be trusted for USB. Wi-Fi has no TLS; pairing is the control gate ([SECURITY.md](../SECURITY.md)).
+No libimobiledevice daemon ships in the app. The iPad must be trusted for USB. Wi-Fi frames are AES-256-GCM keyed from the pairing token; pairing is still the control gate for input ([SECURITY.md](../SECURITY.md)).

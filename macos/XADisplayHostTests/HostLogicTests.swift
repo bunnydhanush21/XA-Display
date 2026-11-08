@@ -84,7 +84,16 @@ final class HostLogicTests: XCTestCase {
         host.tuneWiFi(rttMs: 40)
         host.tuneWiFi(rttMs: 180)
         _ = host.audioMenuState()
-        host.releaseInput(reason: "test closed the input link")
+        host.releaseInput(.transport("The input link closed."))
+        var seal = ChannelSeal(token: host.currentToken())
+        let hello = VideoControlMessage.xaHello.jsonData() ?? Data()
+        if let sealed = seal.seal(hello, aad: SealChannel.video.aad) {
+            host.ingestVideo(LengthPrefixedFraming.encode(sealed))
+        }
+        XCTAssertTrue(HostError.wakeUnavailable.userMessage.contains("wake"))
+        XCTAssertTrue(HostError.seal.userMessage.contains("seal"))
+        XCTAssertTrue(HostError.audio("route").userMessage.contains("Audio"))
+        XCTAssertTrue(HostError.captureStopped("ended").userMessage.contains("Capture"))
         host.stop()
     }
 }

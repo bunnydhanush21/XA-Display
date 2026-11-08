@@ -20,14 +20,16 @@ Bonjour service type: `_opensidecar._tcp`.
 
 `length` is the payload size. Length 0 is a fatal parse error. A declared length above the cap is rejected **before** the body is buffered.
 
+Every TCP payload and every reassembled UDP frame is an AES-256-GCM seal (`ChannelSeal`). The key is SHA-256 of the pairing token. The 12-byte nonce travels with the frame. Video, input, and UDP each use their channel name as associated data. A frame that fails the tag is dropped. The cipher is CommonCrypto, not code in this repository.
+
 | Limit | Value |
 |---|---|
-| Max video payload | 2,000,000 bytes |
+| Max video payload | 2,000,000 bytes plus the 29-byte AES-GCM seal |
 | Max video reassembly buffer | 3,000,000 bytes |
 | Partial frame timeout | 2 seconds |
 | Max frames per append | 64 |
 
-Classification of a payload:
+Classification of a payload, after the seal opens:
 
 - Control JSON when the payload is at most 32,768 bytes, starts with `{`, and contains no NUL.
 - Otherwise an H.264 Annex-B access unit. A timing JSON object may sit in front of the first `00 00 00 01` start code and is kept.

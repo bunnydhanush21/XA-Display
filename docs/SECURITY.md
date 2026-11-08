@@ -7,12 +7,12 @@ XA Display injects input into a Mac and installs an unsigned app on a jailbroken
 | Asset | Where it lives |
 |---|---|
 | Pairing token | Mac menu bar, iPad settings, UserDefaults. Diagnostics export redacts it |
-| Screen contents | H.264 on the wire, unencrypted |
+| Screen contents | H.264 inside AES-256-GCM, keyed from the pairing token |
 | Pointer and keyboard | CGEvent after a paired session |
 | Clipboard text | Optional, 12 KB, both switches on |
 | Window and menu control | Accessibility, after a paired window or chrome message |
 
-There is no TLS. On USB, the socket is a usbmux tunnel to a trusted device. On Wi-Fi, any host that can reach port 9000 or 9001 on the iPad can speak the protocol. Pairing is the control gate, not the network.
+There is no TLS handshake. Each frame is AES-256-GCM from CommonCrypto. The key is SHA-256 of `xa-display-aead-v1` and the pairing token. Video, input, and UDP use different associated data, so a sealed video frame does not open on the input socket. On USB the socket is still a usbmux tunnel. On Wi-Fi a peer that does not know the token cannot read or forge frames. Pairing remains the control gate for pointer injection.
 
 ## Pairing model
 
@@ -33,10 +33,10 @@ Video-port `touch` and `scroll` JSON have no token. `LegacyInputPolicy` rejects 
 | Unpaired peer sends mouse events | Dropped until helloAck | A person who learns the token is paired |
 | Huge length prefix | Rejected before the body is read. Buffer caps: 3 MB video, 512 KB input | A paired peer can still send up to the cap, continuously |
 | Malformed frame | Connection dropped. The parser does not guess a new boundary | Session must be rebuilt |
-| Replay of an old seq | Dropped | Seq is per session, not a MAC |
-| Clipboard exfiltration | Off unless both switches are on. Text cap 12 KB. Images are not applied | A paired peer can read or set the pasteboard text while the switch is on |
+| Replay of an old seq | Dropped | Seq is per session. GCM also rejects a flipped ciphertext |
+| Clipboard exfiltration | Off unless both switches are on. Text cap 12 KB. Images are not applied. The bytes are inside the sealed input frame | A paired peer can read or set the pasteboard text while the switch is on |
 | Token in logs | Diagnostics redact the token | Screenshots of the menu bar still show it |
-| Wi-Fi eavesdropping | None. The stream is cleartext | Use USB when the network is untrusted |
+| Wi-Fi eavesdropping | AES-256-GCM on video, input, and UDP. The tag covers the channel name | A person who learns the pairing token can decrypt |
 | Jailbreak install | The IPA is unsigned and fakesigned with `ldid` on device | The device trust model is the jailbreak, not App Store review |
 | Private virtual display API | Isolated in one Objective-C file. Failure is reported, not papered over | The SPI can break on a macOS update |
 | Accessibility | Window moves and menu presses need the permission the person granted | A paired session can press menus and move windows when those switches are on |

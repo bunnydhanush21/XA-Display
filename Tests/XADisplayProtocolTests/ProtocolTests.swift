@@ -21,7 +21,7 @@ final class ProtocolTests: XCTestCase {
         var parser = FrameParser(limits: .video)
         let evil = Data([0x7F, 0xFF, 0xFF, 0xFF])
         let result = parser.append(evil, now: 0)
-        XCTAssertEqual(result, .failed(.payloadTooLarge(declared: 0x7FFFFFFF, max: 2_000_000)))
+        XCTAssertEqual(result, .failed(.payloadTooLarge(declared: 0x7FFFFFFF, max: FrameLimits.video.maxPayload)))
         XCTAssertEqual(parser.bufferedByteCount, 0)
     }
 

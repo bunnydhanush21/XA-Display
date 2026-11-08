@@ -65,6 +65,9 @@ final class VideoReceiver {
     var sps: Data?
     var pps: Data?
     var port: UInt16 = XADisplayProtocolInfo.videoPort
+    private let sealLock = NSLock()
+    private var pairingToken = ""
+    private var outboundSeal = ChannelSeal(token: "")
     var lastData = Date()
     var watchdogStarted = false
     var userPaused = false
@@ -196,9 +199,30 @@ final class VideoReceiver {
         queue.async { self.sendFrame(data) }
     }
 
+    func setPairingToken(_ token: String) {
+        sealLock.lock()
+        pairingToken = token
+        outboundSeal = ChannelSeal(token: token)
+        sealLock.unlock()
+    }
+
     func sendFrame(_ payload: Data) {
         guard let connection = connection else { return }
-        connection.send(content: LengthPrefixedFraming.encode(payload), completion: .contentProcessed { _ in })
+        sealLock.lock()
+        let sealed = outboundSeal.seal(payload, aad: SealChannel.video.aad)
+        sealLock.unlock()
+        guard let sealed = sealed else {
+            setStatus(PadError.seal.userMessage)
+            return
+        }
+        connection.send(content: LengthPrefixedFraming.encode(sealed), completion: .contentProcessed { _ in })
+    }
+
+    func openSealed(_ frame: Data, channel: SealChannel) -> Data? {
+        sealLock.lock()
+        let token = pairingToken
+        sealLock.unlock()
+        return ChannelSeal.open(token: token, sealed: frame, aad: channel.aad)
     }
 
     func startListener() {
@@ -212,7 +236,7 @@ final class VideoReceiver {
             guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
             listener = try NWListener(using: params, on: nwPort)
         } catch {
-            setStatus("Listener failed: \(error.localizedDescription)")
+            setStatus(PadError.transport(error.localizedDescription).userMessage)
             return
         }
         if #available(iOS 13.0, *) {
@@ -267,7 +291,10 @@ final class VideoReceiver {
     func ingestDatagram(_ data: Data) {
         guard let packet = UDPVideoPacket.decode(data) else { return }
         if let frame = reassembler.ingest(packet) {
-            queue.async { self.handle(frame) }
+            queue.async {
+                guard let plain = self.openSealed(frame, channel: .udp) else { return }
+                self.handle(plain)
+            }
         }
         let holes = reassembler.missing()
         guard !holes.isEmpty else { return }
@@ -305,10 +332,17 @@ final class VideoReceiver {
                 let outcome = self.parser.append(data, now: Date().timeIntervalSince1970)
                 switch outcome {
                 case .ok(let frames):
-                    for frame in frames { self.handle(frame) }
+                    for frame in frames {
+                        guard let plain = self.openSealed(frame, channel: .video) else {
+                            connection.cancel()
+                            self.setStatus(PadError.seal.userMessage)
+                            return
+                        }
+                        self.handle(plain)
+                    }
                 case .failed:
                     connection.cancel()
-                    self.setStatus("Closed a malformed video frame")
+                    self.setStatus(PadError.malformed.userMessage)
                     return
                 }
             }

@@ -77,7 +77,7 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        onLog?("Capture stopped: \(error.localizedDescription)")
+        onLog?(HostError.captureStopped(error.localizedDescription).userMessage)
     }
 
     private static func pcm16(from sample: CMSampleBuffer) -> Data? {
