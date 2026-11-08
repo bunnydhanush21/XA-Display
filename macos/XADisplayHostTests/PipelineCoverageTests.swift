@@ -60,6 +60,39 @@ final class PipelineCoverageTests: XCTestCase {
         sender.stop()
     }
 
+    func testPostedEventsAndEncoderCallback() {
+        let poster = EventPoster()
+        let point = XAPoint(x: 12, y: 18)
+        poster.post(.mouse(phase: .move, button: .left, global: point))
+        poster.post(.mouse(phase: .down, button: .right, global: point))
+        poster.post(.mouse(phase: .up, button: .middle, global: point))
+        poster.post(.mouse(phase: .drag, button: .left, global: point))
+        poster.post(.scroll(dxPoints: 3, dyPoints: -4))
+        poster.post(.key(phase: .down, keyCode: 0, modifiers: .command, text: "a"))
+        poster.post(.key(phase: .typed, keyCode: 0, modifiers: [], text: ""))
+        poster.post(.modifier(bit: .shift, down: true))
+        poster.post(.modifier(bit: .control, down: false))
+        poster.post(.modifier(bit: .option, down: true))
+        poster.post(.modifier(bit: .command, down: false))
+        poster.post(.clipboard(text: "copied", revision: 1))
+        poster.post(.window(.snapLeft))
+        poster.post(.chrome(op: 1, index: 0, windowIndex: 0, dx: 0, dy: 0))
+        poster.post(.media(.playPause, scrub: 0))
+        for action in [MediaAction.playPause, .next, .previous, .volumeUp, .volumeDown, .seekForward, .seekBackward] {
+            MediaKeyPoster.post(action)
+        }
+        let encoder = H264Encoder()
+        _ = encoder.start(width: 320, height: 180, fps: 15, bitrate: 500_000, profileLevel: "H264_Main_AutoLevel")
+        var pixel: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, 320, 180, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pixel)
+        if let pixel {
+            encoder.encode(pixel, captureMs: 2)
+            encoder.encode(pixel, captureMs: 3)
+        }
+        Thread.sleep(forTimeInterval: 0.3)
+        encoder.stop()
+    }
+
     func testCaptureAndAudioStartFailClosed() async {
         let capture = CapturePipeline()
         do {

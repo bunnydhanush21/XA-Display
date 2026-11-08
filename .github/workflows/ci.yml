@@ -111,6 +111,7 @@ jobs:
             -scheme XADisplay \
             -destination "id=$UDID" \
             -derivedDataPath build-tests \
+            -only-testing:XADisplayTests \
             -enableCodeCoverage YES \
             -resultBundlePath build-tests/iPad.xcresult \
             CODE_SIGNING_ALLOWED=NO \
@@ -119,6 +120,16 @@ jobs:
             XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
           xcrun xccov view --report --json build-tests/iPad.xcresult > build-tests/ipad-coverage.json
           python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
+          xcodebuild test \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -destination "id=$UDID" \
+            -derivedDataPath build-tests \
+            -only-testing:XADisplayUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
