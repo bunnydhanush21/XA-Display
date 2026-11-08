@@ -64,7 +64,23 @@ final class ServiceTests: XCTestCase {
     private func snapshotSettings(_ title: String, named name: String) throws {
         let settings = HostSettingsPanel(document: .defaults)
         settings.select(tab: title)
-        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 1120))
+        let root = try XCTUnwrap(settings.window.contentView)
+        root.layoutSubtreeIfNeeded()
+        let stack = try XCTUnwrap(findStack(in: root))
+        let fit = stack.fittingSize
+        let canvas = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: max(fit.height + 32, 200)))
+        stack.translatesAutoresizingMaskIntoConstraints = true
+        stack.frame = NSRect(x: 16, y: 16, width: 608, height: fit.height)
+        canvas.addSubview(stack)
+        try writePNG(canvas, named: name, size: canvas.frame.size)
+    }
+
+    private func findStack(in view: NSView) -> NSStackView? {
+        if let stack = view as? NSStackView, stack.orientation == .vertical, stack.arrangedSubviews.count > 2 { return stack }
+        for subview in view.subviews {
+            if let stack = findStack(in: subview) { return stack }
+        }
+        return nil
     }
 
     private func snapshotOnboarding(_ step: Int, named name: String) throws {
