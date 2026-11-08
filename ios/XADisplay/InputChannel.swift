@@ -198,6 +198,7 @@ final class InputChannel {
     }
 
     private func handle(_ message: XAInputMessage) {
+        dispatchPrecondition(condition: .onQueue(queue))
         switch message {
         case .helloAck(let ack):
             armed = ack.accepted

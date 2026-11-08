@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guided setup, a menu-bar status popover, independent custom display controls, channel authentication, and a tested connection state machine.
 - Auto-rotation. The iPad sends orientation after a short debounce, the Mac can switch the virtual display without a new connection, and the previous picture stays up until the new keyframe. Portrait modes that cannot be created letterbox. Stream-only rotation leaves the Mac resolution unchanged.
 - Low Latency Wi-Fi mode: UDP video with sequencing, XOR parity, and NACKs. TCP stays the control and input path. The overlay shows capture-to-ack only after a sample exists.
 - Read-only iPad battery telemetry, shown on the iPad and in the Mac menu. Missing registry fields stay unavailable.

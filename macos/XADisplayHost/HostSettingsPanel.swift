@@ -11,12 +11,12 @@ final class HostSettingsPanel: NSObject {
     var selectedBundles: [String] = []
     var onToggleApp: ((String) -> Void)?
     private var document: XASettingsDocument
-    private let tabs = NSTabView(frame: NSRect(x: 12, y: 12, width: 560, height: 420))
+    private let tabs = NSTabView(frame: NSRect(x: 12, y: 12, width: 616, height: 440))
 
     init(document: XASettingsDocument) {
         self.document = document
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 584, height: 460),
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -35,7 +35,7 @@ final class HostSettingsPanel: NSObject {
 
     private func rebuild() {
         tabs.tabViewItems.forEach { tabs.removeTabViewItem($0) }
-        for section in SettingsCatalog.hostSections {
+        for tab in SettingsCatalog.hostTabs {
             let view = NSView(frame: tabs.contentRect)
             let stack = NSStackView()
             stack.orientation = .vertical
@@ -48,10 +48,13 @@ final class HostSettingsPanel: NSObject {
                 stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
                 stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16)
             ])
-            for row in SettingsCatalog.rows(in: section, host: true) {
-                stack.addArrangedSubview(control(for: row))
+            for section in tab.sections {
+                for row in SettingsCatalog.rows(in: section, host: true) {
+                    stack.addArrangedSubview(control(for: row))
+                    stack.addArrangedSubview(NSTextField(labelWithString: rowNote(row)))
+                }
             }
-            if section == "Audio", document.audioMode == AudioRouteMode.selected.rawValue {
+            if tab.sections.contains("Audio"), document.audioMode == AudioRouteMode.selected.rawValue {
                 for app in apps.prefix(24) where !app.bundle.isEmpty {
                     let button = NSButton(checkboxWithTitle: app.name.isEmpty ? app.bundle : app.name, target: self, action: #selector(toggledApp(_:)))
                     button.identifier = NSUserInterfaceItemIdentifier("app:" + app.bundle)
@@ -59,10 +62,23 @@ final class HostSettingsPanel: NSObject {
                     stack.addArrangedSubview(button)
                 }
             }
-            let item = NSTabViewItem(identifier: section)
-            item.label = section
+            let item = NSTabViewItem(identifier: tab.title)
+            item.label = tab.title
             item.view = view
             tabs.addTabViewItem(item)
+        }
+    }
+
+    private func rowNote(_ row: SettingsRow) -> String {
+        switch row.id {
+        case "display.width", "display.height", "display.fps", "display.bitrate", "display.custom":
+            return "Applies live. The virtual display is recreated."
+        case "connection.login":
+            return "Uses the system login item. An unsigned build may be refused by macOS."
+        case "display.preset":
+            return "Battery is Safe, Balanced is the default, Sharp is the experimental Native preset."
+        default:
+            return "Applies live."
         }
     }
 

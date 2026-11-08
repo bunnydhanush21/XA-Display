@@ -3,74 +3,77 @@ import UIKit
 import XADisplayProtocol
 
 final class ReceiverViewController: UIViewController, VideoReceiverDelegate, InputChannelDelegate {
-    private let videoView = VideoContainerView()
-    private let sidebar = SidebarView()
-    private let commandStrip = CommandStripView()
-    private let statsLabel = StatsOverlay()
-    private let statusLabel = UILabel()
-    private let warningLabel = UILabel()
-    private let precisionLabel = UILabel()
-    private let keyInput = KeyInputView()
-    private var receiver: VideoReceiver!
-    private let input = InputChannel()
-    private let clipboard = ClipboardBridge()
-    private let audio = RoutedAudioPlayer()
-    private var features = XAFeatureSettings()
-    private var token = ""
-    private var interpreter = DirectTouchInterpreter()
-    private var magnifier = Magnifier()
-    private var videoSize = CGSize.zero
-    private var cursorNorm = CGPoint(x: 0.5, y: 0.5)
-    private var cursorVisible = false
-    private let cursorLayer = CALayer()
-    private var heldModifiers = XAModifierMask()
-    private var sidebarWidth: NSLayoutConstraint!
-    private var sidebarLeading: NSLayoutConstraint!
-    private var sidebarTrailing: NSLayoutConstraint!
-    private var collapsed = false
-    private var keyboardOn = false
-    private var trackpad = TrackpadCursor()
-    private var streamLabel = "waiting"
-    private var handoffMs = 0.0
-    private var pipelineMs: Double?
-    private var rttMs: Double?
-    private var fps = 0.0
-    private var userPaused = false
-    private var lastMove = XAPoint.zero
-    private var lastMoveTime = 0.0
-    private var xaHost = false
-    private var healthTimer: Timer?
-    private let chrome = TouchChromeController()
-    private var assist = TouchAssist()
-    private var titleArbiter = TitleBarArbiter()
-    private var titleTimer: Timer?
-    private var windowFrames: [XARect] = []
-    private var menuTitles: [String] = []
-    private var frontBundle = ""
-    private var resizing: (index: Int, corner: ResizeCorner)?
-    private var resizeOrigin: XAPoint?
-    private var dragOriginView: XAPoint?
-    private var dragOriginTime = 0.0
-    private var lastRepeatTime: Double?
-    private var loupeImage: UIImage?
-    private var sidebarEdge: UIScreenEdgePanGestureRecognizer?
-    private var drawerEdge: UIScreenEdgePanGestureRecognizer?
-    private var commandStripHeight: NSLayoutConstraint!
-    private let macBrowser = MacBrowser()
-    private let batteryLoop = BatteryCareLoop()
-    private var chargeConfig = ChargeLimitConfig()
-    private var settingsDocument = XASettingsDocument.defaults
-    private var localCursor = false
-    private var keepalive: Timer?
-    private var scrollRecognizer: UIPanGestureRecognizer?
-    private var directory = MacDirectory()
-    private var discoveredMacs: [String] = []
-    private var mediaPanel: MediaRemoteViewController?
-    private var orientDebounce = OrientationDebounce()
-    private var orientTimer: Timer?
-    private var letterboxFallback = false
-    private var streamTransform = CGAffineTransform.identity
-    private var layingVideo = false
+    let videoView = VideoContainerView()
+    let sidebar = SidebarView()
+    let commandStrip = CommandStripView()
+    let statsLabel = StatsOverlay()
+    let statusLabel = UILabel()
+    let warningLabel = UILabel()
+    let precisionLabel = UILabel()
+    let keyInput = KeyInputView()
+    var receiver: VideoReceiver!
+    let input = InputChannel()
+    let clipboard = ClipboardBridge()
+    let audio = RoutedAudioPlayer()
+    var features = XAFeatureSettings()
+    var token = ""
+    var interpreter = DirectTouchInterpreter()
+    var magnifier = Magnifier()
+    var videoSize = CGSize.zero
+    var cursorNorm = CGPoint(x: 0.5, y: 0.5)
+    var cursorVisible = false
+    let cursorLayer = CALayer()
+    var heldModifiers = XAModifierMask()
+    var sidebarWidth: NSLayoutConstraint!
+    var sidebarLeading: NSLayoutConstraint!
+    var sidebarTrailing: NSLayoutConstraint!
+    var collapsed = false
+    var keyboardOn = false
+    var trackpad = TrackpadCursor()
+    var streamLabel = "waiting"
+    var handoffMs = 0.0
+    var pipelineMs: Double?
+    var rttMs: Double?
+    var fps = 0.0
+    var userPaused = false
+    var lastMove = XAPoint.zero
+    var lastMoveTime = 0.0
+    var xaHost = false
+    var healthTimer: Timer?
+    let chrome = TouchChromeController()
+    var assist = TouchAssist()
+    var titleArbiter = TitleBarArbiter()
+    var titleTimer: Timer?
+    var windowFrames: [XARect] = []
+    var menuTitles: [String] = []
+    var frontBundle = ""
+    var resizing: (index: Int, corner: ResizeCorner)?
+    var resizeOrigin: XAPoint?
+    var dragOriginView: XAPoint?
+    var dragOriginTime = 0.0
+    var lastRepeatTime: Double?
+    var loupeImage: UIImage?
+    var sidebarEdge: UIScreenEdgePanGestureRecognizer?
+    var drawerEdge: UIScreenEdgePanGestureRecognizer?
+    var commandStripHeight: NSLayoutConstraint!
+    let macBrowser = MacBrowser()
+    let batteryLoop = BatteryCareLoop()
+    var chargeConfig = ChargeLimitConfig()
+    var settingsDocument = XASettingsDocument.defaults
+    var localCursor = false
+    var keepalive: Timer?
+    var scrollRecognizer: UIPanGestureRecognizer?
+    var directory = MacDirectory()
+    var discoveredMacs: [String] = []
+    var mediaPanel: MediaRemoteViewController?
+    var orientDebounce = OrientationDebounce()
+    var orientTimer: Timer?
+    var letterboxFallback = false
+    var streamTransform = CGAffineTransform.identity
+    var layingVideo = false
+    let connectionOverlay = ConnectionOverlay()
+    let pill = UILabel()
+    var pillTimer: Timer?
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -188,6 +191,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         wireChrome()
         addGestures()
         applyChrome()
+        installConnectionChrome()
         receiver.start()
         input.start()
         healthTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
@@ -210,17 +214,25 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         return commands
     }
 
-    @objc private func hardwareKey(_ command: UIKeyCommand) {
+    @objc func hardwareKey(_ command: UIKeyCommand) {
         let mask = modifiers(from: command.modifierFlags)
         let shortcut = KeyShortcut(input: command.input ?? "", modifiers: mask)
         for intent in shortcut.intents() { input.send(intent: intent) }
     }
 
-    private var didOfferPicker = false
+    var didOfferPicker = false
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard !didOfferPicker else { return }
+        if !UserDefaults.standard.bool(forKey: "XADisplay.didOnboard") {
+            didOfferPicker = true
+            let cards = FirstRunController()
+            cards.modalPresentationStyle = .fullScreen
+            cards.onFinish = { [weak self] in self?.showMacPicker() }
+            present(cards, animated: false)
+            return
+        }
         if case .picker = LaunchRoute.decide(oneTap: features.oneTapReconnect, directory: directory) {
             didOfferPicker = true
             showMacPicker()
@@ -253,7 +265,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         resizing = nil
     }
 
-    private func feed(_ touches: Set<UITouch>, _ phase: TouchSample.Phase, _ event: UIEvent?) {
+    func feed(_ touches: Set<UITouch>, _ phase: TouchSample.Phase, _ event: UIEvent?) {
         guard let touch = touches.first else { return }
         let count = event?.allTouches?.filter { $0.phase != .ended && $0.phase != .cancelled }.count ?? 1
         let raw = touch.location(in: videoView)
@@ -286,842 +298,4 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         }
     }
 
-    private func perform(_ gesture: FingerGesture, finger: CGPoint, pointer: CGPoint, time: Double) {
-        if features.trackpadMode {
-            chrome.loupe.hide()
-            performTrackpad(gesture)
-            return
-        }
-        if case .tap(let point) = gesture {
-            handleTap(point, time: time)
-            return
-        }
-        if case .drag = gesture {
-            titleTimer?.invalidate()
-            titleArbiter.cancel()
-        }
-        if case .drag(let phase, _) = gesture, let resize = resizing, assist.windowChrome {
-            sendResize(phase, pointer: pointer, resize: resize)
-            return
-        }
-        if case .drag(.ended, _) = gesture, assist.windowChrome {
-            flickTitleBar(at: finger, time: time)
-        }
-        if case .drag = gesture, assist.loupeWhileDragging {
-            showLoupe(at: finger)
-        }
-        forwardLegacy(gesture)
-        for intent in GestureMapper.intents(for: gesture) {
-            input.send(intent: intent)
-        }
-    }
-
-    private func handleTap(_ point: XAPoint, time: Double) {
-        let tuning = features.gestureTuning.clamped()
-        let gap = time - (lastRepeatTime ?? -10)
-        if gap > tuning.doubleTapWindow && !RepeatGate.allow(now: time, last: lastRepeatTime, interval: assist.ignoreRepeat) {
-            return
-        }
-        lastRepeatTime = time
-        guard assist.windowChrome else {
-            sendClick(point)
-            return
-        }
-        let frames = windowFrames
-        switch titleArbiter.tap(point: point, time: time, windows: frames, titleHeight: titleHeightNormalized()) {
-        case .click(let clickPoint):
-            sendClick(clickPoint)
-        case .pending:
-            titleTimer?.invalidate()
-            let wait = features.gestureTuning.clamped().doubleTapWindow
-            titleTimer = Timer.scheduledTimer(withTimeInterval: wait, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-                if case .click(let clickPoint) = self.titleArbiter.flush(now: time + wait + 0.05) { self.sendClick(clickPoint) }
-            }
-        case .fillToggle:
-            titleTimer?.invalidate()
-            input.sendWindow(.fillToggle)
-        }
-    }
-
-    private func sendClick(_ point: XAPoint) {
-        forwardLegacy(.tap(point))
-        for intent in GestureMapper.intents(for: .tap(point)) { input.send(intent: intent) }
-    }
-
-    private func sendResize(_ phase: FingerGesture.DragPhase, pointer: CGPoint, resize: (index: Int, corner: ResizeCorner)) {
-        guard phase == .moved || phase == .ended else { return }
-        let content = contentSize()
-        guard content.width > 1, content.height > 1, let origin = resizeOrigin else { return }
-        let current = XAPoint(x: Double(pointer.x), y: Double(pointer.y))
-        let dx = (current.x - origin.x) / content.width
-        let dy = (current.y - origin.y) / content.height
-        resizeOrigin = current
-        input.sendChrome(op: .resize, index: UInt16(resize.corner.rawValue), windowIndex: UInt16(resize.index), dx: dx, dy: dy)
-        if phase == .ended { resizing = nil }
-    }
-
-    private func flickTitleBar(at finger: CGPoint, time: Double) {
-        guard let start = dragOriginView else { return }
-        let dt = max(0.016, time - dragOriginTime)
-        let dx = Double(finger.x) - start.x
-        let dy = Double(finger.y) - start.y
-        let speed = xaHypot(dx, dy) / dt
-        let frames = windowViewFrames()
-        guard let region = TitleBarFlick.region(start: start, dx: dx, dy: dy, speed: speed, windows: frames) else { return }
-        switch region {
-        case .leftHalf: input.sendWindow(.snapLeft)
-        case .rightHalf: input.sendWindow(.snapRight)
-        case .topLeft: input.sendWindow(.tileTopLeft)
-        case .topRight: input.sendWindow(.tileTopRight)
-        case .bottomLeft: input.sendWindow(.tileBottomLeft)
-        case .bottomRight: input.sendWindow(.tileBottomRight)
-        }
-    }
-
-    private func performTrackpad(_ gesture: FingerGesture) {
-        switch gesture {
-        case .drag(.moved, _), .relativeMove:
-            break
-        default:
-            break
-        }
-        if case .drag(.moved, let point) = gesture {
-            let delta = TrackpadAcceleration.apply(dx: point.x, dy: point.y, precision: features.precisionMode)
-            let content = contentSize()
-            guard content.width > 0, content.height > 0 else { return }
-            let moved = trackpad.apply(normalizedDelta: XAPoint(x: delta.x / content.width, y: delta.y / content.height))
-            input.send(intent: .mouse(phase: .move, button: .left, x: moved.x, y: moved.y, space: .absoluteNormalized))
-            cursorNorm = CGPoint(x: moved.x, y: moved.y)
-            cursorVisible = true
-            layoutCursor()
-        } else if case .tap = gesture {
-            input.send(intent: .mouse(phase: .down, button: .left, x: trackpad.normalized.x, y: trackpad.normalized.y, space: .absoluteNormalized))
-            input.send(intent: .mouse(phase: .up, button: .left, x: trackpad.normalized.x, y: trackpad.normalized.y, space: .absoluteNormalized))
-        } else if case .longPress = gesture {
-            input.send(intent: .mouse(phase: .down, button: .right, x: trackpad.normalized.x, y: trackpad.normalized.y, space: .absoluteNormalized))
-            input.send(intent: .mouse(phase: .up, button: .right, x: trackpad.normalized.x, y: trackpad.normalized.y, space: .absoluteNormalized))
-        } else {
-            for intent in GestureMapper.intents(for: gesture) { input.send(intent: intent) }
-        }
-    }
-
-    private func forwardLegacy(_ gesture: FingerGesture) {
-        switch gesture {
-        case .tap(let point), .longPress(let point):
-            receiver.sendTouch(phase: "began", x: point.x, y: point.y)
-            receiver.sendTouch(phase: "ended", x: point.x, y: point.y)
-        case .drag(let phase, let point):
-            let name: String
-            switch phase {
-            case .began: name = "began"
-            case .moved: name = "moved"
-            case .ended: name = "ended"
-            }
-            receiver.sendTouch(phase: name, x: point.x, y: point.y)
-        case .scroll(let dx, let dy, _):
-            receiver.sendScroll(dx: dx, dy: dy)
-        default:
-            break
-        }
-    }
-
-    private func normalize(_ location: XAPoint) -> XAPoint? {
-        let rotation: XARotation
-        switch features.inputRotation {
-        case 90: rotation = .clockwise90
-        case 180: rotation = .clockwise180
-        case 270: rotation = .clockwise270
-        default: rotation = .identity
-        }
-        let video = videoSize == .zero ? XASize(width: 1440, height: 1080) : XASize(width: Double(videoSize.width), height: Double(videoSize.height))
-        return CoordinateMapper.normalize(
-            MapRequest(
-                point: location,
-                pointSpace: .viewPoints,
-                viewSizePoints: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
-                pixelsPerPoint: Double(UIScreen.main.scale),
-                videoPixelSize: video,
-                rotation: rotation
-            ))
-    }
-
-    private func contentSize() -> XASize {
-        let rect = CoordinateMapper.contentRect(
-            view: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
-            video: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1)))
-        )
-        return rect.size
-    }
-
-    private func addGestures() {
-        let scroll = UIPanGestureRecognizer(target: self, action: #selector(scrollPan(_:)))
-        scroll.minimumNumberOfTouches = 2
-        scroll.maximumNumberOfTouches = 2
-        view.addGestureRecognizer(scroll)
-        scrollRecognizer = scroll
-        let three = UIPanGestureRecognizer(target: self, action: #selector(threePan(_:)))
-        three.minimumNumberOfTouches = 3
-        three.maximumNumberOfTouches = 3
-        view.addGestureRecognizer(three)
-        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
-        view.addGestureRecognizer(pinch)
-        let twoTap = UITapGestureRecognizer(target: self, action: #selector(twoTap))
-        twoTap.numberOfTouchesRequired = 2
-        view.addGestureRecognizer(twoTap)
-        let twoHold = UILongPressGestureRecognizer(target: self, action: #selector(twoHold(_:)))
-        twoHold.numberOfTouchesRequired = 2
-        twoHold.minimumPressDuration = 0.35
-        view.addGestureRecognizer(twoHold)
-        let sidebar = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(edgePan(_:)))
-        sidebar.edges = .left
-        view.addGestureRecognizer(sidebar)
-        sidebarEdge = sidebar
-        let drawer = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(drawerPan(_:)))
-        drawer.edges = .right
-        view.addGestureRecognizer(drawer)
-        drawerEdge = drawer
-    }
-
-    @objc private func scrollPan(_ gesture: UIPanGestureRecognizer) {
-        guard settingsDocument.twoFingerScroll, gesture.state == .changed || gesture.state == .ended else { return }
-        let translation = gesture.translation(in: videoView)
-        gesture.setTranslation(.zero, in: videoView)
-        let gain = features.gestureTuning.clamped().scrollGain
-        let pixels = CoordinateMapper.scrollPixels(
-            viewDelta: XAPoint(x: Double(translation.x) * gain, y: Double(translation.y) * gain),
-            contentSize: contentSize(),
-            videoPixelSize: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1)))
-        )
-        let sendInertia = gesture.state == .ended && features.scrollInertia
-        input.send(intent: .scroll(dx: pixels.x, dy: pixels.y, inertia: false))
-        receiver.sendScroll(dx: pixels.x, dy: pixels.y)
-        if sendInertia {
-            let velocity = gesture.velocity(in: videoView)
-            let steps = MacTouchScroll.steps(velocityX: Double(velocity.x) * 0.016 * gain, velocityY: Double(velocity.y) * 0.016 * gain)
-            for step in steps {
-                let extra = CoordinateMapper.scrollPixels(
-                    viewDelta: XAPoint(x: step.dx, y: step.dy), contentSize: contentSize(), videoPixelSize: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1))))
-                input.send(intent: .scroll(dx: extra.x, dy: extra.y, inertia: true))
-                receiver.sendScroll(dx: extra.x, dy: extra.y)
-            }
-        }
-    }
-
-    @objc private func threePan(_ gesture: UIPanGestureRecognizer) {
-        guard features.threeFingerShortcuts, gesture.state == .ended else { return }
-        let translation = gesture.translation(in: view)
-        guard let action = ThreeFingerMapper.action(dx: Double(translation.x), dy: Double(translation.y)) else { return }
-        for intent in ThreeFingerMapper.intents(for: action) { input.send(intent: intent) }
-    }
-
-    @objc private func pinched(_ gesture: UIPinchGestureRecognizer) {
-        guard features.pinchMagnifier, gesture.state == .changed || gesture.state == .ended else { return }
-        let point = gesture.location(in: videoView)
-        let around = normalize(XAPoint(x: Double(point.x), y: Double(point.y))) ?? XAPoint(x: 0.5, y: 0.5)
-        magnifier.pinch(by: Double(gesture.scale), around: around)
-        gesture.scale = 1
-        applyMagnifier()
-    }
-
-    @objc private func twoTap() {
-        guard settingsDocument.rightClick != "longPress" else { return }
-        let point = cursorNorm
-        let gesture = FingerGesture.twoFingerTap(XAPoint(x: Double(point.x), y: Double(point.y)))
-        for intent in GestureMapper.intents(for: gesture) { input.send(intent: intent) }
-    }
-
-    @objc private func twoHold(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began else { return }
-        let point = gesture.location(in: videoView)
-        let normalized = normalize(XAPoint(x: Double(point.x), y: Double(point.y))) ?? XAPoint(x: 0.5, y: 0.5)
-        for intent in GestureMapper.intents(for: .twoFingerLongPress(normalized)) { input.send(intent: intent) }
-    }
-
-    @objc private func edgePan(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard features.gestureTuning.sidebarOnLeft, gesture.state == .ended, gesture.translation(in: view).x > 24 else { return }
-        collapsed = false
-        applyChrome()
-    }
-
-    @objc private func drawerPan(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard assist.edgeDrawer, gesture.state == .ended else { return }
-        let start = gesture.location(in: view)
-        if EdgeDrawerGate.shouldOpen(startX: Double(start.x), viewWidth: Double(view.bounds.width), translationX: Double(gesture.translation(in: view).x)) {
-            chrome.toggleDrawer()
-        }
-    }
-
-    private func wireChrome() {
-        chrome.onLight = { [weak self] action in self?.input.sendWindow(action) }
-        chrome.onDrawer = { [weak self] action in self?.fireEdge(action) }
-        chrome.onMenu = { [weak self] index in
-            self?.input.sendChrome(op: .menu, index: UInt16(index), windowIndex: 0, dx: 0, dy: 0)
-        }
-        chrome.onMenusRequested = { [weak self] in
-            guard let self = self, self.assist.menuOverlay else { return }
-            self.chrome.showMenus(self.menuTitles, large: self.assist.largeButtons)
-        }
-        chrome.onZoom = { [weak self] zoomIn in self?.sendZoom(zoomIn) }
-    }
-
-    private func fireEdge(_ action: EdgeSystemAction) {
-        switch EdgeRouter.route(assist.binding(for: action)) {
-        case .key(let shortcut):
-            sendShortcut(shortcut)
-        case .accessibility:
-            input.sendWindow(action.windowAction)
-        }
-        chrome.setDrawer(open: false)
-    }
-
-    private func sendZoom(_ zoomIn: Bool) {
-        let binding = ZoomProfiles.resolve(bundleID: frontBundle, bindings: assist.zoomBindings)
-        let inputName = zoomIn ? binding.zoomIn : binding.zoomOut
-        sendShortcut(KeyShortcut(input: inputName, modifiers: XAModifierMask(rawValue: binding.modifiers)))
-    }
-
-    private func wireSidebar() {
-        sidebar.onToggle = { [weak self] mask in
-            guard let self = self else { return }
-            let down = !self.heldModifiers.contains(mask)
-            if down { self.heldModifiers.insert(mask) } else { self.heldModifiers.remove(mask) }
-            self.sidebar.setModifier(mask, on: down)
-            self.input.send(intent: .modifier(mask, down: down))
-        }
-        sidebar.onEsc = { [weak self] in self?.sendShortcut(KeyShortcut(input: "\u{1b}", modifiers: [])) }
-        sidebar.onUndo = { [weak self] in self?.sendShortcut(KeyShortcut(input: "z", modifiers: .command)) }
-        sidebar.onRedo = { [weak self] in self?.sendShortcut(KeyShortcut(input: "z", modifiers: [.command, .shift])) }
-        sidebar.onKeyboard = { [weak self] in self?.toggleKeyboard() }
-        sidebar.onDisconnect = { [weak self] in self?.userDisconnect() }
-        sidebar.onSettings = { [weak self] in self?.showSettings() }
-        sidebar.onPrecision = { [weak self] in
-            guard let self = self else { return }
-            self.features.precisionMode.toggle()
-            self.precisionLabel.isHidden = !self.features.precisionMode
-            LocalSettings.save(token: self.token, features: self.features)
-        }
-        sidebar.onTrackpad = { [weak self] in
-            guard let self = self else { return }
-            self.features.trackpadMode.toggle()
-            LocalSettings.save(token: self.token, features: self.features)
-            self.statusLabel.text = self.features.trackpadMode ? "Trackpad mode sends pointer moves" : self.statusLabel.text
-        }
-        sidebar.onCollapse = { [weak self] in
-            self?.collapsed.toggle()
-            self?.applyChrome()
-        }
-        sidebar.onMacs = { [weak self] in self?.showMacPicker() }
-        sidebar.onMedia = { [weak self] in self?.showMediaRemote() }
-    }
-
-    private func applyLaunchRoute() {
-        switch LaunchRoute.decide(oneTap: features.oneTapReconnect, directory: directory) {
-        case .resume(let mac):
-            token = mac.token
-            statusLabel.text = "Connecting to \(mac.name)"
-            if features.oneTapReconnect { macBrowser.poke(name: mac.name) }
-        case .picker:
-            statusLabel.text = "Choose a Mac"
-        case .listen:
-            break
-        }
-    }
-
-    private func showMacPicker() {
-        guard features.rememberMacs || features.oneTapReconnect else { return }
-        let picker = MacPickerViewController(style: .grouped)
-        picker.saved = directory.sorted()
-        picker.discovered = discoveredMacs
-        picker.onSelectSaved = { [weak self] mac in
-            guard let self = self else { return }
-            self.directory.select(mac.id, now: Date().timeIntervalSince1970)
-            self.token = mac.token
-            self.input.token = mac.token
-            LocalSettings.saveMacs(self.directory)
-            LocalSettings.save(token: mac.token, features: self.features)
-            self.statusLabel.text = "Connecting to \(mac.name)"
-            self.statusLabel.isHidden = false
-            self.macBrowser.poke(name: mac.name)
-            self.input.ensureListening()
-            self.receiver.ensureListening()
-        }
-        picker.onSelectDiscovered = { [weak self] name in
-            guard let self = self else { return }
-            let existing = self.directory.macs.first { $0.id == name }
-            let mac = SavedMac(id: name, name: name, token: existing?.token ?? self.token, lastUsed: Date().timeIntervalSince1970)
-            self.directory.remember(mac)
-            self.token = mac.token
-            self.input.token = mac.token
-            LocalSettings.saveMacs(self.directory)
-            LocalSettings.save(token: mac.token, features: self.features)
-            self.statusLabel.text = "Connecting to \(name)"
-            self.statusLabel.isHidden = false
-            self.macBrowser.poke(name: name)
-        }
-        present(UINavigationController(rootViewController: picker), animated: true)
-    }
-
-    private func showMediaRemote() {
-        guard features.mediaRemote else { return }
-        let panel = MediaRemoteViewController()
-        panel.modalPresentationStyle = .fullScreen
-        panel.onCommand = { [weak self] action, scrub in
-            self?.input.sendMedia(action, scrub: scrub)
-        }
-        panel.onClose = { [weak self] in
-            self?.mediaPanel = nil
-            self?.dismiss(animated: true)
-        }
-        mediaPanel = panel
-        present(panel, animated: true)
-    }
-
-    private func rememberConnectedMac() {
-        guard features.rememberMacs else { return }
-        let name = directory.last()?.name ?? discoveredMacs.first ?? "Mac"
-        let id = directory.last()?.id ?? name
-        directory.remember(SavedMac(id: id, name: name, token: token, lastUsed: Date().timeIntervalSince1970))
-        LocalSettings.saveMacs(directory)
-    }
-
-    private func command(_ item: CommandStripItem) {
-        guard features.commandStrip else { return }
-        if let action = item.windowAction {
-            guard features.windowSnapping || features.touchscreenGestures else { return }
-            input.sendWindow(action)
-            return
-        }
-        sendShortcut(KeyShortcut(input: item.input, modifiers: XAModifierMask(rawValue: item.modifiers)))
-    }
-
-    private func sendShortcut(_ shortcut: KeyShortcut) {
-        for intent in shortcut.intents() { input.send(intent: intent) }
-    }
-
-    private func sendSnap(_ zone: SnapZone) {
-        guard features.windowSnapping || features.touchscreenGestures else { return }
-        switch zone {
-        case .leftHalf: input.sendWindow(.snapLeft)
-        case .rightHalf: input.sendWindow(.snapRight)
-        case .full: input.sendWindow(.fill)
-        case .mainDisplay: input.sendWindow(.moveToMain)
-        }
-    }
-
-    private func toggleKeyboard() {
-        guard settingsDocument.keyboardEnabled else { return }
-        keyboardOn.toggle()
-        if keyboardOn {
-            keyInput.becomeFirstResponder()
-        } else {
-            keyInput.resignFirstResponder()
-            becomeFirstResponder()
-        }
-    }
-
-    private func userDisconnect() {
-        userPaused = true
-        input.sendRelease()
-        input.pause()
-        receiver.pause()
-        UIApplication.shared.isIdleTimerDisabled = false
-        releaseModifiers()
-        statusLabel.text = "Disconnected"
-        statusLabel.isHidden = false
-    }
-
-    private func showSettings() {
-        settingsDocument.features = features
-        settingsDocument.assist = assist
-        settingsDocument.pairedIDs = directory.sorted().map(\.name)
-        let settings = SettingsViewController(document: settingsDocument, token: token)
-        settings.onRestoreCharging = { [weak self] in self?.batteryLoop.restore() }
-        settings.onDisableBatteryCare = { [weak self] in self?.batteryLoop.disable() }
-        settings.onDiagnostics = { [weak self] in self?.copyDiagnostics() }
-        settings.onRevoke = { [weak self] in
-            guard let self = self else { return }
-            self.token = ""
-            self.directory = MacDirectory()
-            LocalSettings.saveMacs(self.directory)
-            self.input.token = ""
-        }
-        settings.onLive = { [weak self] document, token in
-            self?.apply(document: document, token: token, broadcast: true)
-        }
-        present(UINavigationController(rootViewController: settings), animated: true)
-    }
-
-    private func apply(document: XASettingsDocument, token: String, broadcast: Bool) {
-        let previous = SettingsSync.encode(settingsDocument)
-        settingsDocument = document
-        features = document.features
-        assist = document.assist
-        chargeConfig = document.charge
-        self.token = token
-        input.token = token
-        input.requirePairing = features.requirePairing
-        clipboard.enabled = features.clipboardSync
-        precisionLabel.isHidden = !features.precisionMode
-        if features.audio { audio.start() } else { audio.stop() }
-        audio.volume = document.audioVolume
-        collapsed = !document.sidebarVisible
-        scrollRecognizer?.isEnabled = document.twoFingerScroll
-        receiver.lowLatency = document.features.lowLatencyWiFi
-        updateKeepalive()
-        LocalSettings.save(token: token, features: features)
-        LocalSettings.saveDocument(document)
-        applyChrome()
-        if features.oneTapReconnect || features.rememberMacs { macBrowser.start() } else { macBrowser.stop() }
-        setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
-        interpreter = DirectTouchInterpreter(
-            slop: features.gestureTuning.clamped().slop,
-            doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
-            longPressDuration: features.gestureTuning.clamped().longPressDuration
-        )
-        titleArbiter = TitleBarArbiter(window: features.gestureTuning.clamped().doubleTapWindow)
-        if broadcast, SettingsSync.encode(document) != previous {
-            receiver.sendSettings(SettingsSync.encode(document))
-        }
-        view.setNeedsLayout()
-    }
-
-    private func updateKeepalive() {
-        keepalive?.invalidate()
-        keepalive = nil
-        guard features.lowLatencyWiFi, receiver.isConnected else { return }
-        keepalive = Timer.scheduledTimer(withTimeInterval: WiFiPowerSave.keepaliveSeconds, repeats: true) { [weak self] _ in
-            self?.input.sendPing()
-        }
-    }
-
-    private func copyDiagnostics() {
-        UIPasteboard.general.string = DiagnosticsCopy.text(
-            features: features, token: token, transport: streamLabel, preset: settingsDocument.preset,
-            thermal: ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue).rawValue,
-            battery: batteryLoop.lastText, notes: ["settings"]
-        )
-    }
-
-    private func applyChrome() {
-        sidebarWidth.constant = collapsed ? 36 : 168
-        sidebar.setCollapsed(collapsed)
-        sidebarLeading.isActive = features.gestureTuning.sidebarOnLeft
-        sidebarTrailing.isActive = !features.gestureTuning.sidebarOnLeft
-        sidebar.setShowsMedia(features.mediaRemote)
-        commandStrip.isHidden = !features.commandStrip
-        commandStripHeight.constant = assist.largeButtons ? 68 : 52
-        sidebar.setLarge(assist.largeButtons)
-        chrome.setLarge(assist.largeButtons)
-        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
-        statsLabel.isHidden = !features.showStats
-        precisionLabel.isHidden = !features.precisionMode
-        sidebarEdge?.isEnabled = features.gestureTuning.sidebarOnLeft
-        drawerEdge?.isEnabled = assist.edgeDrawer
-    }
-
-    private func layoutVideo() {
-        if layingVideo { return }
-        layingVideo = true
-        defer { layingVideo = false }
-        let host = view.bounds
-        let devicePortrait = host.height > host.width
-        let wantPortrait =
-            OrientationPolicy.resolved(
-                device: devicePortrait ? "portrait" : "landscape",
-                follow: features.followRotation,
-                lock: features.orientationLock
-            ) == "portrait"
-        let rotate = !letterboxFallback && features.rotationMode == "stream" && wantPortrait && devicePortrait
-        let placed = VideoPlacement.frame(host: host, rotateClockwise: rotate)
-        let unchanged =
-            videoView.bounds.equalTo(placed.bounds)
-            && abs(videoView.center.x - placed.center.x) < 0.5
-            && abs(videoView.center.y - placed.center.y) < 0.5
-            && streamTransform == placed.transform
-        if unchanged {
-            applyMagnifier()
-            return
-        }
-        videoView.transform = .identity
-        videoView.bounds = placed.bounds
-        videoView.center = placed.center
-        streamTransform = placed.transform
-        applyMagnifier()
-    }
-
-    private func noteOrientation(_ device: String) {
-        guard OrientationPolicy.resolved(device: device, follow: features.followRotation, lock: features.orientationLock) != nil else { return }
-        let resolved = OrientationPolicy.resolved(device: device, follow: features.followRotation, lock: features.orientationLock) ?? device
-        guard orientDebounce.note(resolved, now: CACurrentMediaTime()) else { return }
-        orientTimer?.invalidate()
-        orientTimer = Timer.scheduledTimer(withTimeInterval: OrientationDebounce.seconds, repeats: false) { [weak self] _ in
-            self?.sendOrientationIfDue()
-        }
-    }
-
-    private func sendOrientationIfDue() {
-        guard receiver.isConnected, xaHost else { return }
-        guard let orientation = orientDebounce.due(now: CACurrentMediaTime()) else { return }
-        let videoPortrait = videoSize.height > videoSize.width && videoSize != .zero
-        if features.rotationMode == "resolution", (orientation == "portrait") != videoPortrait {
-            receiver.holdPictureUntilKeyframe()
-        }
-        receiver.sendOrientation(orientation, mode: features.rotationMode)
-    }
-
-    private func applyMagnifier() {
-        guard features.pinchMagnifier, magnifier.scale > 1.01 else {
-            videoView.transform = streamTransform
-            return
-        }
-        let scale = CGFloat(magnifier.scale)
-        let tx = CGFloat(0.5 - magnifier.center.x) * videoView.bounds.width
-        let ty = CGFloat(0.5 - magnifier.center.y) * videoView.bounds.height
-        let zoom = CGAffineTransform(translationX: tx, y: ty).scaledBy(x: scale, y: scale)
-        videoView.transform = streamTransform.concatenating(zoom)
-    }
-
-    private func layoutCursor() {
-        let rect = videoView.bounds
-        cursorLayer.position = CGPoint(x: rect.minX + cursorNorm.x * rect.width, y: rect.minY + cursorNorm.y * rect.height)
-        cursorLayer.isHidden = !cursorVisible
-    }
-
-    private func releaseModifiers() {
-        for bit in heldModifiers.individualBits {
-            input.send(intent: .modifier(bit, down: false))
-            sidebar.setModifier(bit, on: false)
-        }
-        heldModifiers = []
-    }
-
-    private func publishHealth() {
-        input.sendPing()
-        UIDevice.current.isBatteryMonitoringEnabled = true
-        let level = UIDevice.current.batteryLevel
-        let state: String
-        switch UIDevice.current.batteryState {
-        case .charging: state = "charging"
-        case .full: state = "full"
-        case .unplugged: state = "unplugged"
-        default: state = "unknown"
-        }
-        let thermal = ThermalBucket.from(processInfoRawValue: ProcessInfo.processInfo.thermalState.rawValue)
-        let battery = batteryLoop.tick(enabledTelemetry: features.batteryTelemetry, chargeLimit: features.chargeLimit, config: chargeConfig)
-        if features.batteryTelemetry, !battery.text.isEmpty {
-            receiver.sendBattery(text: battery.text, heat: battery.heat)
-        } else {
-            receiver.sendBattery(text: "", heat: false)
-        }
-        if let careWarning = batteryLoop.warning {
-            warningLabel.isHidden = false
-            warningLabel.text = careWarning
-        } else {
-            warningLabel.isHidden = thermal != .serious && thermal != .critical
-            warningLabel.text = thermal == .critical ? "Very warm. The Mac should drop quality." : "Warm. Quality may step down."
-        }
-        receiver.sendHealth(
-            HealthReport(
-                thermal: thermal,
-                batteryFraction: level < 0 ? nil : Double(level),
-                batteryState: state,
-                fpsDelivered: fps,
-                decodeFails: 0
-            ))
-        refreshStats()
-    }
-
-    private func refreshStats() {
-        let pipeline = pipelineMs.map { String(format: "%.0f ms", $0) } ?? "—"
-        let rtt = rttMs.map { String(format: "%.0f ms", $0) } ?? "—"
-        let batteryLines = features.batteryTelemetry ? "\n" + batteryLoop.lastText : ""
-        let measured = pipelineMs == nil ? "not measured yet" : "\(pipeline) measured, includes return, not glass-to-glass"
-        statsLabel.text =
-            "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Link delay \(measured)\n  Input RTT \(rtt)\n  \(streamLabel)\(batteryLines)  "
-    }
-
-    @objc private func foreground() {
-        guard !userPaused else { return }
-        receiver.ensureListening()
-        input.ensureListening()
-    }
-
-    @objc private func backgrounded() {
-        input.sendRelease()
-        releaseModifiers()
-        UIApplication.shared.isIdleTimerDisabled = false
-        var task = UIBackgroundTaskIdentifier.invalid
-        task = UIApplication.shared.beginBackgroundTask {
-            UIApplication.shared.endBackgroundTask(task)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            UIApplication.shared.endBackgroundTask(task)
-        }
-    }
-
-    private func modifiers(from flags: UIKeyModifierFlags) -> XAModifierMask {
-        var mask = XAModifierMask()
-        if flags.contains(.shift) { mask.insert(.shift) }
-        if flags.contains(.control) { mask.insert(.control) }
-        if flags.contains(.alternate) { mask.insert(.option) }
-        if flags.contains(.command) { mask.insert(.command) }
-        return mask
-    }
-
-    func videoReceiver(_ receiver: VideoReceiver, statusDidChange status: String) {
-        if !receiver.isConnected { statusLabel.text = status }
-    }
-    func videoReceiver(_ receiver: VideoReceiver, connected: Bool, transport: TransportKind) {
-        UIApplication.shared.isIdleTimerDisabled = connected
-        if connected {
-            orientTimer?.invalidate()
-            if let resolved = OrientationPolicy.resolved(device: receiver.orientation, follow: features.followRotation, lock: features.orientationLock) {
-                orientDebounce.adopt(resolved)
-            }
-        }
-        updateKeepalive()
-        statusLabel.isHidden = connected
-        if connected {
-            switch transport {
-            case .usb: statusLabel.text = "USB"
-            case .wifi: statusLabel.text = "Wi-Fi"
-            case .none: statusLabel.text = "Connected"
-            }
-            statusLabel.isHidden = false
-        } else if !userPaused {
-            statusLabel.text = "Reconnecting"
-            statusLabel.isHidden = false
-            releaseModifiers()
-            input.send(intent: .mouse(phase: .up, button: .left, x: 0, y: 0, space: .relativeNormalized))
-            input.send(intent: .mouse(phase: .up, button: .right, x: 0, y: 0, space: .relativeNormalized))
-            chrome.loupe.hide()
-            resizing = nil
-        }
-    }
-    func videoReceiver(_ receiver: VideoReceiver, videoSizeDidChange size: CGSize) {
-        videoSize = size
-        streamLabel = "\(Int(size.width))×\(Int(size.height))"
-        refreshStats()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, cursor point: CGPoint, visible: Bool) {
-        guard !features.trackpadMode, !localCursor else { return }
-        cursorNorm = point
-        cursorVisible = visible
-        layoutCursor()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, cursorImage image: UIImage, id: String) {
-        cursorLayer.contents = image.cgImage
-        cursorLayer.bounds = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
-    }
-    func videoReceiver(_ receiver: VideoReceiver, stats: ReceiverStats) {
-        fps = stats.fpsDelivered
-        handoffMs = stats.handoffMs
-        refreshStats()
-    }
-    func videoReceiverBecameXAHost(_ receiver: VideoReceiver) {
-        xaHost = true
-        sendOrientationIfDue()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, orientation: String, mode: String, letterbox: Bool) {
-        letterboxFallback = letterbox
-        if mode == "stream" || letterbox {
-            receiver.releasePictureHold()
-        } else if mode == "resolution" {
-            receiver.holdPictureUntilKeyframe()
-        }
-        view.setNeedsLayout()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, stream: StreamAnnouncement) {
-        streamLabel = "\(stream.preset) \(stream.width)×\(stream.height)@\(stream.fps)"
-        if stream.experimental { streamLabel += " experimental" }
-        refreshStats()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, metrics: XAMetrics) {
-        pipelineMs = metrics.captureToAckMs
-        refreshStats()
-    }
-    func videoReceiver(_ receiver: VideoReceiver, windows body: String) {
-        windowFrames = ChromeWire.parseWindows(body)
-        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
-    }
-    func videoReceiver(_ receiver: VideoReceiver, menus body: String) {
-        menuTitles = ChromeWire.parseMenus(body)
-        if chrome.menuVisible { chrome.showMenus(menuTitles, large: assist.largeButtons) }
-    }
-    func videoReceiver(_ receiver: VideoReceiver, frontBundle bundle: String) {
-        frontBundle = bundle
-    }
-
-    private func resizeHit(at point: CGPoint) -> (index: Int, corner: ResizeCorner)? {
-        guard assist.windowChrome else { return nil }
-        let xa = XAPoint(x: Double(point.x), y: Double(point.y))
-        for (index, frame) in windowViewFrames().enumerated() {
-            if let corner = WindowChrome.resizeCorner(point: xa, window: frame) { return (index, corner) }
-        }
-        return nil
-    }
-
-    private func windowViewFrames() -> [XARect] {
-        windowFrames.map { normalized in
-            let rect = viewRect(for: normalized)
-            return XARect(x: Double(rect.minX), y: Double(rect.minY), width: Double(rect.width), height: Double(rect.height))
-        }
-    }
-
-    private func viewRect(for normalized: XARect) -> CGRect {
-        let content = CoordinateMapper.contentRect(
-            view: XASize(width: Double(videoView.bounds.width), height: Double(videoView.bounds.height)),
-            video: XASize(width: Double(max(videoSize.width, 1)), height: Double(max(videoSize.height, 1)))
-        )
-        return CGRect(
-            x: CGFloat(content.minX + normalized.minX * content.width),
-            y: CGFloat(content.minY + normalized.minY * content.height),
-            width: CGFloat(normalized.width * content.width),
-            height: CGFloat(normalized.height * content.height)
-        )
-    }
-
-    private func titleHeightNormalized() -> Double {
-        let height = contentSize().height
-        guard height > 1 else { return 0.04 }
-        return WindowChrome.titleBarPoints / height
-    }
-
-    private func showLoupe(at finger: CGPoint) {
-        if loupeImage == nil {
-            UIGraphicsBeginImageContextWithOptions(videoView.bounds.size, true, 1)
-            videoView.drawHierarchy(in: videoView.bounds, afterScreenUpdates: false)
-            loupeImage = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-        }
-        guard let image = loupeImage else { return }
-        chrome.loupe.show(image: image, around: finger, finger: finger)
-    }
-    func inputChannel(_ channel: InputChannel, armed: Bool, reason: String) {
-        if armed { rememberConnectedMac() }
-        if !armed {
-            statusLabel.isHidden = false
-            statusLabel.text = reason == "token" || reason == "empty" ? "Pairing rejected" : "Not paired (\(reason))"
-        }
-    }
-    func inputChannel(_ channel: InputChannel, clipboard text: String, revision: UInt64) {
-        guard features.clipboardSync else { return }
-        clipboard.applyRemote(text: text, revision: revision)
-    }
-    func inputChannel(_ channel: InputChannel, audio: XAAudio) {
-        guard features.audio else { return }
-        self.audio.start()
-        self.audio.push(audio)
-    }
-    func inputChannel(_ channel: InputChannel, roundTripMs: Double) {
-        rttMs = roundTripMs
-        refreshStats()
-    }
-    func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double) {
-        audio.setClockOffset(clockOffsetClientMinusHost)
-    }
-    func inputChannel(_ channel: InputChannel, nowPlaying: XANowPlaying) {
-        mediaPanel?.show(nowPlaying)
-    }
 }

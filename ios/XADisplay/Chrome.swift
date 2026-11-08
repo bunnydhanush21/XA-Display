@@ -27,7 +27,16 @@ final class SidebarView: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = UIColor(white: 0.08, alpha: 0.88)
+        backgroundColor = UIColor(white: 0.08, alpha: 0.72)
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+        blur.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(blur)
+        NSLayoutConstraint.activate([
+            blur.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blur.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blur.topAnchor.constraint(equalTo: topAnchor),
+            blur.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
         stack.axis = .vertical
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -95,10 +104,25 @@ final class SidebarView: UIView {
         stack.addArrangedSubview(button)
     }
 
+    private static func iconName(_ title: String) -> String {
+        switch title {
+        case "Undo": return "undo"
+        case "Redo": return "redo"
+        case "Keys": return "keyboard"
+        case "Settings": return "gear"
+        case "Macs": return "display"
+        default: return ""
+        }
+    }
+
     private func makeButton(_ title: String) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
+        if let icon = UIImage(named: Self.iconName(title)) {
+            button.setImage(icon.withRenderingMode(.alwaysTemplate), for: .normal)
+            button.tintColor = .white
+        }
         button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         button.backgroundColor = UIColor(white: 0.2, alpha: 1)
         button.layer.cornerRadius = 8

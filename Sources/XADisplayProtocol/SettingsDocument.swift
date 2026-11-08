@@ -36,6 +36,17 @@ public enum SettingsCatalog {
         "Touch Bar", "Window actions", "Media remote", "Metrics", "Battery care", "Security", "About"
     ]
     public static let hostSections = ["General", "Display", "Input", "Audio", "Clipboard", "Security", "Permissions"]
+    public static let hostTabs: [(title: String, sections: [String])] = [
+        ("General", ["Connection"]),
+        ("Devices", ["Security"]),
+        ("Display", ["Display"]),
+        ("Input", ["Touch", "Window actions"]),
+        ("Audio", ["Audio"]),
+        ("Clipboard", ["Clipboard"]),
+        ("Battery", ["Battery care"]),
+        ("Privacy", ["Permissions"]),
+        ("Advanced", ["About"])
+    ]
 
     public static let rows: [SettingsRow] = [
         SettingsRow(id: "connection.usb", title: "USB first", section: "Connection", kind: "toggle", onHost: true),
@@ -48,17 +59,23 @@ public enum SettingsCatalog {
         SettingsRow(id: "display.follow", title: "Follow iPad rotation", section: "Display", kind: "toggle", onHost: true),
         SettingsRow(id: "display.lock", title: "Lock orientation", section: "Display", kind: "choice", choices: ["none", "landscape", "portrait"], onHost: true),
         SettingsRow(id: "display.mode", title: "Rotate stream only or change Mac resolution", section: "Display", kind: "choice", choices: ["resolution", "stream"], onHost: true),
-        SettingsRow(id: "touch.mode", title: "Pointer mode", section: "Touch", kind: "choice", choices: ["direct", "trackpad"]),
+        SettingsRow(id: "display.custom", title: "Custom display", section: "Display", kind: "toggle", onHost: true),
+        SettingsRow(id: "display.width", title: "Width", section: "Display", kind: "slider", minimum: 640, maximum: 4096, onHost: true),
+        SettingsRow(id: "display.height", title: "Height", section: "Display", kind: "slider", minimum: 480, maximum: 4096, onHost: true),
+        SettingsRow(id: "display.fps", title: "Frames per second", section: "Display", kind: "slider", minimum: 10, maximum: 60, onHost: true),
+        SettingsRow(id: "display.bitrate", title: "Bitrate Mb/s", section: "Display", kind: "slider", minimum: 1, maximum: 20, onHost: true),
+        SettingsRow(id: "connection.login", title: "Launch at login", section: "Connection", kind: "toggle", onHost: true),
+        SettingsRow(id: "touch.mode", title: "Pointer mode", section: "Touch", kind: "choice", choices: ["direct", "trackpad"], onHost: true),
         SettingsRow(id: "touch.scroll", title: "Two-finger scroll", section: "Touch", kind: "toggle"),
         SettingsRow(id: "touch.momentum", title: "Momentum", section: "Touch", kind: "toggle"),
         SettingsRow(id: "touch.rightClick", title: "Right-click", section: "Touch", kind: "choice", choices: ["longPress", "twoFinger", "both"]),
-        SettingsRow(id: "touch.three", title: "Three-finger gestures", section: "Touch", kind: "toggle"),
+        SettingsRow(id: "touch.three", title: "Three-finger gestures", section: "Touch", kind: "toggle", onHost: true),
         SettingsRow(id: "touch.pinch", title: "Pinch magnifier", section: "Touch", kind: "toggle"),
         SettingsRow(id: "touch.edge", title: "Edge drawer", section: "Touch", kind: "toggle"),
-        SettingsRow(id: "touch.hold", title: "Hold duration", section: "Touch", kind: "slider", minimum: 0.25, maximum: 1.2),
+        SettingsRow(id: "touch.hold", title: "Hold duration", section: "Touch", kind: "slider", minimum: 0.25, maximum: 1.2, onHost: true),
         SettingsRow(id: "touch.threshold", title: "Movement threshold", section: "Touch", kind: "slider", minimum: 4, maximum: 40),
         SettingsRow(id: "sidebar.show", title: "Show sidebar", section: "Sidebar", kind: "toggle"),
-        SettingsRow(id: "sidebar.left", title: "Left-handed", section: "Sidebar", kind: "toggle"),
+        SettingsRow(id: "sidebar.left", title: "Left-handed", section: "Sidebar", kind: "toggle", onHost: true),
         SettingsRow(id: "sidebar.large", title: "Large buttons", section: "Sidebar", kind: "toggle"),
         SettingsRow(id: "keyboard.enabled", title: "Software keyboard", section: "Keyboard", kind: "toggle"),
         SettingsRow(id: "clipboard.sync", title: "Clipboard sync", section: "Clipboard", kind: "toggle", onHost: true),
@@ -70,8 +87,8 @@ public enum SettingsCatalog {
         SettingsRow(id: "window.gestures", title: "Touch-style window gestures", section: "Window actions", kind: "toggle", onHost: true),
         SettingsRow(id: "media.remote", title: "Media remote", section: "Media remote", kind: "toggle", onHost: true),
         SettingsRow(id: "metrics.show", title: "Metrics overlay", section: "Metrics", kind: "toggle"),
-        SettingsRow(id: "battery.telemetry", title: "Telemetry", section: "Battery care", kind: "toggle"),
-        SettingsRow(id: "battery.limit", title: "Charge limit (experimental)", section: "Battery care", kind: "toggle"),
+        SettingsRow(id: "battery.telemetry", title: "Telemetry", section: "Battery care", kind: "toggle", onHost: true),
+        SettingsRow(id: "battery.limit", title: "Charge limit (experimental)", section: "Battery care", kind: "toggle", onHost: true),
         SettingsRow(id: "battery.stop", title: "Stop charging at", section: "Battery care", kind: "slider", minimum: 60, maximum: 100),
         SettingsRow(id: "battery.resume", title: "Resume charging at", section: "Battery care", kind: "slider", minimum: 21, maximum: 95),
         SettingsRow(id: "battery.restore", title: "Restore normal charging", section: "Battery care", kind: "action"),
@@ -164,6 +181,7 @@ public struct XASettingsDocument: Equatable, Codable {
         if !["longPress", "twoFinger", "both"].contains(copy.rightClick) { copy.rightClick = "both" }
         if !["none", "landscape", "portrait"].contains(copy.features.orientationLock) { copy.features.orientationLock = "none" }
         if !["resolution", "stream"].contains(copy.features.rotationMode) { copy.features.rotationMode = "resolution" }
+        copy.features.custom = copy.features.custom.clamped()
         return copy
     }
 
@@ -178,6 +196,12 @@ public struct XASettingsDocument: Equatable, Codable {
         case "display.follow": return .bool(features.followRotation)
         case "display.lock": return .choice(features.orientationLock)
         case "display.mode": return .choice(features.rotationMode)
+        case "display.custom": return .bool(features.custom.enabled)
+        case "display.width": return .number(Double(features.custom.width))
+        case "display.height": return .number(Double(features.custom.height))
+        case "display.fps": return .number(Double(features.custom.fps))
+        case "display.bitrate": return .number(Double(features.custom.bitrate) / 1_000_000)
+        case "connection.login": return .bool(features.launchAtLogin)
         case "display.detail":
             let spec = StreamPreset.preset(StreamPreset.ID(rawValue: preset) ?? .balanced)
             return .choice("\(spec.width)×\(spec.height) · \(spec.fps) fps · \(spec.bitrateUSB / 1_000_000) Mb/s USB")
@@ -214,16 +238,16 @@ public struct XASettingsDocument: Equatable, Codable {
     }
 
     public mutating func set(_ value: SettingValue, for id: String) {
+        if setDisplay(value, id: id) {
+            self = normalized()
+            return
+        }
         switch id {
         case "connection.usb": if case .bool(let on) = value { features.autoConnectUSB = on }
         case "connection.wifi": if case .bool(let on) = value { features.wifiFallback = on }
         case "connection.oneTap": if case .bool(let on) = value { features.oneTapReconnect = on }
         case "connection.remember": if case .bool(let on) = value { features.rememberMacs = on }
         case "connection.lowLatency": if case .bool(let on) = value { features.lowLatencyWiFi = on }
-        case "display.preset": if case .choice(let choice) = value { preset = choice }
-        case "display.follow": if case .bool(let on) = value { features.followRotation = on }
-        case "display.lock": if case .choice(let choice) = value { features.orientationLock = choice }
-        case "display.mode": if case .choice(let choice) = value { features.rotationMode = choice }
         case "touch.mode": if case .choice(let choice) = value { features.trackpadMode = choice == "trackpad" }
         case "touch.scroll": if case .bool(let on) = value { twoFingerScroll = on }
         case "touch.momentum": if case .bool(let on) = value { features.scrollInertia = on }
@@ -256,6 +280,23 @@ public struct XASettingsDocument: Equatable, Codable {
         self = normalized()
     }
 
+    private mutating func setDisplay(_ value: SettingValue, id: String) -> Bool {
+        switch id {
+        case "display.preset": if case .choice(let choice) = value { preset = choice }
+        case "display.follow": if case .bool(let on) = value { features.followRotation = on }
+        case "display.lock": if case .choice(let choice) = value { features.orientationLock = choice }
+        case "display.mode": if case .choice(let choice) = value { features.rotationMode = choice }
+        case "display.custom": if case .bool(let on) = value { features.custom.enabled = on }
+        case "display.width": if case .number(let number) = value { features.custom.width = Int(number) }
+        case "display.height": if case .number(let number) = value { features.custom.height = Int(number) }
+        case "display.fps": if case .number(let number) = value { features.custom.fps = Int(number) }
+        case "display.bitrate": if case .number(let number) = value { features.custom.bitrate = Int(number * 1_000_000) }
+        case "connection.login": if case .bool(let on) = value { features.launchAtLogin = on }
+        default: return false
+        }
+        return true
+    }
+
     public mutating func reset() { self = XASettingsDocument.defaults }
 }
 
@@ -273,6 +314,12 @@ public enum SettingsSync {
             "followRotation": document.features.followRotation,
             "orientationLock": document.features.orientationLock,
             "rotationMode": document.features.rotationMode,
+            "customEnabled": document.features.custom.enabled,
+            "customWidth": document.features.custom.width,
+            "customHeight": document.features.custom.height,
+            "customFPS": document.features.custom.fps,
+            "customBitrate": document.features.custom.bitrate,
+            "launchAtLogin": document.features.launchAtLogin,
             "preset": document.preset,
             "audioMode": document.audioMode,
             "audioVolume": document.audioVolume
@@ -297,9 +344,22 @@ public enum SettingsSync {
         if let value = object["followRotation"] as? Bool { copy.features.followRotation = value }
         if let value = object["orientationLock"] as? String { copy.features.orientationLock = value }
         if let value = object["rotationMode"] as? String { copy.features.rotationMode = value }
+        if let value = object["customEnabled"] as? Bool { copy.features.custom.enabled = value }
+        if let value = Self.int(object["customWidth"]) { copy.features.custom.width = value }
+        if let value = Self.int(object["customHeight"]) { copy.features.custom.height = value }
+        if let value = Self.int(object["customFPS"]) { copy.features.custom.fps = value }
+        if let value = Self.int(object["customBitrate"]) { copy.features.custom.bitrate = value }
+        if let value = object["launchAtLogin"] as? Bool { copy.features.launchAtLogin = value }
         if let value = object["preset"] as? String { copy.preset = value }
         if let value = object["audioMode"] as? String { copy.audioMode = value }
         if let value = object["audioVolume"] as? Double { copy.audioVolume = value }
         return copy.normalized()
+    }
+
+    private static func int(_ value: Any?) -> Int? {
+        if let value = value as? Int { return value }
+        if let value = value as? Double, value.isFinite { return Int(value) }
+        if let value = value as? NSNumber { return value.intValue }
+        return nil
     }
 }

@@ -173,6 +173,11 @@ public struct AdaptationController {
         self.healthySeconds = 0
     }
 
+    public mutating func applyOverride(fps: Int, bitrate: Int) {
+        self.fps = min(60, max(10, fps))
+        self.bitrate = min(20_000_000, max(minimumBitrate, bitrate))
+    }
+
     public mutating func advance(dt: Double, signals: AdaptationSignals) -> StreamTune? {
         let step = max(0, dt)
         secondsSinceChange += step

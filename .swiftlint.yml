@@ -22,8 +22,8 @@ disabled_rules:
   - static_over_final_class
 
 file_length:
-  warning: 1200
-  error: 1600
+  warning: 400
+  error: 800
 
 type_body_length:
   warning: 1100

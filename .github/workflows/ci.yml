@@ -114,6 +114,17 @@ jobs:
           codesign --force --deep --sign - "$APP" || true
           ditto -c -k --keepParent "$APP" XADisplayHost.zip
           ls -l XADisplayHost.zip
+      - name: Host smoke tests
+        working-directory: macos
+        run: |
+          xcodebuild test \
+            -project XADisplayHost.xcodeproj \
+            -scheme XADisplayHostTests \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
       - uses: actions/upload-artifact@v4
         with:
           name: XADisplayHost.zip

@@ -54,3 +54,19 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         OTHER_LDFLAGS: "-Wl,-undefined,dynamic_lookup"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  XADisplayHostTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: XADisplayHostTests
+    dependencies:
+      - package: XADisplayProtocol
+        product: XADisplayProtocol
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.host.tests
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO

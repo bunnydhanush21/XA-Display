@@ -54,6 +54,8 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var followRotation: Bool
     public var orientationLock: String
     public var rotationMode: String
+    public var custom: CustomDisplaySettings
+    public var launchAtLogin: Bool
 
     public init(
         requirePairing: Bool = true,
@@ -81,7 +83,9 @@ public struct XAFeatureSettings: Equatable, Codable {
         lowLatencyWiFi: Bool = true,
         followRotation: Bool = true,
         orientationLock: String = "none",
-        rotationMode: String = "resolution"
+        rotationMode: String = "resolution",
+        custom: CustomDisplaySettings = CustomDisplaySettings(),
+        launchAtLogin: Bool = false
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -109,6 +113,8 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.followRotation = followRotation
         self.orientationLock = orientationLock
         self.rotationMode = rotationMode
+        self.custom = custom
+        self.launchAtLogin = launchAtLogin
     }
 }
 
@@ -118,7 +124,7 @@ extension XAFeatureSettings {
         case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
         case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
         case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit, lowLatencyWiFi
-        case followRotation, orientationLock, rotationMode
+        case followRotation, orientationLock, rotationMode, custom, launchAtLogin
     }
 
     public init(from decoder: Decoder) throws {
@@ -150,6 +156,8 @@ extension XAFeatureSettings {
         followRotation = try values.decodeIfPresent(Bool.self, forKey: .followRotation) ?? fallback.followRotation
         orientationLock = try values.decodeIfPresent(String.self, forKey: .orientationLock) ?? fallback.orientationLock
         rotationMode = try values.decodeIfPresent(String.self, forKey: .rotationMode) ?? fallback.rotationMode
+        custom = try values.decodeIfPresent(CustomDisplaySettings.self, forKey: .custom) ?? fallback.custom
+        launchAtLogin = try values.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? fallback.launchAtLogin
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -180,6 +188,8 @@ extension XAFeatureSettings {
         try values.encode(followRotation, forKey: .followRotation)
         try values.encode(orientationLock, forKey: .orientationLock)
         try values.encode(rotationMode, forKey: .rotationMode)
+        try values.encode(custom, forKey: .custom)
+        try values.encode(launchAtLogin, forKey: .launchAtLogin)
     }
 }
 

@@ -39,7 +39,7 @@ final class SettingsViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         switch sections[section] {
         case "Display":
-            return "Native is experimental. Resolution, frame rate, and bitrate follow the preset targets until a measured custom mode exists."
+            return "Custom width, height, frame rate, and bitrate apply when Custom display is on. The Mac recreates the virtual display. Presets remain the default."
         case "Battery care":
             return "Telemetry is read-only. Charge limit is experimental and off until the device test in docs/TESTING.md passes. The helper never writes DisableInflow or ExternalConnected."
         case "Security":

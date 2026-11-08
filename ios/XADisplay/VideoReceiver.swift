@@ -42,38 +42,38 @@ protocol VideoReceiverDelegate: AnyObject {
 final class VideoReceiver {
     weak var delegate: VideoReceiverDelegate?
     let displayLayer: AVSampleBufferDisplayLayer
-    private(set) var isConnected = false
-    private(set) var transport: TransportKind = .none
-    private(set) var xaHost = false
+    var isConnected = false
+    var transport: TransportKind = .none
+    var xaHost = false
     var devicePixelsWide = 0
     var devicePixelsHigh = 0
     var deviceScale = 2.0
     var orientation = "landscape"
 
-    private var listener: NWListener?
-    private var connection: NWConnection?
-    private let queue = DispatchQueue(label: "xa.video")
-    private var parser = FrameParser(limits: .video)
+    var listener: NWListener?
+    var connection: NWConnection?
+    let queue = DispatchQueue(label: "xa.video")
+    var parser = FrameParser(limits: .video)
     var lowLatency = true
-    private var admission = FrameAdmission()
-    private var udpListener: NWListener?
-    private var reassembler = UDPReassembler()
-    private let udpQueue = DispatchQueue(label: "xa.udp.video")
-    private var inflight = 0
-    private let lock = NSLock()
-    private var formatDesc: CMVideoFormatDescription?
-    private var sps: Data?
-    private var pps: Data?
-    private var port: UInt16 = XADisplayProtocolInfo.videoPort
-    private var lastData = Date()
-    private var watchdogStarted = false
-    private var userPaused = false
-    private var deliveredThisSecond = 0
-    private var fpsWindow = Date()
-    private var stats = ReceiverStats()
-    private var layerFailures = 0
-    private var holdUntilKeyframe = false
-    private var pendingSize: CGSize?
+    var admission = FrameAdmission()
+    var udpListener: NWListener?
+    var reassembler = UDPReassembler()
+    let udpQueue = DispatchQueue(label: "xa.udp.video")
+    var inflight = 0
+    let lock = NSLock()
+    var formatDesc: CMVideoFormatDescription?
+    var sps: Data?
+    var pps: Data?
+    var port: UInt16 = XADisplayProtocolInfo.videoPort
+    var lastData = Date()
+    var watchdogStarted = false
+    var userPaused = false
+    var deliveredThisSecond = 0
+    var fpsWindow = Date()
+    var stats = ReceiverStats()
+    var layerFailures = 0
+    var holdUntilKeyframe = false
+    var pendingSize: CGSize?
 
     static let installID: String = {
         let key = "XADisplay.installID"
@@ -165,6 +165,11 @@ final class VideoReceiver {
         }
     }
 
+    func sendAuth(id: String, token: String) {
+        let proof = ChannelAuth.proof(token: token, channel: .video, nonce: id)
+        send(.xaAuth(id: id, proof: proof))
+    }
+
     func sendSettings(_ body: String) {
         guard xaHost, !body.isEmpty else { return }
         send(.xaSettings(body))
@@ -185,17 +190,17 @@ final class VideoReceiver {
         send(.decodeFailed(preset: preset))
     }
 
-    private func send(_ message: VideoControlMessage) {
+    func send(_ message: VideoControlMessage) {
         guard let data = message.jsonData() else { return }
         queue.async { self.sendFrame(data) }
     }
 
-    private func sendFrame(_ payload: Data) {
+    func sendFrame(_ payload: Data) {
         guard let connection = connection else { return }
         connection.send(content: LengthPrefixedFraming.encode(payload), completion: .contentProcessed { _ in })
     }
 
-    private func startListener() {
+    func startListener() {
         guard !userPaused else { return }
         do {
             let tcp = NWProtocolTCP.Options()
@@ -235,7 +240,7 @@ final class VideoReceiver {
         if lowLatency { startUDP() }
     }
 
-    private func startUDP() {
+    func startUDP() {
         udpListener?.cancel()
         let params = NWParameters.udp
         params.serviceClass = .interactiveVideo
@@ -251,14 +256,14 @@ final class VideoReceiver {
         udpListener = listener
     }
 
-    private func receiveUDP(_ connection: NWConnection) {
+    func receiveUDP(_ connection: NWConnection) {
         connection.receiveMessage { [weak self] data, _, _, error in
             if let data = data { self?.ingestDatagram(data) }
             if error == nil { self?.receiveUDP(connection) }
         }
     }
 
-    private func ingestDatagram(_ data: Data) {
+    func ingestDatagram(_ data: Data) {
         guard let packet = UDPVideoPacket.decode(data) else { return }
         if let frame = reassembler.ingest(packet) {
             queue.async { self.handle(frame) }
@@ -268,7 +273,7 @@ final class VideoReceiver {
         send(.xaNack(holes.map(String.init).joined(separator: ",")))
     }
 
-    private func accept(_ connection: NWConnection) {
+    func accept(_ connection: NWConnection) {
         self.connection?.cancel()
         self.connection = connection
         resetStream()
@@ -291,7 +296,7 @@ final class VideoReceiver {
         receive(on: connection)
     }
 
-    private func receive(on connection: NWConnection) {
+    func receive(on connection: NWConnection) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
             guard let self = self else { return }
             if let data = data, !data.isEmpty {
@@ -312,300 +317,6 @@ final class VideoReceiver {
             }
             self.receive(on: connection)
         }
-    }
-
-    private func handle(_ payload: Data) {
-        if PayloadKind.classify(payload) == .controlJSON {
-            handleControl(VideoControlMessage.parse(payload))
-            return
-        }
-        let received = CACurrentMediaTime()
-        let unit = AnnexB.parse(payload)
-        if unit.truncated || unit.nalus.isEmpty {
-            lock.lock()
-            admission.awaitingKeyframe = true
-            lock.unlock()
-            return
-        }
-        var idr = false
-        var vcl: [Data] = []
-        for nalu in unit.nalus {
-            switch nalu.type {
-            case 7:
-                if sps != nalu.data {
-                    sps = nalu.data
-                    formatDesc = nil
-                }
-            case 8:
-                if pps != nalu.data {
-                    pps = nalu.data
-                    formatDesc = nil
-                }
-            case 6:
-                break
-            case 5:
-                idr = true
-                vcl.append(nalu.data)
-            default:
-                vcl.append(nalu.data)
-            }
-        }
-        if formatDesc == nil, let sps = sps, let pps = pps {
-            buildFormat(sps: sps, pps: pps)
-        }
-        guard !vcl.isEmpty, formatDesc != nil else { return }
-        let age = unit.timing.map { max(0, received * 1000 - $0.captureMs) } ?? 0
-        lock.lock()
-        let maxAge = lowLatency ? 80.0 : 150.0
-        let cap = lowLatency ? 1 : 3
-        let decision = admission.decide(isKeyframe: idr, queued: inflight, ageMs: age.isFinite ? age : 0, maxAgeMs: maxAge)
-        let allow = decision == .show && inflight < cap
-        if allow { inflight += 1 }
-        lock.unlock()
-        guard allow else { return }
-        let timing = unit.timing
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let enqueued = self.enqueue(vcl, keyframe: idr)
-            let now = CACurrentMediaTime()
-            self.lock.lock()
-            self.inflight = max(0, self.inflight - 1)
-            self.lock.unlock()
-            if enqueued {
-                self.noteDelivered(handoffMs: (now - received) * 1000)
-                if let timing = timing, self.xaHost {
-                    let ack = FrameAck(seq: timing.seq, captureMs: timing.captureMs, receiveMs: received * 1000, enqueueMs: now * 1000)
-                    self.send(.frameAck(ack))
-                }
-            } else {
-                self.noteFailure()
-            }
-        }
-    }
-
-    private func handleControl(_ message: VideoControlMessage) {
-        switch message {
-        case .ping(let t):
-            send(.pong(t: t, mt: Date().timeIntervalSince1970 * 1000))
-        case .xaHello:
-            xaHost = true
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiverBecameXAHost(self)
-            }
-        case .cursor(let x, let y, let visible):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, cursor: CGPoint(x: x, y: y), visible: visible)
-            }
-        case .cursorImage(let image):
-            guard let ui = UIImage(data: image.png) else { return }
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, cursorImage: ui, id: image.id)
-            }
-        case .xaStream(let stream):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, stream: stream)
-            }
-        case .xaMetrics(let metrics):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, metrics: metrics)
-            }
-        case .xaWindows(let body):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, windows: body)
-            }
-        case .xaMenus(let body):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, menus: body)
-            }
-        case .xaFront(let bundle):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, frontBundle: bundle)
-            }
-        case .xaOrient(let orientation, let mode, let letterbox):
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.videoReceiver(self, orientation: orientation, mode: mode, letterbox: letterbox)
-            }
-        default:
-            break
-        }
-    }
-
-    private func buildFormat(sps: Data, pps: Data) {
-        let status: OSStatus = sps.withUnsafeBytes { spsRaw in
-            pps.withUnsafeBytes { ppsRaw in
-                let pointers = [
-                    spsRaw.bindMemory(to: UInt8.self).baseAddress!,
-                    ppsRaw.bindMemory(to: UInt8.self).baseAddress!
-                ]
-                let sizes = [sps.count, pps.count]
-                var desc: CMVideoFormatDescription?
-                let result = CMVideoFormatDescriptionCreateFromH264ParameterSets(
-                    allocator: kCFAllocatorDefault,
-                    parameterSetCount: 2,
-                    parameterSetPointers: pointers,
-                    parameterSetSizes: sizes,
-                    nalUnitHeaderLength: 4,
-                    formatDescriptionOut: &desc
-                )
-                if result == noErr, let desc = desc {
-                    formatDesc = desc
-                    let dims = CMVideoFormatDescriptionGetDimensions(desc)
-                    let size = CGSize(width: Int(dims.width), height: Int(dims.height))
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self = self else { return }
-                        if self.holdUntilKeyframe {
-                            self.pendingSize = size
-                        } else {
-                            self.displayLayer.flush()
-                            self.delegate?.videoReceiver(self, videoSizeDidChange: size)
-                        }
-                    }
-                }
-                return result
-            }
-        }
-        if status != noErr { noteFailure() }
-    }
-
-    private func enqueue(_ nalus: [Data], keyframe: Bool) -> Bool {
-        guard let formatDesc = formatDesc else { return false }
-        let holding = holdUntilKeyframe
-        if keyframe, !holding { displayLayer.flush() }
-        if displayLayer.status == .failed {
-            displayLayer.flush()
-            noteFailure()
-            return false
-        }
-        guard displayLayer.isReadyForMoreMediaData else {
-            lock.lock()
-            admission.awaitingKeyframe = true
-            lock.unlock()
-            return false
-        }
-        var avcc = Data()
-        for nalu in nalus {
-            var len = UInt32(nalu.count).bigEndian
-            avcc.append(Data(bytes: &len, count: 4))
-            avcc.append(nalu)
-        }
-        var block: CMBlockBuffer?
-        guard
-            CMBlockBufferCreateWithMemoryBlock(
-                allocator: kCFAllocatorDefault, memoryBlock: nil, blockLength: avcc.count,
-                blockAllocator: kCFAllocatorDefault, customBlockSource: nil, offsetToData: 0,
-                dataLength: avcc.count, flags: 0, blockBufferOut: &block
-            ) == noErr, let block = block
-        else { return false }
-        let copied = avcc.withUnsafeBytes { raw -> OSStatus in
-            CMBlockBufferReplaceDataBytes(with: raw.baseAddress!, blockBuffer: block, offsetIntoDestination: 0, dataLength: avcc.count)
-        }
-        guard copied == noErr else { return false }
-        var sample: CMSampleBuffer?
-        var sizes = [avcc.count]
-        guard
-            CMSampleBufferCreateReady(
-                allocator: kCFAllocatorDefault, dataBuffer: block, formatDescription: formatDesc,
-                sampleCount: 1, sampleTimingEntryCount: 0, sampleTimingArray: nil,
-                sampleSizeEntryCount: 1, sampleSizeArray: &sizes, sampleBufferOut: &sample
-            ) == noErr, let sample = sample
-        else { return false }
-        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true), CFArrayGetCount(attachments) > 0 {
-            let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
-            CFDictionarySetValue(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(), Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
-        }
-        displayLayer.enqueue(sample)
-        if keyframe, holding {
-            holdUntilKeyframe = false
-            if let pendingSize = pendingSize {
-                self.pendingSize = nil
-                delegate?.videoReceiver(self, videoSizeDidChange: pendingSize)
-            }
-        }
-        return true
-    }
-
-    private func noteDelivered(handoffMs: Double) {
-        if let measured = LatencyMath.handoff(receiveMs: 0, enqueueMs: handoffMs) {
-            stats.handoffMs = measured
-        } else if handoffMs >= 0, handoffMs < 5_000 {
-            stats.handoffMs = handoffMs
-        }
-        deliveredThisSecond += 1
-        let now = Date()
-        if now.timeIntervalSince(fpsWindow) >= 1 {
-            stats.fpsDelivered = Double(deliveredThisSecond) / now.timeIntervalSince(fpsWindow)
-            deliveredThisSecond = 0
-            fpsWindow = now
-            layerFailures = 0
-        }
-        let snapshot = stats
-        delegate?.videoReceiver(self, stats: snapshot)
-    }
-
-    private func noteFailure() {
-        stats.decodeFails += 1
-        layerFailures += 1
-        delegate?.videoReceiver(self, stats: stats)
-        if layerFailures == 3 {
-            sendDecodeFailed(preset: "current")
-        }
-    }
-
-    private func resetStream() {
-        parser = FrameParser(limits: .video)
-        admission = FrameAdmission()
-        inflight = 0
-        formatDesc = nil
-        sps = nil
-        pps = nil
-        DispatchQueue.main.async { [weak self] in
-            self?.displayLayer.flush()
-        }
-    }
-
-    private func scheduleWatchdog() {
-        queue.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self = self else { return }
-            if let started = self.parser.partialStartedAt {
-                let outcome = self.parser.tick(now: Date().timeIntervalSince1970)
-                if case .failed = outcome, let connection = self.connection {
-                    connection.cancel()
-                }
-                _ = started
-            }
-            if let connection = self.connection, connection.state == .ready, Date().timeIntervalSince(self.lastData) > 6 {
-                connection.cancel()
-                self.connection = nil
-                self.setConnected(false, transport: .none)
-            }
-            self.scheduleWatchdog()
-        }
-    }
-
-    private func setStatus(_ text: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.delegate?.videoReceiver(self, statusDidChange: text)
-        }
-    }
-
-    private func setConnected(_ connected: Bool, transport: TransportKind) {
-        isConnected = connected
-        self.transport = connected ? transport : .none
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.delegate?.videoReceiver(self, connected: connected, transport: self.transport)
-        }
-        if !connected { setStatus(userPaused ? "Disconnected" : "Listening on :\(port)") }
     }
 
     private static func remoteHost(_ connection: NWConnection) -> String {
