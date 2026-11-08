@@ -39,6 +39,10 @@ final class SurfaceCoverageTests: XCTestCase {
         controller.sendSnap(.leftHalf)
         controller.sendSnap(.full)
         controller.sendShortcut(KeyShortcut(input: "v", modifiers: .command))
+        for action in EdgeSystemAction.allCases { controller.fireEdge(action) }
+        controller.sendZoom(true)
+        controller.sendZoom(false)
+        controller.hardwareKey(UIKeyCommand(input: "c", modifierFlags: .command, action: #selector(ReceiverViewController.hardwareKey(_:))))
         var document = XASettingsDocument.defaults
         document.features.clipboardSync = false
         document.features.audio = false
@@ -92,6 +96,7 @@ final class SurfaceCoverageTests: XCTestCase {
                 let path = IndexPath(row: row, section: section)
                 _ = settings.tableView(settings.tableView, heightForRowAt: path)
                 _ = settings.tableView(settings.tableView, cellForRowAt: path)
+                settings.tableView(settings.tableView, didSelectRowAt: path)
             }
         }
         let media = MediaRemoteViewController()
