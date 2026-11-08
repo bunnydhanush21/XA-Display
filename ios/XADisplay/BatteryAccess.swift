@@ -13,7 +13,7 @@ enum BatteryRegistry {
         return parse(properties)
     }
 
-    private static func parse(_ properties: [String: Any]) -> RawBatteryProperties {
+    static func parse(_ properties: [String: Any]) -> RawBatteryProperties {
         func number(_ key: String) -> Double? {
             if let value = properties[key] as? NSNumber { return value.doubleValue }
             if let value = properties[key] as? Double { return value }
