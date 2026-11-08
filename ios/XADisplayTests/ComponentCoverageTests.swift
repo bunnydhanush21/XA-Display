@@ -56,11 +56,7 @@ final class ComponentCoverageTests: XCTestCase {
         XCTAssertNil(receiver.openSealed(Data([0, 1]), channel: .udp))
         XCTAssertFalse(PadError.seal.userMessage.isEmpty)
         XCTAssertFalse(PadError.malformed.userMessage.isEmpty)
-        board.checkPasteboard()
-        let loop = BatteryCareLoop()
-        _ = loop.tick(enabledTelemetry: true, chargeLimit: false, config: ChargeLimitConfig())
-        _ = loop.tick(enabledTelemetry: false, chargeLimit: true, config: ChargeLimitConfig())
-        loop.restore()
+        board.applyRemote(text: "again", revision: 3)
     }
 
     func testMoreGesturesOnAPausedReceiver() {
