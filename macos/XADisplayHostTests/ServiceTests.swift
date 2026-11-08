@@ -76,7 +76,7 @@ final class ServiceTests: XCTestCase {
     }
 
     private func findStack(in view: NSView) -> NSStackView? {
-        if let stack = view as? NSStackView, stack.orientation == .vertical, stack.arrangedSubviews.count > 2 { return stack }
+        if let stack = view as? NSStackView, stack.orientation == .vertical, stack.arrangedSubviews.count >= 2 { return stack }
         for subview in view.subviews {
             if let stack = findStack(in: subview) { return stack }
         }
