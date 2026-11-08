@@ -78,7 +78,7 @@ enum UsbmuxClient {
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
         let path = "/var/run/usbmuxd"
-        _ = withUnsafeMutablePointer(to: &address.sun_path) { tuple in
+        withUnsafeMutablePointer(to: &address.sun_path) { tuple in
             tuple.withMemoryRebound(to: CChar.self, capacity: 104) { dest in
                 _ = strncpy(dest, path, 103)
             }
@@ -191,7 +191,7 @@ final class FDStream: @unchecked Sendable {
             guard !self.closed else { return }
             self.closed = true
             self.source?.cancel()
-            DispatchQueue.main.async { self.onClose?() }
+            DispatchQueue.main.async { [weak self] in self?.onClose?() }
         }
     }
 

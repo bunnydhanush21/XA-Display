@@ -77,13 +77,13 @@ extension HostController {
                 return
             }
             let stream = FDStream(fd: video)
-            stream.onData = { [weak self] data in self?.queue.async { self?.ingestVideo(data) } }
-            stream.onClose = { [weak self] in self?.queue.async { self?.linkClosed() } }
+            stream.onData = { [weak self] data in self?.queue.async { [weak self] in self?.ingestVideo(data) } }
+            stream.onClose = { [weak self] in self?.queue.async { [weak self] in self?.linkClosed() } }
             usbFD = stream
             if let input = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.inputPort) {
                 let inputStream = FDStream(fd: input)
-                inputStream.onData = { [weak self] data in self?.queue.async { self?.ingestInput(data) } }
-                inputStream.onClose = { [weak self] in self?.queue.async { self?.releaseInput(reason: "input closed") } }
+                inputStream.onData = { [weak self] data in self?.queue.async { [weak self] in self?.ingestInput(data) } }
+                inputStream.onClose = { [weak self] in self?.queue.async { [weak self] in self?.releaseInput(reason: "input closed") } }
                 inputFD = inputStream
             }
             sendControl(.xaHello, onVideo: true)

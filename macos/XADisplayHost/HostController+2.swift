@@ -139,7 +139,7 @@ extension HostController {
         lastDeviceOrientation = (hello.orientation == "portrait" || hello.pixelsHigh > hello.pixelsWide) ? "portrait" : "landscape"
         applyOrientation(requested: lastDeviceOrientation, mode: settings.rotationMode)
     }
-    func rebuildDisplay(completion: ((Bool) -> Void)? = nil) {
+    func rebuildDisplay(completion: (@Sendable (Bool) -> Void)? = nil) {
         if settings.custom.enabled {
             let spec = settings.custom.clamped()
             adaptation.applyOverride(fps: spec.fps, bitrate: spec.bitrate)
@@ -252,10 +252,10 @@ extension HostController {
             if mode == .displayApps, let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
                 onDisplay = AudioCapture.bundlesOnVirtualDisplay(content: content, displayFrame: frame)
                 let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
-                DispatchQueue.main.async { self.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+                DispatchQueue.main.async { [weak self] in self?.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
             } else if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
                 let apps = content.applications.map { ($0.bundleIdentifier, $0.applicationName) }
-                DispatchQueue.main.async { self.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
+                DispatchQueue.main.async { [weak self] in self?.knownAudioApps = apps.sorted { $0.0 < $1.0 } }
             }
             let choice = AudioRoutePlanner.choice(mode: mode, selectedBundleIDs: selected, bundlesOnDisplay: onDisplay)
             await self.audioCapture.start(displayID: displayID, choice: choice)

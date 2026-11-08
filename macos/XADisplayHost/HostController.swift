@@ -91,9 +91,9 @@ final class HostController: @unchecked Sendable {
             self?.pollClipboard()
             self?.publishChrome()
             self?.publishNowPlaying()
-            self?.queue.async { self?.tick() }
+            self?.queue.async { [weak self] in self?.tick() }
         }
-        queue.async { self.tick() }
+        queue.async { [weak self] in self?.tick() }
         publish()
     }
 
@@ -140,7 +140,7 @@ final class HostController: @unchecked Sendable {
             transition(.userStop)
         } else {
             transition(.retry)
-            queue.async { self.tick() }
+            queue.async { [weak self] in self?.tick() }
         }
         publish()
     }

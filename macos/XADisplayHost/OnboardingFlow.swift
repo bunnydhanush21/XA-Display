@@ -1,7 +1,8 @@
 @preconcurrency import AppKit
 @preconcurrency import ApplicationServices
 
-final class OnboardingFlow: NSObject, @unchecked Sendable {
+@MainActor
+final class OnboardingFlow: NSObject {
     private let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: 520, height: 360),
         styleMask: [.titled, .closable],

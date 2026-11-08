@@ -125,10 +125,7 @@ extension ReceiverViewController {
         input.sendRelease()
         releaseModifiers()
         UIApplication.shared.isIdleTimerDisabled = false
-        var task = UIBackgroundTaskIdentifier.invalid
-        task = UIApplication.shared.beginBackgroundTask {
-            UIApplication.shared.endBackgroundTask(task)
-        }
+        let task = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             UIApplication.shared.endBackgroundTask(task)
         }

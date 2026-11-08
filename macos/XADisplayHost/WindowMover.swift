@@ -147,9 +147,9 @@ enum WindowMover {
         return false
     }
 
-    private static var publishedWindows: [LiveWindow] = []
-    private static var publishedMenus: [AXUIElement] = []
-    private static var savedFrames: [String: XARect] = [:]
+    nonisolated(unsafe) private static var publishedWindows: [LiveWindow] = []
+    nonisolated(unsafe) private static var publishedMenus: [AXUIElement] = []
+    nonisolated(unsafe) private static var savedFrames: [String: XARect] = [:]
 
     private static func front(on display: XARect) -> LiveWindow? {
         if let published = publishedWindows.first { return published }

@@ -1,7 +1,8 @@
 @preconcurrency import AppKit
 import XADisplayProtocol
 
-final class MenuPopoverController: NSObject, @unchecked Sendable {
+@MainActor
+final class MenuPopoverController: NSObject {
     let popover = NSPopover()
     var onConnect: (() -> Void)?
     var onDisconnect: (() -> Void)?
@@ -115,6 +116,7 @@ final class MenuPopoverController: NSObject, @unchecked Sendable {
     @objc private func quitTapped() { onQuit?() }
 }
 
+@MainActor
 enum StatusGlyph {
     static func image(phase: ConnectionPhase) -> NSImage {
         let canvas = NSImage(size: NSSize(width: 22, height: 18))

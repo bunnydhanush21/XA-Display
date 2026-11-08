@@ -7,7 +7,7 @@
 import XADisplayProtocol
 
 extension HostController {
-    func sendRaw(_ data: Data, video: Bool, done: (() -> Void)?) {
+    func sendRaw(_ data: Data, video: Bool, done: (@Sendable () -> Void)?) {
         if video, let usbFD = usbFD {
             usbFD.send(data)
             done?()
@@ -29,7 +29,8 @@ extension HostController {
         pasteboardCount = board.changeCount
         guard text.utf8.count <= XAClipboard.maxBytes else { return }
         queue.async { [weak self] in
-            guard let self = self, self.dispatcher.armed else { return }
+            guard let self else { return }
+            guard self.dispatcher.armed else { return }
             self.clipboardRevision &+= 1
             self.sendInput(.clipboard(XAClipboard(session: self.dispatcher.session, seq: UInt32(truncatingIfNeeded: self.clipboardRevision), revision: self.clipboardRevision, text: text)))
         }
@@ -76,10 +77,11 @@ extension HostController {
         let advertised = Host.current().localizedName ?? ""
         listener.service = NWListener.Service(name: advertised.isEmpty ? "XA Display" : advertised, type: XADisplayProtocolInfo.hostBonjourType)
         listener.newConnectionHandler = { [weak self] connection in
-            connection.start(queue: self?.queue ?? .main)
+            let queue = self?.queue ?? .main
+            connection.start(queue: queue)
             self?.log("Wake poke from the iPad")
-            self?.queue.async { self?.tick() }
-            self?.queue.asyncAfter(deadline: .now() + 1) { connection.cancel() }
+            queue.async { [weak self] in self?.tick() }
+            queue.asyncAfter(deadline: .now() + 1) { connection.cancel() }
         }
         listener.stateUpdateHandler = { [weak self] state in
             if case .failed(let error) = state {
@@ -163,7 +165,7 @@ extension HostController {
     }
     func publish() {
         let text = "\(transport.rawValue) · \(preset.id.rawValue) \(preset.width)×\(preset.height)"
-        DispatchQueue.main.async { self.onState?(text) }
+        DispatchQueue.main.async { [weak self] in self?.onState?(text) }
     }
     func transition(_ event: ConnectionEvent) {
         Task { [weak self] in

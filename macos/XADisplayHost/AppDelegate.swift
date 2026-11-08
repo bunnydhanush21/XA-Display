@@ -3,7 +3,8 @@
 import XADisplayProtocol
 
 @main
-final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: HostController!
     private var statusItem: NSStatusItem!
     private var onboarding: OnboardingFlow?

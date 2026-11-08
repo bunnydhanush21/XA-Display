@@ -43,7 +43,7 @@ public struct FrameAck: Equatable {
 }
 
 /// ThermalBucket.
-public enum ThermalBucket: String, Equatable, Codable {
+public enum ThermalBucket: String, Equatable, Codable, Sendable {
     case nominal, fair, serious, critical, unknown
     public static func from(processInfoRawValue: Int) -> ThermalBucket {
         switch processInfoRawValue {
@@ -57,7 +57,7 @@ public enum ThermalBucket: String, Equatable, Codable {
 }
 
 /// HealthReport.
-public struct HealthReport: Equatable {
+public struct HealthReport: Equatable, Sendable {
     public var thermal: ThermalBucket
     public var batteryFraction: Double?
     public var batteryState: String
