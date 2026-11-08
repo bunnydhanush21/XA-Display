@@ -78,4 +78,4 @@ Do this on the iPad while it is streaming before you leave **Charge limit** on. 
 
 ## Not in this build
 
-Jailbreak cable-launch tweaks, UDP, HEVC, Pencil, measured glass-to-glass numbers, and screenshots. Placeholder images in `docs/assets/` are not captures.
+Jailbreak cable-launch tweaks, UDP, HEVC, Pencil, and measured glass-to-glass numbers. CI captures live in `docs/screenshots/`. Placeholder images in `docs/assets/` are not captures.

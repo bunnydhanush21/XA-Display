@@ -14,12 +14,17 @@
 
 Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window and menu actions. It is not native macOS touchscreen input.
 
-The Mac menu, settings, and onboarding shots below are offscreen captures from the host test on CI. Button titles are in the image. Several AppKit text fields stay blank in that bitmap. iPad shots are copied out of the simulator when the unit tests write them.
+These are CI captures: the Mac windows from the host test, and the iPad onboarding card and receiver from the simulator unit test. A separate connection-overlay bitmap came out black and is not included.
 
 <p align="center">
-  <img src="docs/screenshots/mac-popover.png" alt="Mac menu bar popover captured in CI" width="320">
-  <img src="docs/screenshots/mac-settings.png" alt="Mac settings window captured in CI" width="320">
-  <img src="docs/screenshots/mac-onboarding.png" alt="Mac onboarding window captured in CI" width="320">
+  <img src="docs/screenshots/mac-popover.png" alt="Mac menu popover from CI, showing iPad, usb, 12 ms, and 30 fps" width="320">
+  <img src="docs/screenshots/mac-settings.png" alt="Mac settings connection tab from CI" width="320">
+  <img src="docs/screenshots/mac-onboarding.png" alt="Mac onboarding first step from CI" width="320">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/ipad-onboarding.png" alt="iPad onboarding card from the simulator" width="280">
+  <img src="docs/screenshots/ipad-landscape.png" alt="iPad receiver with pairing code and Connect from the simulator" width="360">
 </p>
 
 <p align="center">
