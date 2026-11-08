@@ -66,6 +66,11 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     private var directory = MacDirectory()
     private var discoveredMacs: [String] = []
     private var mediaPanel: MediaRemoteViewController?
+    private var orientDebounce = OrientationDebounce()
+    private var orientTimer: Timer?
+    private var letterboxFallback = false
+    private var streamTransform = CGAffineTransform.identity
+    private var layingVideo = false
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -91,15 +96,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
             doubleTapWindow: features.gestureTuning.clamped().doubleTapWindow,
             longPressDuration: features.gestureTuning.clamped().longPressDuration
         )
-        videoView.translatesAutoresizingMaskIntoConstraints = false
+        videoView.translatesAutoresizingMaskIntoConstraints = true
+        videoView.autoresizingMask = []
         videoView.isUserInteractionEnabled = false
         view.addSubview(videoView)
-        NSLayoutConstraint.activate([
-            videoView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            videoView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            videoView.topAnchor.constraint(equalTo: view.topAnchor),
-            videoView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
         cursorLayer.bounds = CGRect(x: 0, y: 0, width: 18, height: 18)
         cursorLayer.backgroundColor = UIColor.white.cgColor
         cursorLayer.cornerRadius = 9
@@ -238,10 +238,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         receiver.devicePixelsHigh = high
         receiver.deviceScale = Double(scale)
         receiver.orientation = portrait ? "portrait" : "landscape"
-        if receiver.isConnected { receiver.announcePanel() }
+        layoutVideo()
+        noteOrientation(portrait ? "portrait" : "landscape")
         layoutCursor()
-        applyMagnifier()
-        chrome.layout(windows: windowFrames.map { self.viewRect(for: $0) }, assist: assist)
+        applyChrome()
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { feed(touches, .began, event) }
@@ -783,6 +783,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         if broadcast, SettingsSync.encode(document) != previous {
             receiver.sendSettings(SettingsSync.encode(document))
         }
+        view.setNeedsLayout()
     }
 
     private func updateKeepalive() {
@@ -819,15 +820,66 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         drawerEdge?.isEnabled = assist.edgeDrawer
     }
 
+    private func layoutVideo() {
+        if layingVideo { return }
+        layingVideo = true
+        defer { layingVideo = false }
+        let host = view.bounds
+        let devicePortrait = host.height > host.width
+        let wantPortrait =
+            OrientationPolicy.resolved(
+                device: devicePortrait ? "portrait" : "landscape",
+                follow: features.followRotation,
+                lock: features.orientationLock
+            ) == "portrait"
+        let rotate = !letterboxFallback && features.rotationMode == "stream" && wantPortrait && devicePortrait
+        let placed = VideoPlacement.frame(host: host, rotateClockwise: rotate)
+        let unchanged =
+            videoView.bounds.equalTo(placed.bounds)
+            && abs(videoView.center.x - placed.center.x) < 0.5
+            && abs(videoView.center.y - placed.center.y) < 0.5
+            && streamTransform == placed.transform
+        if unchanged {
+            applyMagnifier()
+            return
+        }
+        videoView.transform = .identity
+        videoView.bounds = placed.bounds
+        videoView.center = placed.center
+        streamTransform = placed.transform
+        applyMagnifier()
+    }
+
+    private func noteOrientation(_ device: String) {
+        guard OrientationPolicy.resolved(device: device, follow: features.followRotation, lock: features.orientationLock) != nil else { return }
+        let resolved = OrientationPolicy.resolved(device: device, follow: features.followRotation, lock: features.orientationLock) ?? device
+        guard orientDebounce.note(resolved, now: CACurrentMediaTime()) else { return }
+        orientTimer?.invalidate()
+        orientTimer = Timer.scheduledTimer(withTimeInterval: OrientationDebounce.seconds, repeats: false) { [weak self] _ in
+            self?.sendOrientationIfDue()
+        }
+    }
+
+    private func sendOrientationIfDue() {
+        guard receiver.isConnected, xaHost else { return }
+        guard let orientation = orientDebounce.due(now: CACurrentMediaTime()) else { return }
+        let videoPortrait = videoSize.height > videoSize.width && videoSize != .zero
+        if features.rotationMode == "resolution", (orientation == "portrait") != videoPortrait {
+            receiver.holdPictureUntilKeyframe()
+        }
+        receiver.sendOrientation(orientation, mode: features.rotationMode)
+    }
+
     private func applyMagnifier() {
         guard features.pinchMagnifier, magnifier.scale > 1.01 else {
-            videoView.transform = .identity
+            videoView.transform = streamTransform
             return
         }
         let scale = CGFloat(magnifier.scale)
         let tx = CGFloat(0.5 - magnifier.center.x) * videoView.bounds.width
         let ty = CGFloat(0.5 - magnifier.center.y) * videoView.bounds.height
-        videoView.transform = CGAffineTransform(translationX: tx, y: ty).scaledBy(x: scale, y: scale)
+        let zoom = CGAffineTransform(translationX: tx, y: ty).scaledBy(x: scale, y: scale)
+        videoView.transform = streamTransform.concatenating(zoom)
     }
 
     private func layoutCursor() {
@@ -922,6 +974,12 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     }
     func videoReceiver(_ receiver: VideoReceiver, connected: Bool, transport: TransportKind) {
         UIApplication.shared.isIdleTimerDisabled = connected
+        if connected {
+            orientTimer?.invalidate()
+            if let resolved = OrientationPolicy.resolved(device: receiver.orientation, follow: features.followRotation, lock: features.orientationLock) {
+                orientDebounce.adopt(resolved)
+            }
+        }
         updateKeepalive()
         statusLabel.isHidden = connected
         if connected {
@@ -961,7 +1019,19 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         handoffMs = stats.handoffMs
         refreshStats()
     }
-    func videoReceiverBecameXAHost(_ receiver: VideoReceiver) { xaHost = true }
+    func videoReceiverBecameXAHost(_ receiver: VideoReceiver) {
+        xaHost = true
+        sendOrientationIfDue()
+    }
+    func videoReceiver(_ receiver: VideoReceiver, orientation: String, mode: String, letterbox: Bool) {
+        letterboxFallback = letterbox
+        if mode == "stream" || letterbox {
+            receiver.releasePictureHold()
+        } else if mode == "resolution" {
+            receiver.holdPictureUntilKeyframe()
+        }
+        view.setNeedsLayout()
+    }
     func videoReceiver(_ receiver: VideoReceiver, stream: StreamAnnouncement) {
         streamLabel = "\(stream.preset) \(stream.width)×\(stream.height)@\(stream.fps)"
         if stream.experimental { streamLabel += " experimental" }

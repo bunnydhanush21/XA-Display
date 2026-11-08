@@ -36,6 +36,7 @@ protocol VideoReceiverDelegate: AnyObject {
     func videoReceiver(_ receiver: VideoReceiver, windows body: String)
     func videoReceiver(_ receiver: VideoReceiver, menus body: String)
     func videoReceiver(_ receiver: VideoReceiver, frontBundle bundle: String)
+    func videoReceiver(_ receiver: VideoReceiver, orientation: String, mode: String, letterbox: Bool)
 }
 
 final class VideoReceiver {
@@ -71,6 +72,8 @@ final class VideoReceiver {
     private var fpsWindow = Date()
     private var stats = ReceiverStats()
     private var layerFailures = 0
+    private var holdUntilKeyframe = false
+    private var pendingSize: CGSize?
 
     static let installID: String = {
         let key = "XADisplay.installID"
@@ -136,6 +139,30 @@ final class VideoReceiver {
                     id: Self.installID,
                     orientation: orientation
                 )))
+    }
+
+    func sendOrientation(_ orientation: String, mode: String) {
+        send(.xaOrient(orientation: orientation, mode: mode, letterbox: false))
+    }
+
+    func holdPictureUntilKeyframe() {
+        if Thread.isMainThread {
+            holdUntilKeyframe = true
+        } else {
+            DispatchQueue.main.async { self.holdUntilKeyframe = true }
+        }
+    }
+
+    func releasePictureHold() {
+        if Thread.isMainThread {
+            holdUntilKeyframe = false
+            pendingSize = nil
+        } else {
+            DispatchQueue.main.async {
+                self.holdUntilKeyframe = false
+                self.pendingSize = nil
+            }
+        }
     }
 
     func sendSettings(_ body: String) {
@@ -402,6 +429,11 @@ final class VideoReceiver {
                 guard let self = self else { return }
                 self.delegate?.videoReceiver(self, frontBundle: bundle)
             }
+        case .xaOrient(let orientation, let mode, let letterbox):
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.videoReceiver(self, orientation: orientation, mode: mode, letterbox: letterbox)
+            }
         default:
             break
         }
@@ -430,8 +462,12 @@ final class VideoReceiver {
                     let size = CGSize(width: Int(dims.width), height: Int(dims.height))
                     DispatchQueue.main.async { [weak self] in
                         guard let self = self else { return }
-                        self.displayLayer.flush()
-                        self.delegate?.videoReceiver(self, videoSizeDidChange: size)
+                        if self.holdUntilKeyframe {
+                            self.pendingSize = size
+                        } else {
+                            self.displayLayer.flush()
+                            self.delegate?.videoReceiver(self, videoSizeDidChange: size)
+                        }
                     }
                 }
                 return result
@@ -442,7 +478,8 @@ final class VideoReceiver {
 
     private func enqueue(_ nalus: [Data], keyframe: Bool) -> Bool {
         guard let formatDesc = formatDesc else { return false }
-        if keyframe { displayLayer.flush() }
+        let holding = holdUntilKeyframe
+        if keyframe, !holding { displayLayer.flush() }
         if displayLayer.status == .failed {
             displayLayer.flush()
             noteFailure()
@@ -486,6 +523,13 @@ final class VideoReceiver {
             CFDictionarySetValue(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(), Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
         }
         displayLayer.enqueue(sample)
+        if keyframe, holding {
+            holdUntilKeyframe = false
+            if let pendingSize = pendingSize {
+                self.pendingSize = nil
+                delegate?.videoReceiver(self, videoSizeDidChange: pendingSize)
+            }
+        }
         return true
     }
 

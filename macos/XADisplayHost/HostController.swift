@@ -22,6 +22,7 @@ final class HostController {
     private var adaptation: AdaptationController
     private var preset: StreamPreset
     private var portrait = false
+    private var lastDeviceOrientation = "landscape"
     private var transport: TransportKind = .none
     private var videoParser = FrameParser(limits: .video)
     private var inputParser = FrameParser(limits: .input)
@@ -256,6 +257,17 @@ final class HostController {
         if merged.features.wifiFallback != current.features.wifiFallback { setWiFi(merged.features.wifiFallback) }
         if merged.features.autoConnectUSB != current.features.autoConnectUSB { setAutoConnect(merged.features.autoConnectUSB) }
         if merged.features.lowLatencyWiFi != current.features.lowLatencyWiFi { setLowLatencyWiFi(merged.features.lowLatencyWiFi) }
+        let orientationChanged =
+            merged.features.followRotation != current.features.followRotation
+            || merged.features.orientationLock != current.features.orientationLock
+            || merged.features.rotationMode != current.features.rotationMode
+        if orientationChanged {
+            settings.followRotation = merged.features.followRotation
+            settings.orientationLock = merged.features.orientationLock
+            settings.rotationMode = merged.features.rotationMode
+            persist()
+            applyOrientation(requested: lastDeviceOrientation, mode: settings.rotationMode)
+        }
         if merged.features.windowSnapping != current.features.windowSnapping { setWindowSnapping(merged.features.windowSnapping) }
         if merged.features.mediaRemote != current.features.mediaRemote { setMediaRemote(merged.features.mediaRemote) }
         if merged.audioMode != current.audioMode, let mode = AudioRouteMode(rawValue: merged.audioMode) { setAudioMode(mode) }
@@ -372,9 +384,11 @@ final class HostController {
         switch VideoControlMessage.parse(payload) {
         case .hello(let hello):
             if !hello.id.isEmpty, !pairedIDs.contains(hello.id) { pairedIDs.append(hello.id) }
-            portrait = hello.orientation == "portrait" || hello.pixelsHigh > hello.pixelsWide
-            preset = StreamPreset.preset(preset.id).oriented(portrait: portrait)
-            rebuildDisplay()
+            lastDeviceOrientation = (hello.orientation == "portrait" || hello.pixelsHigh > hello.pixelsWide) ? "portrait" : "landscape"
+            applyOrientation(requested: lastDeviceOrientation, mode: settings.rotationMode)
+        case .xaOrient(let orientation, let mode, _):
+            lastDeviceOrientation = orientation
+            applyOrientation(requested: orientation, mode: mode)
         case .frameAck(let ack):
             let now = Date().timeIntervalSince1970 * 1000
             if let ms = LatencyMath.captureToAck(captureMs: ack.captureMs, ackMs: now) {
@@ -528,7 +542,74 @@ final class HostController {
         sendControl(.xaFront(catalog.bundleID), onVideo: true)
     }
 
-    private func rebuildDisplay() {
+    private func applyOrientation(requested: String, mode: String) {
+        let portraitSize = PortraitModes.size(preset: preset.id)
+        let landscape = PortraitModes.landscape(preset: preset.id)
+        let decision = OrientationPolicy.action(
+            currentPortrait: portrait,
+            requested: requested,
+            follow: settings.followRotation,
+            lock: settings.orientationLock,
+            mode: mode,
+            portraitSize: portraitSize,
+            landscapeSize: landscape
+        )
+        switch decision {
+        case .ignore:
+            ensureDisplay()
+        case .letterbox:
+            ensureDisplay()
+            sendControl(.xaOrient(orientation: requested, mode: "resolution", letterbox: true), onVideo: true)
+        case .rotateStream:
+            if portrait {
+                let previous = preset
+                let previousPortrait = portrait
+                portrait = false
+                preset = StreamPreset.preset(preset.id).oriented(portrait: false)
+                rebuildDisplay { [weak self] ok in
+                    guard let self = self else { return }
+                    if ok {
+                        self.sendControl(.xaOrient(orientation: "portrait", mode: "stream", letterbox: false), onVideo: true)
+                    } else {
+                        self.preset = previous
+                        self.portrait = previousPortrait
+                        self.sendControl(.xaOrient(orientation: requested, mode: "resolution", letterbox: true), onVideo: true)
+                    }
+                }
+            } else {
+                ensureDisplay()
+                sendControl(.xaOrient(orientation: "portrait", mode: "stream", letterbox: false), onVideo: true)
+            }
+        case .reconfigure(let width, let height):
+            let previous = preset
+            let previousPortrait = portrait
+            portrait = height > width
+            var next = StreamPreset.preset(preset.id)
+            next.width = width
+            next.height = height
+            preset = next
+            rebuildDisplay { [weak self] ok in
+                guard let self = self else { return }
+                if ok {
+                    let applied = self.portrait ? "portrait" : "landscape"
+                    self.sendControl(.xaOrient(orientation: applied, mode: "resolution", letterbox: false), onVideo: true)
+                } else {
+                    self.preset = previous
+                    self.portrait = previousPortrait
+                    self.sendControl(.xaOrient(orientation: requested, mode: "resolution", letterbox: true), onVideo: true)
+                }
+            }
+        }
+    }
+
+    private func ensureDisplay() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.display.displayID == 0 else { return }
+            self.rebuildDisplay()
+        }
+    }
+
+    private func rebuildDisplay(completion: ((Bool) -> Void)? = nil) {
         let pixelsWide = preset.width
         let pixelsHigh = preset.height
         let scale = preset.id == .native ? 2.0 : 1.0
@@ -538,6 +619,7 @@ final class HostController {
             guard ok, self.display.displayID != 0 else {
                 self.log("Virtual display unavailable")
                 self.publish()
+                completion?(false)
                 return
             }
             self.savedDisplayID = self.display.displayID
@@ -555,6 +637,7 @@ final class HostController {
             )
             self.sendControl(.xaStream(announcement), onVideo: true)
             self.publish()
+            completion?(true)
         }
     }
 

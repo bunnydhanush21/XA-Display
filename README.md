@@ -109,6 +109,8 @@ Open the iPad app so it listens on ports 9000 and 9001. Open **XA Display Host**
 
 USB connects when the iPad is trusted and the cable carries data. With the cable unplugged, the host uses Wi-Fi only if that switch is on and both devices share a network.
 
+**Follow iPad rotation** is on by default. Turning the iPad sends an orientation message after about 300 ms. The Mac switches the virtual display to the rotated preset (Balanced 1440×1080 or 1080×1440, and the same swap for Safe and Native) and restarts the encoder on the existing connection. The iPad keeps the previous picture until the new keyframe arrives. If a portrait mode cannot be created, the picture letterboxes. Lock keeps the Mac picture landscape or portrait. Rotate stream only turns the picture on the iPad and leaves the Mac resolution unchanged. The command strip stays on the bottom edge. Pointer and scroll follow the picture. Three-finger shortcuts stay in screen space.
+
 **Low Latency Wi-Fi** is on by default. Picture datagrams use UDP with sequence numbers, one XOR parity packet per frame, and NACKs on the TCP control connection. Input and control stay on TCP with `TCP_NODELAY`, and input is marked as responsive data. The encoder asks for realtime low-latency rate control, `MaxFrameDelayCount = 0`, no B-frames, and intra-refresh or slice encoding when VideoToolbox accepts those keys. The iPad renders the newest frame and drops stale ones. The overlay prints capture-to-ack only after a real sample arrives. That number includes the return trip. It is not glass-to-glass, and it is not zero. Wi-Fi power-save cannot be switched off with a public API; a 0.2 s keepalive is what the iPad can do. The 6 Mb/s start rate is an 802.11n target, not a measured throughput.
 
 Build from source:

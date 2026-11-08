@@ -757,6 +757,7 @@ public enum VideoControlMessage: Equatable {
     case xaBattery(text: String, heat: Bool)
     case xaSettings(String)
     case xaNack(String)
+    case xaOrient(orientation: String, mode: String, letterbox: Bool)
     case ignored
 
     public static let maxCursorPNG = 65_536
@@ -825,6 +826,8 @@ public enum VideoControlMessage: Equatable {
             object = ["type": "xa.settings", "body": body]
         case .xaNack(let body):
             object = ["type": "xa.nack", "body": body]
+        case .xaOrient(let orientation, let mode, let letterbox):
+            object = ["type": "xa.orient", "o": orientation, "mode": mode, "letterbox": letterbox]
         case .ignored:
             return nil
         }
@@ -916,6 +919,12 @@ public enum VideoControlMessage: Equatable {
             return .xaSettings(JSON.string(obj["body"]) ?? "")
         case "xa.nack":
             return .xaNack(JSON.string(obj["body"]) ?? "")
+        case "xa.orient":
+            return .xaOrient(
+                orientation: JSON.string(obj["o"]) ?? "landscape",
+                mode: JSON.string(obj["mode"]) ?? "resolution",
+                letterbox: JSON.bool(obj["letterbox"]) ?? false
+            )
         default:
             return .ignored
         }

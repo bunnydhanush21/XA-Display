@@ -45,6 +45,9 @@ public enum SettingsCatalog {
         SettingsRow(id: "connection.lowLatency", title: "Low Latency Wi-Fi", section: "Connection", kind: "toggle", onHost: true),
         SettingsRow(id: "display.preset", title: "Preset", section: "Display", kind: "choice", choices: ["balanced", "safe", "native"], onHost: true),
         SettingsRow(id: "display.detail", title: "Resolution, FPS, bitrate", section: "Display", kind: "info", onHost: true),
+        SettingsRow(id: "display.follow", title: "Follow iPad rotation", section: "Display", kind: "toggle", onHost: true),
+        SettingsRow(id: "display.lock", title: "Lock orientation", section: "Display", kind: "choice", choices: ["none", "landscape", "portrait"], onHost: true),
+        SettingsRow(id: "display.mode", title: "Rotate stream only or change Mac resolution", section: "Display", kind: "choice", choices: ["resolution", "stream"], onHost: true),
         SettingsRow(id: "touch.mode", title: "Pointer mode", section: "Touch", kind: "choice", choices: ["direct", "trackpad"]),
         SettingsRow(id: "touch.scroll", title: "Two-finger scroll", section: "Touch", kind: "toggle"),
         SettingsRow(id: "touch.momentum", title: "Momentum", section: "Touch", kind: "toggle"),
@@ -159,6 +162,8 @@ public struct XASettingsDocument: Equatable, Codable {
         if StreamPreset.ID(rawValue: copy.preset) == nil { copy.preset = StreamPreset.ID.balanced.rawValue }
         if AudioRouteMode(rawValue: copy.audioMode) == nil { copy.audioMode = AudioRouteMode.all.rawValue }
         if !["longPress", "twoFinger", "both"].contains(copy.rightClick) { copy.rightClick = "both" }
+        if !["none", "landscape", "portrait"].contains(copy.features.orientationLock) { copy.features.orientationLock = "none" }
+        if !["resolution", "stream"].contains(copy.features.rotationMode) { copy.features.rotationMode = "resolution" }
         return copy
     }
 
@@ -170,6 +175,9 @@ public struct XASettingsDocument: Equatable, Codable {
         case "connection.remember": return .bool(features.rememberMacs)
         case "connection.lowLatency": return .bool(features.lowLatencyWiFi)
         case "display.preset": return .choice(preset)
+        case "display.follow": return .bool(features.followRotation)
+        case "display.lock": return .choice(features.orientationLock)
+        case "display.mode": return .choice(features.rotationMode)
         case "display.detail":
             let spec = StreamPreset.preset(StreamPreset.ID(rawValue: preset) ?? .balanced)
             return .choice("\(spec.width)×\(spec.height) · \(spec.fps) fps · \(spec.bitrateUSB / 1_000_000) Mb/s USB")
@@ -213,6 +221,9 @@ public struct XASettingsDocument: Equatable, Codable {
         case "connection.remember": if case .bool(let on) = value { features.rememberMacs = on }
         case "connection.lowLatency": if case .bool(let on) = value { features.lowLatencyWiFi = on }
         case "display.preset": if case .choice(let choice) = value { preset = choice }
+        case "display.follow": if case .bool(let on) = value { features.followRotation = on }
+        case "display.lock": if case .choice(let choice) = value { features.orientationLock = choice }
+        case "display.mode": if case .choice(let choice) = value { features.rotationMode = choice }
         case "touch.mode": if case .choice(let choice) = value { features.trackpadMode = choice == "trackpad" }
         case "touch.scroll": if case .bool(let on) = value { twoFingerScroll = on }
         case "touch.momentum": if case .bool(let on) = value { features.scrollInertia = on }
@@ -259,6 +270,9 @@ public enum SettingsSync {
             "windowSnapping": document.features.windowSnapping,
             "autoConnectUSB": document.features.autoConnectUSB,
             "lowLatencyWiFi": document.features.lowLatencyWiFi,
+            "followRotation": document.features.followRotation,
+            "orientationLock": document.features.orientationLock,
+            "rotationMode": document.features.rotationMode,
             "preset": document.preset,
             "audioMode": document.audioMode,
             "audioVolume": document.audioVolume
@@ -280,6 +294,9 @@ public enum SettingsSync {
         if let value = object["windowSnapping"] as? Bool { copy.features.windowSnapping = value }
         if let value = object["autoConnectUSB"] as? Bool { copy.features.autoConnectUSB = value }
         if let value = object["lowLatencyWiFi"] as? Bool { copy.features.lowLatencyWiFi = value }
+        if let value = object["followRotation"] as? Bool { copy.features.followRotation = value }
+        if let value = object["orientationLock"] as? String { copy.features.orientationLock = value }
+        if let value = object["rotationMode"] as? String { copy.features.rotationMode = value }
         if let value = object["preset"] as? String { copy.preset = value }
         if let value = object["audioMode"] as? String { copy.audioMode = value }
         if let value = object["audioVolume"] as? Double { copy.audioVolume = value }

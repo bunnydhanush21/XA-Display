@@ -55,7 +55,8 @@ public enum CoordinateMapper {
             point.x /= request.pixelsPerPoint
             point.y /= request.pixelsPerPoint
         }
-        let rect = contentRect(view: request.viewSizePoints, video: request.videoPixelSize)
+        let displayed = Self.displayedVideoSize(request.videoPixelSize, rotation: request.rotation)
+        let rect = contentRect(view: request.viewSizePoints, video: displayed)
         guard rect.width > 0, rect.height > 0 else { return nil }
         let slack = 0.01
         if point.x < rect.minX - slack || point.y < rect.minY - slack || point.x > rect.maxX + slack || point.y > rect.maxY + slack {
@@ -68,6 +69,16 @@ public enum CoordinateMapper {
             y: (clampedY - rect.minY) / rect.height
         )
         return rotate(normalized, request.rotation)
+    }
+
+    /// 90° and 270° turns show the framebuffer on its side, so letterboxing uses the swapped size.
+    static func displayedVideoSize(_ video: XASize, rotation: XARotation) -> XASize {
+        switch rotation {
+        case .clockwise90, .clockwise270:
+            return XASize(width: video.height, height: video.width)
+        case .identity, .clockwise180:
+            return video
+        }
     }
 
     public static func rotate(_ point: XAPoint, _ rotation: XARotation) -> XAPoint {

@@ -51,6 +51,9 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var batteryTelemetry: Bool
     public var chargeLimit: Bool
     public var lowLatencyWiFi: Bool
+    public var followRotation: Bool
+    public var orientationLock: String
+    public var rotationMode: String
 
     public init(
         requirePairing: Bool = true,
@@ -75,7 +78,10 @@ public struct XAFeatureSettings: Equatable, Codable {
         mediaRemote: Bool = false,
         batteryTelemetry: Bool = true,
         chargeLimit: Bool = false,
-        lowLatencyWiFi: Bool = true
+        lowLatencyWiFi: Bool = true,
+        followRotation: Bool = true,
+        orientationLock: String = "none",
+        rotationMode: String = "resolution"
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -100,6 +106,9 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.batteryTelemetry = batteryTelemetry
         self.chargeLimit = chargeLimit
         self.lowLatencyWiFi = lowLatencyWiFi
+        self.followRotation = followRotation
+        self.orientationLock = orientationLock
+        self.rotationMode = rotationMode
     }
 }
 
@@ -109,6 +118,7 @@ extension XAFeatureSettings {
         case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
         case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
         case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit, lowLatencyWiFi
+        case followRotation, orientationLock, rotationMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -137,6 +147,9 @@ extension XAFeatureSettings {
         batteryTelemetry = try values.decodeIfPresent(Bool.self, forKey: .batteryTelemetry) ?? fallback.batteryTelemetry
         chargeLimit = try values.decodeIfPresent(Bool.self, forKey: .chargeLimit) ?? fallback.chargeLimit
         lowLatencyWiFi = try values.decodeIfPresent(Bool.self, forKey: .lowLatencyWiFi) ?? fallback.lowLatencyWiFi
+        followRotation = try values.decodeIfPresent(Bool.self, forKey: .followRotation) ?? fallback.followRotation
+        orientationLock = try values.decodeIfPresent(String.self, forKey: .orientationLock) ?? fallback.orientationLock
+        rotationMode = try values.decodeIfPresent(String.self, forKey: .rotationMode) ?? fallback.rotationMode
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -164,6 +177,9 @@ extension XAFeatureSettings {
         try values.encode(batteryTelemetry, forKey: .batteryTelemetry)
         try values.encode(chargeLimit, forKey: .chargeLimit)
         try values.encode(lowLatencyWiFi, forKey: .lowLatencyWiFi)
+        try values.encode(followRotation, forKey: .followRotation)
+        try values.encode(orientationLock, forKey: .orientationLock)
+        try values.encode(rotationMode, forKey: .rotationMode)
     }
 }
 
@@ -209,6 +225,7 @@ public enum ThreeFingerAction: Equatable {
 }
 
 public enum ThreeFingerMapper {
+    /// `dx` and `dy` are view points. UIKit already follows the device, so callers do not rotate them again.
     public static func action(dx: Double, dy: Double, minimum: Double = 24) -> ThreeFingerAction? {
         if abs(dx) < minimum && abs(dy) < minimum { return nil }
         if abs(dx) >= abs(dy) {
