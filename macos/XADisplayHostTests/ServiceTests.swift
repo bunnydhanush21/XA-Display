@@ -64,7 +64,7 @@ final class ServiceTests: XCTestCase {
     private func snapshotSettings(_ title: String, named name: String) throws {
         let settings = HostSettingsPanel(document: .defaults)
         settings.select(tab: title)
-        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 480))
+        try writePNG(try XCTUnwrap(settings.window.contentView), named: name, size: NSSize(width: 640, height: 780))
     }
 
     private func snapshotOnboarding(_ step: Int, named name: String) throws {
@@ -142,7 +142,9 @@ final class ServiceTests: XCTestCase {
             field.drawsBackground = false
         }
         if let button = view as? NSButton, button.title.isEmpty == false {
-            let color: NSColor = button.bezelStyle == .rounded ? .black : .white
+            let raw = button.identifier?.rawValue ?? ""
+            let push = button.bezelStyle == .rounded || raw.hasPrefix("about.") || raw.hasPrefix("permissions.") || raw == "security.revoke"
+            let color: NSColor = push ? .black : .white
             button.attributedTitle = NSAttributedString(string: button.title, attributes: [.foregroundColor: color, .font: NSFont.systemFont(ofSize: 13)])
         }
         for child in view.subviews { prepareForSnapshot(child) }

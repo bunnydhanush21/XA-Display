@@ -119,6 +119,7 @@ final class HostSettingsPanel: NSObject {
             return stack
         case "action":
             let button = NSButton(title: row.title, target: self, action: #selector(acted(_:)))
+            button.bezelStyle = .rounded
             button.identifier = NSUserInterfaceItemIdentifier(row.id)
             return button
         default:
