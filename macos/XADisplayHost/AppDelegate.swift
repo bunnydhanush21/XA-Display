@@ -1,9 +1,9 @@
-import AppKit
-import ApplicationServices
+@preconcurrency import AppKit
+@preconcurrency import ApplicationServices
 import XADisplayProtocol
 
 @main
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     private var controller: HostController!
     private var statusItem: NSStatusItem!
     private var onboarding: OnboardingFlow?
@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var phase = ConnectionPhase.idle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        XALog.write(XALog.ui, "host launch")
         NSApp.setActivationPolicy(.accessory)
         controller = HostController()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)

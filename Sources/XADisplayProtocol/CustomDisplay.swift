@@ -1,5 +1,6 @@
 import Foundation
 
+/// CustomDisplaySettings.
 public struct CustomDisplaySettings: Equatable, Codable {
     public var enabled: Bool
     public var width: Int
@@ -37,6 +38,7 @@ public struct CustomDisplaySettings: Equatable, Codable {
     }
 }
 
+/// LogRing.
 public struct LogRing: Equatable {
     public static let capacity = 200
     public private(set) var entries: [String] = []
@@ -61,6 +63,7 @@ public struct LogRing: Equatable {
     }
 }
 
+/// StoredZip.
 public enum StoredZip {
     public static func archive(name: String, data: Data) -> Data {
         let fileName = Array(name.utf8)
@@ -99,6 +102,7 @@ public enum StoredZip {
     }
 }
 
+/// StatsPill.
 public enum StatsPill {
     public static func heightFits(pill: Double, screen: Double) -> Bool {
         screen > 0 && pill / screen <= 0.04

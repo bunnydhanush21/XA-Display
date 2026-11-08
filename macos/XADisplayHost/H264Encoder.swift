@@ -1,10 +1,10 @@
-import CoreMedia
-import Foundation
-import QuartzCore
-import VideoToolbox
+@preconcurrency import CoreMedia
+@preconcurrency import Foundation
+@preconcurrency import QuartzCore
+@preconcurrency import VideoToolbox
 import XADisplayProtocol
 
-final class FrameMark: NSObject {
+final class FrameMark: NSObject, @unchecked Sendable {
     let captureMs: Double
     let started: CFTimeInterval
     let sequence: UInt64
@@ -15,7 +15,7 @@ final class FrameMark: NSObject {
     }
 }
 
-final class H264Encoder {
+final class H264Encoder: @unchecked Sendable {
     var onAccessUnit: ((Data, Bool, UInt64, Double, Double) -> Void)?
     private var session: VTCompressionSession?
     private var gate = InFlightGate()
@@ -28,6 +28,7 @@ final class H264Encoder {
     private let lock = NSLock()
 
     func start(width: Int, height: Int, fps: Int, bitrate: Int, profileLevel: String) -> Bool {
+        XALog.write(XALog.video, "encoder \(width)x\(height) @ \(fps)")
         stop()
         self.width = width
         self.height = height

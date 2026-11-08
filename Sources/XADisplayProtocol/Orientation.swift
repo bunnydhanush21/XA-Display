@@ -1,5 +1,6 @@
 import Foundation
 
+/// OrientationAction.
 public enum OrientationAction: Equatable {
     case ignore
     case reconfigure(width: Int, height: Int)
@@ -7,6 +8,7 @@ public enum OrientationAction: Equatable {
     case rotateStream
 }
 
+/// PortraitModes.
 public enum PortraitModes {
     /// Swapped preset size when it still fits the preset's H.264 level. Nil means letterbox.
     public static func size(preset: StreamPreset.ID) -> XASize? {
@@ -21,6 +23,7 @@ public enum PortraitModes {
     }
 }
 
+/// OrientationPolicy.
 public enum OrientationPolicy {
     public static func resolved(device: String, follow: Bool, lock: String) -> String? {
         guard follow else { return nil }
@@ -46,6 +49,7 @@ public enum OrientationPolicy {
     }
 }
 
+/// OrientationDebounce.
 public struct OrientationDebounce: Equatable {
     public static let seconds = 0.3
     public private(set) var latest: String?
@@ -76,6 +80,7 @@ public struct OrientationDebounce: Equatable {
     }
 }
 
+/// OrientationMapping.
 public enum OrientationMapping {
     /// Extra mapping when the Mac framebuffer stays landscape and the iPad view is portrait.
     public static func rotation(mode: String, devicePortrait: Bool) -> XARotation {

@@ -1,5 +1,6 @@
 import Foundation
 
+/// TouchAssist.
 public struct TouchAssist: Equatable, Codable {
     public var windowChrome: Bool
     public var loupeWhileDragging: Bool

@@ -77,7 +77,7 @@ final class ConnectionOverlay: UIView {
         title.font = UIFont.systemFont(ofSize: 28, weight: .bold)
         title.textColor = .white
         let hint = UILabel()
-        hint.text = "Open XA Display on your Mac"
+        hint.text = "Open XA Display on your Mac. " + PadError.pairing.userMessage
         hint.font = UIFont.systemFont(ofSize: 15)
         hint.textColor = UIColor(white: 0.75, alpha: 1)
         field.placeholder = "Pairing code"

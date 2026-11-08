@@ -1,5 +1,6 @@
 import Foundation
 
+/// LegacyHello.
 public struct LegacyHello: Equatable {
     public var pixelsWide: Int
     public var pixelsHigh: Int
@@ -17,6 +18,7 @@ public struct LegacyHello: Equatable {
     }
 }
 
+/// CursorImage.
 public struct CursorImage: Equatable {
     public var id: String
     public var png: Data
@@ -26,6 +28,7 @@ public struct CursorImage: Equatable {
     }
 }
 
+/// FrameAck.
 public struct FrameAck: Equatable {
     public var seq: UInt64
     public var captureMs: Double
@@ -39,6 +42,7 @@ public struct FrameAck: Equatable {
     }
 }
 
+/// ThermalBucket.
 public enum ThermalBucket: String, Equatable, Codable {
     case nominal, fair, serious, critical, unknown
     public static func from(processInfoRawValue: Int) -> ThermalBucket {
@@ -52,6 +56,7 @@ public enum ThermalBucket: String, Equatable, Codable {
     }
 }
 
+/// HealthReport.
 public struct HealthReport: Equatable {
     public var thermal: ThermalBucket
     public var batteryFraction: Double?
@@ -67,6 +72,7 @@ public struct HealthReport: Equatable {
     }
 }
 
+/// StreamAnnouncement.
 public struct StreamAnnouncement: Equatable {
     public var preset: String
     public var width: Int
@@ -84,6 +90,7 @@ public struct StreamAnnouncement: Equatable {
     }
 }
 
+/// XAMetrics.
 public struct XAMetrics: Equatable {
     public var captureToAckMs: Double?
     public var encodeMs: Double?
@@ -93,6 +100,7 @@ public struct XAMetrics: Equatable {
     }
 }
 
+/// VideoControlMessage.
 public enum VideoControlMessage: Equatable {
     case hello(LegacyHello)
     case touch(phase: String, x: Double, y: Double)
@@ -292,6 +300,7 @@ public enum VideoControlMessage: Equatable {
     }
 }
 
+/// CursorCache.
 public struct CursorCache {
     public var maxEntries: Int
     public var maxBytes: Int

@@ -1,5 +1,6 @@
 import Foundation
 
+/// ProtocolError.
 public enum ProtocolError: Error, Equatable {
     case truncated
     case badVersion
@@ -10,6 +11,7 @@ public enum ProtocolError: Error, Equatable {
     case badEnum
 }
 
+/// ByteWriter.
 public struct ByteWriter {
     public private(set) var data = Data()
     public init() {}
@@ -31,6 +33,7 @@ public struct ByteWriter {
     }
 }
 
+/// ByteReader.
 public struct ByteReader {
     public let data: Data
     public var offset = 0

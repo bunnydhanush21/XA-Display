@@ -1,5 +1,5 @@
-import Darwin
-import Foundation
+@preconcurrency import Darwin
+@preconcurrency import Foundation
 import XADisplayProtocol
 
 struct UsbmuxDevice {
@@ -36,6 +36,7 @@ enum UsbmuxClient {
     }
 
     static func connect(deviceID: Int, port: UInt16) -> Int32? {
+        XALog.write(XALog.net, "usbmux connect")
         let candidates = UsbmuxPort.candidates(port)
         var index = 0
         while index < candidates.count {
@@ -146,7 +147,7 @@ enum UsbmuxClient {
     }
 }
 
-final class FDStream {
+final class FDStream: @unchecked Sendable {
     let fd: Int32
     var onData: ((Data) -> Void)?
     var onClose: (() -> Void)?

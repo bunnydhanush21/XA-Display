@@ -1,5 +1,6 @@
 import Foundation
 
+/// SavedMac.
 public struct SavedMac: Equatable, Codable {
     public var id: String
     public var name: String
@@ -14,6 +15,7 @@ public struct SavedMac: Equatable, Codable {
     }
 }
 
+/// MacDirectory.
 public struct MacDirectory: Equatable, Codable {
     public var macs: [SavedMac]
     public var lastID: String?
@@ -50,6 +52,7 @@ public struct MacDirectory: Equatable, Codable {
     }
 }
 
+/// LaunchRoute.
 public enum LaunchRoute: Equatable {
     case resume(SavedMac)
     case picker

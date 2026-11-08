@@ -1,5 +1,6 @@
 import Foundation
 
+/// AudioRouteMode.
 public enum AudioRouteMode: String, Codable, Equatable {
     /// Every app except this host (`excludesCurrentProcessAudio`).
     case all
@@ -9,12 +10,14 @@ public enum AudioRouteMode: String, Codable, Equatable {
     case displayApps
 }
 
+/// AudioFilterChoice.
 public enum AudioFilterChoice: Equatable {
     /// No include-list. The display filter still excludes this process.
     case allApplications
     case includingBundles([String])
 }
 
+/// AudioRoutePlanner.
 public enum AudioRoutePlanner {
     public static func choice(mode: AudioRouteMode, selectedBundleIDs: [String], bundlesOnDisplay: [String]) -> AudioFilterChoice {
         switch mode {
@@ -42,6 +45,7 @@ public enum AudioRoutePlanner {
     }
 }
 
+/// AudioSyncMath.
 public enum AudioSyncMath {
     /// Hold about three AAC packets (1024 samples at 48 kHz is ~21 ms).
     public static let targetJitterMs = 60.0
@@ -63,6 +67,7 @@ public enum AudioSyncMath {
         hostCaptureMs + offsetClientMinusHost + jitterMs
     }
 
+    /// Decision.
     public enum Decision: Equatable {
         case play
         case hold
@@ -78,6 +83,7 @@ public enum AudioSyncMath {
     }
 }
 
+/// AudioPacketSlot.
 public struct AudioPacketSlot: Equatable {
     public var hostMs: Double
     public var payload: Data
@@ -121,6 +127,7 @@ public struct AudioJitterQueue: Equatable {
     }
 }
 
+/// AACPacket.
 public enum AACPacket {
     /// AAC-LC payload: u16 cookie length, cookie, then one access unit. Both pieces stay inside the 8 KB audio cap.
     public static func pack(cookie: Data, frame: Data) -> Data? {
@@ -143,6 +150,7 @@ public enum AACPacket {
     }
 }
 
+/// AudioVolume.
 public enum AudioVolume {
     /// Little-endian signed 16-bit samples, the layout XA sends for PCM.
     public static func scalePCM16(pcm: Data, volume: Double) -> Data {

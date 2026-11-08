@@ -1,10 +1,12 @@
 import Foundation
 
+/// PointSpace.
 public enum PointSpace: Equatable {
     case viewPoints
     case pixels
 }
 
+/// XARotation.
 public enum XARotation: Int, Equatable {
     case identity = 0
     case clockwise90 = 90
@@ -12,6 +14,7 @@ public enum XARotation: Int, Equatable {
     case clockwise270 = 270
 }
 
+/// MapRequest.
 public struct MapRequest: Equatable {
     public var point: XAPoint
     public var pointSpace: PointSpace
@@ -29,6 +32,7 @@ public struct MapRequest: Equatable {
     }
 }
 
+/// CoordinateMapper.
 public enum CoordinateMapper {
     public static func contentRect(view: XASize, video: XASize) -> XARect {
         guard video.width > 0, video.height > 0, view.width > 0, view.height > 0 else {
@@ -110,6 +114,7 @@ public enum CoordinateMapper {
     }
 }
 
+/// ScrollWheelSign.
 public enum ScrollWheelSign {
     /// Positive `contentDownPixels` means the document should move down (fingers moved down).
     /// CGEvent pixel wheel1 is positive when content moves up, so the sign flips.
@@ -121,6 +126,7 @@ public enum ScrollWheelSign {
     }
 }
 
+/// InertiaStep.
 public struct InertiaStep: Equatable {
     public var dx: Double
     public var dy: Double
@@ -130,6 +136,7 @@ public struct InertiaStep: Equatable {
     }
 }
 
+/// ScrollInertia.
 public enum ScrollInertia {
     public static func steps(velocityX: Double, velocityY: Double, friction: Double = 0.86, minSpeed: Double = 0.5, maxSteps: Int = 24) -> [InertiaStep] {
         guard friction > 0, friction < 1, maxSteps > 0 else { return [] }
@@ -146,7 +153,9 @@ public enum ScrollInertia {
     }
 }
 
+/// TouchSample.
 public struct TouchSample: Equatable {
+    /// Phase.
     public enum Phase: Equatable { case began, moved, ended, cancelled }
     public var time: Double
     public var phase: Phase
@@ -160,7 +169,9 @@ public struct TouchSample: Equatable {
     }
 }
 
+/// FingerGesture.
 public enum FingerGesture: Equatable {
+    /// DragPhase.
     public enum DragPhase: Equatable { case began, moved, ended }
     case tap(XAPoint)
     case doubleTap(XAPoint)
@@ -173,6 +184,7 @@ public enum FingerGesture: Equatable {
     case relativeClick(XAMouseButton)
 }
 
+/// DirectTouchInterpreter.
 public struct DirectTouchInterpreter {
     public var slop: Double
     public var doubleTapWindow: Double
@@ -277,6 +289,7 @@ public struct DirectTouchInterpreter {
     }
 }
 
+/// InputIntent.
 public enum InputIntent: Equatable {
     case mouse(phase: XAMousePhase, button: XAMouseButton, x: Double, y: Double, space: XAPointerSpace)
     case scroll(dx: Double, dy: Double, inertia: Bool)
@@ -285,6 +298,7 @@ public enum InputIntent: Equatable {
     case release
 }
 
+/// GestureMapper.
 public enum GestureMapper {
     public static func intents(for gesture: FingerGesture) -> [InputIntent] {
         switch gesture {
@@ -322,6 +336,7 @@ public enum GestureMapper {
     }
 }
 
+/// TrackpadAcceleration.
 public struct TrackpadAcceleration {
     public static func apply(dx: Double, dy: Double, precision: Bool) -> XAPoint {
         let gain = precision ? 0.35 : 1.15
@@ -331,6 +346,7 @@ public struct TrackpadAcceleration {
     }
 }
 
+/// TrackpadCursor.
 public struct TrackpadCursor: Equatable {
     public var normalized: XAPoint
     public init(normalized: XAPoint = XAPoint(x: 0.5, y: 0.5)) {
@@ -340,55 +356,5 @@ public struct TrackpadCursor: Equatable {
         normalized.x = min(1, max(0, normalized.x + normalizedDelta.x))
         normalized.y = min(1, max(0, normalized.y + normalizedDelta.y))
         return normalized
-    }
-}
-
-public struct KeyShortcut: Equatable {
-    public var input: String
-    public var modifiers: XAModifierMask
-    public init(input: String, modifiers: XAModifierMask) {
-        self.input = input
-        self.modifiers = modifiers
-    }
-
-    public func intents() -> [InputIntent] {
-        guard let code = Self.keyCode(for: input) else { return [] }
-        return [
-            .key(phase: .down, keyCode: code, modifiers: modifiers, text: ""),
-            .key(phase: .up, keyCode: code, modifiers: modifiers, text: "")
-        ]
-    }
-
-    public static func keyCode(for input: String) -> UInt16? {
-        switch input {
-        case "\u{1b}": return MacKeyCode.escape
-        case "UIKeyInputUpArrow": return MacKeyCode.upArrow
-        case "UIKeyInputDownArrow": return MacKeyCode.downArrow
-        case "UIKeyInputLeftArrow": return MacKeyCode.leftArrow
-        case "UIKeyInputRightArrow": return MacKeyCode.rightArrow
-        case "\t": return MacKeyCode.tab
-        case "\r", "\n": return MacKeyCode.return
-        case "=": return 24
-        case "-": return 27
-        case "UIKeyInputF4": return 118
-        default:
-            guard input.count == 1, let character = input.first else { return nil }
-            return MacKeyCode.letter(character) ?? MacKeyCode.digit(character)
-        }
-    }
-}
-
-public enum TextEntry {
-    public static func insert(_ text: String) -> [InputIntent] {
-        text.map { character in
-            let code = MacKeyCode.letter(character) ?? MacKeyCode.digit(character) ?? 0
-            return .key(phase: .typed, keyCode: code, modifiers: [], text: String(character))
-        }
-    }
-    public static func delete() -> [InputIntent] {
-        [
-            .key(phase: .down, keyCode: MacKeyCode.delete, modifiers: [], text: ""),
-            .key(phase: .up, keyCode: MacKeyCode.delete, modifiers: [], text: "")
-        ]
     }
 }

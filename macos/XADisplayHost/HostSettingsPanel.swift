@@ -1,7 +1,7 @@
-import AppKit
+@preconcurrency import AppKit
 import XADisplayProtocol
 
-final class HostSettingsPanel: NSObject {
+final class HostSettingsPanel: NSObject, @unchecked Sendable {
     let window: NSWindow
     var onChange: ((XASettingsDocument) -> Void)?
     var onRevoke: (() -> Void)?

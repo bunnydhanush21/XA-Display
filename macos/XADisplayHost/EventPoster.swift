@@ -1,8 +1,12 @@
-import CoreGraphics
-import Foundation
+@preconcurrency import CoreGraphics
+@preconcurrency import Foundation
 import XADisplayProtocol
 
-final class EventPoster {
+final class EventPoster: @unchecked Sendable {
+    init() {
+        XALog.write(XALog.input, "event poster ready")
+    }
+
     func post(_ event: PostedEvent) {
         switch event {
         case .mouse(let phase, let button, let global):

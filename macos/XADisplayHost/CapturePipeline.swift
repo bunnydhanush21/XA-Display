@@ -1,7 +1,7 @@
-import AVFoundation
-import CoreMedia
-import Foundation
-import ScreenCaptureKit
+@preconcurrency import AVFoundation
+@preconcurrency import CoreMedia
+@preconcurrency import Foundation
+@preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 
 enum CaptureError: Error {
@@ -9,7 +9,7 @@ enum CaptureError: Error {
     case encoderFailed
 }
 
-final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
+final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     var onAccessUnit: ((Data, Bool, UInt64, Double, Double) -> Void)?
     var onPCM: ((Data) -> Void)?
     var onLog: ((String) -> Void)?
@@ -19,6 +19,7 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
     private var audioEnabled = false
 
     func start(displayID: CGDirectDisplayID, width: Int, height: Int, fps: Int, bitrate: Int, profileLevel: String, audio: Bool) async throws {
+        XALog.write(XALog.video, "capture start \(width)x\(height)")
         audioEnabled = audio
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else {

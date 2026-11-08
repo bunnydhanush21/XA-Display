@@ -1,6 +1,7 @@
 import Foundation
 
-public struct FrameLimits: Equatable {
+/// FrameLimits.
+public struct FrameLimits: Equatable, Sendable {
     public var maxPayload: Int
     public var maxBuffer: Int
     public var partialTimeout: Double
@@ -19,6 +20,7 @@ public struct FrameLimits: Equatable {
     public static let input = FrameLimits(maxPayload: 262_144, maxBuffer: 524_288, maxFramesPerAppend: 32)
 }
 
+/// FrameParseError.
 public enum FrameParseError: Equatable, Error {
     case payloadTooLarge(declared: Int, max: Int)
     case bufferTooLarge(Int)
@@ -26,6 +28,7 @@ public enum FrameParseError: Equatable, Error {
     case emptyPayload
 }
 
+/// FrameParseOutcome.
 public enum FrameParseOutcome: Equatable {
     case ok([Data])
     case failed(FrameParseError)
@@ -117,6 +120,7 @@ public struct FrameParser {
     }
 }
 
+/// LengthPrefixedFraming.
 public enum LengthPrefixedFraming {
     public static func encode(_ payload: Data) -> Data {
         var header = UInt32(payload.count).bigEndian
@@ -127,6 +131,7 @@ public enum LengthPrefixedFraming {
     }
 }
 
+/// PayloadKind.
 public enum PayloadKind: Equatable {
     case controlJSON
     case videoAccessUnit
@@ -144,6 +149,7 @@ public enum PayloadKind: Equatable {
     }
 }
 
+/// NALUnit.
 public struct NALUnit: Equatable {
     public var data: Data
     public init(data: Data) { self.data = data }
@@ -153,6 +159,7 @@ public struct NALUnit: Equatable {
     }
 }
 
+/// TimingPrefix.
 public struct TimingPrefix: Equatable {
     public var seq: UInt64
     public var captureMs: Double
@@ -164,6 +171,7 @@ public struct TimingPrefix: Equatable {
     }
 }
 
+/// AnnexBAccessUnit.
 public struct AnnexBAccessUnit: Equatable {
     public var timing: TimingPrefix?
     public var nalus: [NALUnit]
@@ -179,6 +187,7 @@ public struct AnnexBAccessUnit: Equatable {
     }
 }
 
+/// AnnexB.
 public enum AnnexB {
     public static let maxNALUs = 64
     public static let maxTimingPrefix = 4_096

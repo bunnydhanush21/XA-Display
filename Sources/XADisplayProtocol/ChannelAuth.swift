@@ -1,9 +1,11 @@
 import Foundation
 
+/// XAChannel.
 public enum XAChannel: String, Equatable {
     case video, audio, clipboard, input
 }
 
+/// ChannelAuth.
 public enum ChannelAuth {
     public static func proof(token: String, channel: XAChannel, nonce: String) -> String {
         let key = HMACSHA256.digest(key: Array("xa-display-session-v1".utf8), message: Array(PairingGate.normalize(token).utf8))
@@ -26,6 +28,7 @@ public enum ChannelAuth {
     }
 }
 
+/// ChannelGate.
 public struct ChannelGate: Equatable {
     public var requireAuth: Bool
     public private(set) var video = false
@@ -58,8 +61,10 @@ public struct ChannelGate: Equatable {
     }
 }
 
-public enum XAError: Equatable, Error {
-    public enum Permission: String, Equatable {
+/// XAError.
+public enum XAError: Equatable, Error, Sendable {
+    /// Permission.
+    public enum Permission: String, Equatable, Sendable {
         case screenRecording, accessibility, localNetwork
     }
 

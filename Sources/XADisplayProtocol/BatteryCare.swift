@@ -1,5 +1,6 @@
 import Foundation
 
+/// RawBatteryProperties.
 public struct RawBatteryProperties: Equatable {
     public var currentCapacity: Double?
     public var maxCapacity: Double?
@@ -46,6 +47,7 @@ public struct RawBatteryProperties: Equatable {
     }
 }
 
+/// BatterySample.
 public struct BatterySample: Equatable {
     public var levelPercent: Double?
     public var cycleCount: Int?
@@ -86,6 +88,7 @@ public struct BatterySample: Equatable {
     }
 }
 
+/// BatteryTemperature.
 public enum BatteryTemperature {
     /// Registry temperature is often centi-degrees C. A value already in a human range is left as degrees.
     /// Out-of-range numbers become nil so the UI can say unavailable instead of 0.
@@ -101,6 +104,7 @@ public enum BatteryTemperature {
     }
 }
 
+/// BatteryHealth.
 public enum BatteryHealth {
     public static func fraction(nominal: Double?, appleRawMax: Double?, design: Double?) -> Double? {
         guard let design = design, design > 0, design.isFinite else { return nil }
@@ -112,6 +116,7 @@ public enum BatteryHealth {
     }
 }
 
+/// BatteryElectrical.
 public enum BatteryElectrical {
     public static func milliamps(_ raw: Double?) -> Int? {
         guard let raw = raw, raw.isFinite, raw >= -8_000, raw <= 8_000 else { return nil }
@@ -126,6 +131,7 @@ public enum BatteryElectrical {
     }
 }
 
+/// BatteryReading.
 public enum BatteryReading {
     public static func sample(raw: RawBatteryProperties, deviceLevel: Double?, deviceCharging: Bool?, cycleCount: Int?) -> BatterySample {
         var sample = BatterySample(source: "registry")
@@ -157,6 +163,7 @@ public enum BatteryReading {
     }
 }
 
+/// BatteryDisplay.
 public enum BatteryDisplay {
     public static let dimAtCelsius = 35.0
 
@@ -212,6 +219,7 @@ public enum BatteryDisplay {
     }
 }
 
+/// ChargeLimitConfig.
 public struct ChargeLimitConfig: Equatable, Codable {
     public var stopAtPercent: Double
     public var resumeAtPercent: Double
@@ -230,12 +238,14 @@ public struct ChargeLimitConfig: Equatable, Codable {
     }
 }
 
+/// ChargeCommand.
 public enum ChargeCommand: Equatable {
     case none
     case stopCharging
     case resumeCharging
 }
 
+/// WatchdogTrigger.
 public enum WatchdogTrigger: Equatable {
     case none
     case staleTelemetry
@@ -245,6 +255,7 @@ public enum WatchdogTrigger: Equatable {
     case temperature
 }
 
+/// WatchdogInput.
 public struct WatchdogInput: Equatable {
     public var telemetryAgeSeconds: Double?
     public var readFailed: Bool
@@ -276,6 +287,7 @@ public struct WatchdogInput: Equatable {
     }
 }
 
+/// ChargeWatchdog.
 public enum ChargeWatchdog {
     public static let staleSeconds = 30.0
     public static let lowBatteryPercent = 20.0
@@ -297,6 +309,7 @@ public enum ChargeWatchdog {
     }
 }
 
+/// ChargeSession.
 public struct ChargeSession: Equatable {
     public private(set) var paused = false
 
@@ -325,6 +338,7 @@ public struct ChargeSession: Equatable {
     }
 }
 
+/// BatteryCareOp.
 public enum BatteryCareOp: Equatable {
     case status
     case setCharging(Bool)
@@ -342,12 +356,14 @@ public enum BatteryCareOp: Equatable {
     }
 }
 
+/// BatteryCarePaths.
 public enum BatteryCarePaths {
     public static let killSwitch = "/var/mobile/Library/XADisplay/battery-care.disabled"
     public static let token = "/var/mobile/Library/XADisplay/battery-care.token"
     public static let socket = "/var/run/xadisplay-battery.sock"
 }
 
+/// HeatResponse.
 public enum HeatResponse {
     public static let touchesThermalControls = false
     public static func bitrateFactor(temperatureC: Double?) -> Double {

@@ -1,28 +1,33 @@
 import Foundation
 
+/// XAMousePhase.
 public enum XAMousePhase: UInt8, Equatable {
     case move = 0
     case down = 1
     case up = 2
 }
 
+/// XAMouseButton.
 public enum XAMouseButton: UInt8, Equatable, Hashable, CaseIterable {
     case left = 0
     case right = 1
     case middle = 2
 }
 
+/// XAPointerSpace.
 public enum XAPointerSpace: UInt8, Equatable {
     case absoluteNormalized = 0
     case relativeNormalized = 1
 }
 
+/// XAKeyPhase.
 public enum XAKeyPhase: UInt8, Equatable {
     case down = 0
     case up = 1
     case typed = 2
 }
 
+/// XAHello.
 public struct XAHello: Equatable {
     public static let flagRequiresPairing: UInt8 = 1
     public var protocolVersion: UInt16
@@ -40,6 +45,7 @@ public struct XAHello: Equatable {
     }
 }
 
+/// XAHelloAck.
 public struct XAHelloAck: Equatable {
     public var accepted: Bool
     public var session: UInt32
@@ -51,6 +57,7 @@ public struct XAHelloAck: Equatable {
     }
 }
 
+/// XAMouse.
 public struct XAMouse: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -70,6 +77,7 @@ public struct XAMouse: Equatable {
     }
 }
 
+/// XAScroll.
 public struct XAScroll: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -85,6 +93,7 @@ public struct XAScroll: Equatable {
     }
 }
 
+/// XAKey.
 public struct XAKey: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -102,6 +111,7 @@ public struct XAKey: Equatable {
     }
 }
 
+/// XAModifier.
 public struct XAModifier: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -115,6 +125,7 @@ public struct XAModifier: Equatable {
     }
 }
 
+/// XAPing.
 public struct XAPing: Equatable {
     public var session: UInt32
     public var clientUnixMs: UInt64
@@ -124,6 +135,7 @@ public struct XAPing: Equatable {
     }
 }
 
+/// XAPong.
 public struct XAPong: Equatable {
     public var session: UInt32
     public var clientUnixMs: UInt64
@@ -135,6 +147,7 @@ public struct XAPong: Equatable {
     }
 }
 
+/// WindowAction.
 public enum WindowAction: UInt8, Equatable, Codable {
     case fill = 1
     case snapLeft = 2
@@ -160,11 +173,13 @@ public enum WindowAction: UInt8, Equatable, Codable {
     case controlCenter = 22
 }
 
+/// ClipboardKind.
 public enum ClipboardKind: UInt8, Equatable {
     case text = 1
     case imagePNG = 2
 }
 
+/// XAClipboard.
 public struct XAClipboard: Equatable {
     public static let maxTextBytes = 12_000
     public static let maxImageBytes = 200_000
@@ -185,6 +200,7 @@ public struct XAClipboard: Equatable {
     }
 }
 
+/// XAWindowCommand.
 public struct XAWindowCommand: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -196,11 +212,13 @@ public struct XAWindowCommand: Equatable {
     }
 }
 
+/// XAAudioCodec.
 public enum XAAudioCodec: UInt8, Equatable {
     case pcm = 0
     case aac = 1
 }
 
+/// XAAudio.
 public struct XAAudio: Equatable {
     public static let maxBytes = 8_192
     /// AAC-LC uses 1024-sample packets. At 48 kHz that is about 21 ms, plus the network hop.
@@ -222,11 +240,13 @@ public struct XAAudio: Equatable {
     }
 }
 
+/// ChromeOp.
 public enum ChromeOp: UInt8, Equatable {
     case resize = 1
     case menu = 2
 }
 
+/// XAChromeCommand.
 public struct XAChromeCommand: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -246,6 +266,7 @@ public struct XAChromeCommand: Equatable {
     }
 }
 
+/// XAPresetCommand.
 public struct XAPresetCommand: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -257,6 +278,7 @@ public struct XAPresetCommand: Equatable {
     }
 }
 
+/// XARelease.
 public struct XARelease: Equatable {
     public var session: UInt32
     public var seq: UInt32

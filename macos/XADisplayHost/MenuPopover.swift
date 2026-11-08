@@ -1,7 +1,7 @@
-import AppKit
+@preconcurrency import AppKit
 import XADisplayProtocol
 
-final class MenuPopoverController: NSObject {
+final class MenuPopoverController: NSObject, @unchecked Sendable {
     let popover = NSPopover()
     var onConnect: (() -> Void)?
     var onDisconnect: (() -> Void)?
@@ -72,6 +72,7 @@ final class MenuPopoverController: NSObject {
     }
 
     func refresh(_ snapshot: MenuSnapshot) {
+        XALog.write(XALog.ui, "menu refresh")
         let link = snapshot.transport.isEmpty ? "waiting" : snapshot.transport
         header.stringValue = snapshot.peerName.isEmpty ? "No iPad yet" : snapshot.peerName
         stats.stringValue = "\(link)   \(snapshot.latency)   \(snapshot.fps)"

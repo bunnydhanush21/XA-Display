@@ -1,7 +1,7 @@
-import AppKit
-import ApplicationServices
+@preconcurrency import AppKit
+@preconcurrency import ApplicationServices
 
-final class OnboardingFlow: NSObject {
+final class OnboardingFlow: NSObject, @unchecked Sendable {
     private let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: 520, height: 360),
         styleMask: [.titled, .closable],
@@ -39,6 +39,7 @@ final class OnboardingFlow: NSObject {
     }
 
     func show() {
+        XALog.write(XALog.ui, "onboarding")
         step = 0
         render()
         window.center()

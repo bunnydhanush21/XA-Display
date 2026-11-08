@@ -81,6 +81,7 @@ private func release(_ service: UInt32) { IOKitDynamically.release(service) }
 
 enum BatteryCareClient {
     static func send(_ operation: BatteryCareOp) -> Bool {
+        XALog.write(XALog.net, "battery care op")
         guard let token = try? String(contentsOfFile: BatteryCarePaths.token, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
             !token.isEmpty
         else { return false }

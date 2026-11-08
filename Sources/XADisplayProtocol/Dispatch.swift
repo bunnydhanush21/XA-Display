@@ -1,15 +1,18 @@
 import Foundation
 
+/// PairingDecision.
 public enum PairingDecision: Equatable {
     case accept
     case reject(PairingRejectReason)
 }
 
+/// PairingRejectReason.
 public enum PairingRejectReason: Equatable {
     case empty
     case mismatch
 }
 
+/// PairingGate.
 public enum PairingGate {
     public static func evaluate(presented: String, expected: String) -> PairingDecision {
         let presented = normalize(presented)
@@ -39,6 +42,7 @@ public enum PairingGate {
     }
 }
 
+/// PairingToken.
 public enum PairingToken {
     public static let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
@@ -59,6 +63,7 @@ public enum PairingToken {
     }
 }
 
+/// RateLimiter.
 public struct RateLimiter {
     public var maxPerSecond: Int
     private var windowStart: Double?
@@ -80,10 +85,12 @@ public struct RateLimiter {
     }
 }
 
+/// PostedMousePhase.
 public enum PostedMousePhase: Equatable {
     case move, down, up, drag
 }
 
+/// PostedEvent.
 public enum PostedEvent: Equatable {
     case mouse(phase: PostedMousePhase, button: XAMouseButton, global: XAPoint)
     case scroll(dxPoints: Double, dyPoints: Double)
@@ -95,6 +102,7 @@ public enum PostedEvent: Equatable {
     case media(MediaAction, scrub: Double)
 }
 
+/// DispatchOutcome.
 public enum DispatchOutcome: Equatable {
     case post([PostedEvent])
     case reply(XAInputMessage)

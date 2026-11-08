@@ -1,5 +1,6 @@
 import Foundation
 
+/// UDPVideoPacket.
 public struct UDPVideoPacket: Equatable {
     public static let magic: UInt8 = 0xA5
     public static let version: UInt8 = 1
@@ -77,6 +78,7 @@ public struct UDPVideoPacket: Equatable {
     }
 }
 
+/// UDPVideoPacketizer.
 public enum UDPVideoPacketizer {
     public static func packetize(frame: Data, frameID: UInt16, nextSequence: inout UInt16, keyframe: Bool) -> [UDPVideoPacket] {
         guard !frame.isEmpty else { return [] }
@@ -114,6 +116,7 @@ public enum UDPVideoPacketizer {
     }
 }
 
+/// UDPReassembler.
 public struct UDPReassembler {
     private struct Buffer {
         var count: Int
@@ -207,6 +210,7 @@ public struct UDPReassembler {
     }
 }
 
+/// JitterEstimate.
 public struct JitterEstimate: Equatable {
     public private(set) var valueMs: Double = 0
     private var last: Double?
@@ -222,6 +226,7 @@ public struct JitterEstimate: Equatable {
     }
 }
 
+/// WiFiLinkTune.
 public struct WiFiLinkTune: Equatable {
     public var bitrate: Int
     public var preset: StreamPreset.ID
@@ -266,12 +271,14 @@ public struct WiFiLinkTuner: Equatable {
     }
 }
 
+/// WiFiPowerSave.
 public enum WiFiPowerSave {
     /// iOS does not offer a public switch for 802.11 power save. A short keepalive is the avoidance we can do.
     public static let publicAPIDisablesPowerSave = false
     public static let keepaliveSeconds = 0.2
 }
 
+/// LowLatencyEncoderRequest.
 public enum LowLatencyEncoderRequest {
     public static let maxFrameDelayCount = 0
     public static let allowBFrames = false

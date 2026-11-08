@@ -1,5 +1,6 @@
 import Foundation
 
+/// GestureTuning.
 public struct GestureTuning: Equatable, Codable {
     public var slop: Double
     public var doubleTapWindow: Double
@@ -193,6 +194,7 @@ extension XAFeatureSettings {
     }
 }
 
+/// Magnifier.
 public struct Magnifier: Equatable {
     public var scale: Double
     public var center: XAPoint
@@ -230,10 +232,12 @@ public struct Magnifier: Equatable {
     }
 }
 
+/// ThreeFingerAction.
 public enum ThreeFingerAction: Equatable {
     case undo, redo, copy, paste
 }
 
+/// ThreeFingerMapper.
 public enum ThreeFingerMapper {
     /// `dx` and `dy` are view points. UIKit already follows the device, so callers do not rotate them again.
     public static func action(dx: Double, dy: Double, minimum: Double = 24) -> ThreeFingerAction? {
@@ -258,7 +262,8 @@ public enum ThreeFingerMapper {
     }
 }
 
-public struct CommandStripItem: Equatable, Codable {
+/// CommandStripItem.
+public struct CommandStripItem: Equatable, Codable, Sendable {
     public var id: String
     public var title: String
     public var input: String
@@ -296,10 +301,12 @@ public struct CommandStripItem: Equatable, Codable {
     }
 }
 
+/// SnapZone.
 public enum SnapZone: Equatable {
     case leftHalf, rightHalf, full, mainDisplay
 }
 
+/// WindowSnap.
 public enum WindowSnap {
     public static func frame(zone: SnapZone, virtualDisplay: XARect, mainDisplay: XARect) -> XARect {
         switch zone {
@@ -320,6 +327,7 @@ public enum WindowSnap {
     }
 }
 
+/// TouchscreenGesture.
 public enum TouchscreenGesture: Equatable {
     case fillWindow
     case snap(SnapZone)
@@ -327,6 +335,7 @@ public enum TouchscreenGesture: Equatable {
     case precisionOverlay
 }
 
+/// TouchGestureRouter.
 public enum TouchGestureRouter {
     /// Screen position alone is not a title bar. Window actions use `WindowChrome`.
     public static func titleBarFill(enabled: Bool, normalizedY: Double, tapCount: Int, topBand: Double = 0.08) -> Bool {
@@ -343,6 +352,7 @@ public enum TouchGestureRouter {
     }
 }
 
+/// SavedDisplayPreset.
 public struct SavedDisplayPreset: Equatable, Codable {
     public var name: String
     public var preset: StreamPreset.ID
@@ -354,6 +364,7 @@ public struct SavedDisplayPreset: Equatable, Codable {
     }
 }
 
+/// PresetLibrary.
 public struct PresetLibrary {
     public var enabled: Bool
     public private(set) var items: [SavedDisplayPreset]
@@ -369,21 +380,5 @@ public struct PresetLibrary {
     public func named(_ name: String) -> SavedDisplayPreset? {
         guard enabled else { return nil }
         return items.first { $0.name == name }
-    }
-}
-
-public enum AudioPolicy {
-    public static func accept(enabled: Bool, armed: Bool, byteCount: Int, channels: Int, codec: XAAudioCodec = .pcm) -> Bool {
-        guard enabled, armed, channels >= 1, channels <= 2, byteCount > 0, byteCount <= XAAudio.maxBytes else { return false }
-        if codec == .pcm {
-            return byteCount % (2 * channels) == 0
-        }
-        return true
-    }
-}
-
-public enum ClipboardPolicy {
-    public static func accept(enabled: Bool, armed: Bool, utf8Count: Int) -> Bool {
-        enabled && armed && utf8Count <= XAClipboard.maxBytes
     }
 }

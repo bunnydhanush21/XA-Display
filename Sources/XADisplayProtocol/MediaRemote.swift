@@ -1,5 +1,6 @@
 import Foundation
 
+/// MediaAction.
 public enum MediaAction: UInt8, Equatable, Codable {
     case playPause = 1
     case next = 2
@@ -34,6 +35,7 @@ public enum MediaKeyMap {
     }
 }
 
+/// XAMediaCommand.
 public struct XAMediaCommand: Equatable {
     public var session: UInt32
     public var seq: UInt32
@@ -49,6 +51,7 @@ public struct XAMediaCommand: Equatable {
     }
 }
 
+/// XANowPlaying.
 public struct XANowPlaying: Equatable {
     public static let unknownTime = -1.0
     public static let maxArtworkBytes = 65_536
@@ -73,6 +76,7 @@ public struct XANowPlaying: Equatable {
     public var hasPublicMetadata: Bool { !title.isEmpty || !artworkPNG.isEmpty }
 }
 
+/// NowPlayingSource.
 public enum NowPlayingSource {
     /// No public API reads another app's now-playing item. The panel shows the frontmost app name.
     public static let usesPrivateMediaRemote = false

@@ -1,13 +1,15 @@
 import Foundation
 
-public enum ConnectionFailure: Equatable {
+/// ConnectionFailure.
+public enum ConnectionFailure: Equatable, Sendable {
     case transport
     case pairing
     case permission
     case timedOut
 }
 
-public enum ConnectionPhase: Equatable {
+/// ConnectionPhase.
+public enum ConnectionPhase: Equatable, Sendable {
     case idle
     case discovering
     case connecting
@@ -17,7 +19,8 @@ public enum ConnectionPhase: Equatable {
     case failed(ConnectionFailure)
 }
 
-public enum ConnectionEvent: Equatable {
+/// ConnectionEvent.
+public enum ConnectionEvent: Equatable, Sendable {
     case startDiscovery
     case beginConnect
     case transportReady
@@ -29,6 +32,7 @@ public enum ConnectionEvent: Equatable {
     case retry
 }
 
+/// ConnectionMachine.
 public enum ConnectionMachine {
     public static func reduce(_ phase: ConnectionPhase, _ event: ConnectionEvent) -> ConnectionPhase {
         switch event {
@@ -61,6 +65,7 @@ public enum ConnectionMachine {
     }
 }
 
+/// MenuBadge.
 public enum MenuBadge: Equatable {
     public static func name(for phase: ConnectionPhase) -> String {
         switch phase {
@@ -72,7 +77,8 @@ public enum MenuBadge: Equatable {
     }
 }
 
-public struct MenuSnapshot: Equatable {
+/// MenuSnapshot.
+public struct MenuSnapshot: Equatable, Sendable {
     public var phase: ConnectionPhase
     public var peerName: String
     public var transport: String

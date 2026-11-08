@@ -1,11 +1,11 @@
-import AVFoundation
-import CoreMedia
-import Foundation
-import ScreenCaptureKit
+@preconcurrency import AVFoundation
+@preconcurrency import CoreMedia
+@preconcurrency import Foundation
+@preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 
 /// Separate from the video stream so app audio filters do not crop the picture.
-final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
+final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     var onPacket: ((XAAudio) -> Void)?
     var onLog: ((String) -> Void)?
     private var stream: SCStream?
@@ -14,6 +14,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     private var running = false
 
     func start(displayID: CGDirectDisplayID, choice: AudioFilterChoice) async {
+        XALog.write(XALog.audio, "audio start")
         stop()
         if case .includingBundles(let ids) = choice, ids.isEmpty {
             onLog?("Audio route has no apps")
@@ -142,7 +143,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 }
 
-final class AACLCEncoder {
+final class AACLCEncoder: @unchecked Sendable {
     private var converter: AVAudioConverter?
     private(set) var cookie = Data()
 

@@ -89,6 +89,7 @@ final class VideoReceiver {
     }
 
     func start() {
+        XALog.write(XALog.video, "receiver start")
         userPaused = false
         queue.async { self.startListener() }
         if !watchdogStarted {

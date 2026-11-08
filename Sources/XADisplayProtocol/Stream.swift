@@ -1,7 +1,9 @@
 import Foundation
 
-public struct StreamPreset: Equatable, Codable {
-    public enum ID: String, Equatable, Codable {
+/// StreamPreset.
+public struct StreamPreset: Equatable, Codable, Sendable {
+    /// ID.
+    public enum ID: String, Equatable, Codable, Sendable {
         case balanced, safe, native
     }
 
@@ -86,6 +88,7 @@ public struct StreamPreset: Equatable, Codable {
     }
 }
 
+/// H264LevelLimits.
 public enum H264LevelLimits {
     public static func maxMacroblocksPerFrame(_ level: String) -> Int? {
         switch level {
@@ -106,6 +109,7 @@ public enum H264LevelLimits {
     }
 }
 
+/// PresetFallback.
 public enum PresetFallback {
     public static func afterDecodeFailure(_ id: StreamPreset.ID) -> StreamPreset.ID? {
         switch id {
@@ -116,6 +120,7 @@ public enum PresetFallback {
     }
 }
 
+/// AdaptationSignals.
 public struct AdaptationSignals: Equatable {
     public var thermal: ThermalBucket
     public var batteryFraction: Double?
@@ -141,6 +146,7 @@ public struct AdaptationSignals: Equatable {
     }
 }
 
+/// StreamTune.
 public struct StreamTune: Equatable {
     public var preset: StreamPreset.ID
     public var fps: Int
@@ -154,6 +160,7 @@ public struct StreamTune: Equatable {
     }
 }
 
+/// AdaptationController.
 public struct AdaptationController {
     public private(set) var preset: StreamPreset.ID
     public private(set) var fps: Int
@@ -246,6 +253,7 @@ public struct AdaptationController {
     }
 }
 
+/// FrameDecision.
 public enum FrameDecision: Equatable {
     case show
     case dropUntilKeyframe
@@ -253,6 +261,7 @@ public enum FrameDecision: Equatable {
     case dropOverflow
 }
 
+/// FrameAdmission.
 public struct FrameAdmission: Equatable {
     public var awaitingKeyframe: Bool
     public var maxQueued: Int
@@ -276,9 +285,11 @@ public struct FrameAdmission: Equatable {
     }
 }
 
+/// InFlightGate.
 public struct InFlightGate: Equatable {
     public var inFlight: Bool
     public var needsKeyframe: Bool
+    /// Permit.
     public enum Permit: Equatable {
         case encode(forceKeyframe: Bool)
         case drop
@@ -300,9 +311,11 @@ public struct InFlightGate: Equatable {
     public mutating func finished() { inFlight = false }
 }
 
+/// SendBudget.
 public struct SendBudget: Equatable {
     public var maxPending: Int
     public var needsKeyframe: Bool
+    /// Decision.
     public enum Decision: Equatable { case send, drop }
     public init(maxPending: Int = 2, needsKeyframe: Bool = true) {
         self.maxPending = maxPending
@@ -319,10 +332,12 @@ public struct SendBudget: Equatable {
     }
 }
 
+/// TransportKind.
 public enum TransportKind: String, Equatable, Codable {
     case usb, wifi, none
 }
 
+/// LinkPreference.
 public enum LinkPreference {
     public static func desired(usbAvailable: Bool, wifiAvailable: Bool, wifiAllowed: Bool) -> TransportKind {
         if usbAvailable { return .usb }
@@ -334,6 +349,7 @@ public enum LinkPreference {
     }
 }
 
+/// TransportHeuristic.
 public enum TransportHeuristic {
     public static func classify(remoteHost: String) -> TransportKind {
         let host = remoteHost.lowercased()
@@ -345,6 +361,7 @@ public enum TransportHeuristic {
     }
 }
 
+/// UsbmuxPort.
 public enum UsbmuxPort {
     /// Apple's usbmuxd plist `PortNumber` is the TCP port in network byte order, zero-extended.
     public static func networkOrder(_ port: UInt16) -> UInt32 {
@@ -358,6 +375,7 @@ public enum UsbmuxPort {
     }
 }
 
+/// LatencyMath.
 public enum LatencyMath {
     /// Host-clock interval from capture to the echoed ack. Includes the return trip. Not glass-to-glass.
     public static func captureToAck(captureMs: Double, ackMs: Double) -> Double? {

@@ -1,5 +1,6 @@
 import Foundation
 
+/// WindowSnapshot.
 public struct WindowSnapshot: Equatable, Codable {
     public var id: Int
     public var ownerPID: Int
@@ -13,6 +14,7 @@ public struct WindowSnapshot: Equatable, Codable {
     }
 }
 
+/// WindowRecovery.
 public enum WindowRecovery {
     public static func stranded(_ windows: [WindowSnapshot], on display: XARect) -> [WindowSnapshot] {
         windows.filter { window in
@@ -34,6 +36,7 @@ public enum WindowRecovery {
     }
 }
 
+/// LayoutWindow.
 public struct LayoutWindow: Equatable, Codable {
     public var title: String
     public var owner: String
@@ -45,11 +48,13 @@ public struct LayoutWindow: Equatable, Codable {
     }
 }
 
+/// LayoutSnapshot.
 public struct LayoutSnapshot: Equatable, Codable {
     public var windows: [LayoutWindow]
     public init(windows: [LayoutWindow]) { self.windows = windows }
 }
 
+/// LayoutMath.
 public enum LayoutMath {
     public static func relative(bounds: XARect, display: XARect) -> XARect {
         XARect(
@@ -69,6 +74,7 @@ public enum LayoutMath {
     }
 }
 
+/// DiagnosticsSnapshot.
 public struct DiagnosticsSnapshot: Equatable, Codable {
     public var appVersion: String
     public var transport: String
@@ -90,6 +96,7 @@ public struct DiagnosticsSnapshot: Equatable, Codable {
     }
 }
 
+/// DiagnosticsText.
 public enum DiagnosticsText {
     public static let honesty = "Pointer input is injected as CGEvent mouse and keyboard events. It is not native macOS touchscreen input."
 

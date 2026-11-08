@@ -1,5 +1,6 @@
 import Foundation
 
+/// XADisplayProtocolInfo.
 public enum XADisplayProtocolInfo {
     public static let inputVersion: UInt16 = 1
     /// Length-prefixed video and legacy JSON. The iPad listens; the Mac connects.
@@ -14,7 +15,8 @@ public enum XADisplayProtocolInfo {
     public static let udpVideoPort: UInt16 = 9003
 }
 
-public struct XAPoint: Equatable, Codable {
+/// XAPoint.
+public struct XAPoint: Equatable, Codable, Sendable {
     public var x: Double
     public var y: Double
     public init(x: Double, y: Double) {
@@ -24,7 +26,8 @@ public struct XAPoint: Equatable, Codable {
     public static let zero = XAPoint(x: 0, y: 0)
 }
 
-public struct XASize: Equatable, Codable {
+/// XASize.
+public struct XASize: Equatable, Codable, Sendable {
     public var width: Double
     public var height: Double
     public init(width: Double, height: Double) {
@@ -34,6 +37,7 @@ public struct XASize: Equatable, Codable {
     public static let zero = XASize(width: 0, height: 0)
 }
 
+/// XARect.
 public struct XARect: Equatable, Codable {
     public var origin: XAPoint
     public var size: XASize
@@ -61,7 +65,8 @@ public struct XARect: Equatable, Codable {
     }
 }
 
-public struct XAModifierMask: OptionSet, Equatable, Hashable, Codable {
+/// XAModifierMask.
+public struct XAModifierMask: OptionSet, Equatable, Hashable, Codable, Sendable {
     public var rawValue: UInt8
     public init(rawValue: UInt8) { self.rawValue = rawValue }
     public static let shift = XAModifierMask(rawValue: 1)
@@ -74,6 +79,7 @@ public struct XAModifierMask: OptionSet, Equatable, Hashable, Codable {
     }
 }
 
+/// MacKeyCode.
 public enum MacKeyCode {
     public static let escape: UInt16 = 53
     public static let delete: UInt16 = 51

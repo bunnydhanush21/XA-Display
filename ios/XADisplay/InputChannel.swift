@@ -27,6 +27,7 @@ final class InputChannel {
     var requirePairing = true
 
     func start() {
+        XALog.write(XALog.input, "input start")
         userPaused = false
         queue.async { self.listen() }
     }

@@ -1,8 +1,8 @@
-import Foundation
-import Network
+@preconcurrency import Foundation
+@preconcurrency import Network
 import XADisplayProtocol
 
-final class UDPVideoSender {
+final class UDPVideoSender: @unchecked Sendable {
     private var connection: NWConnection?
     private var recent: [UInt16: Data] = [:]
     private let queue = DispatchQueue(label: "xa.udp.send")

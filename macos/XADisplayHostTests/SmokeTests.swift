@@ -1,5 +1,5 @@
 import XADisplayProtocol
-import XCTest
+@preconcurrency import XCTest
 
 final class HostSmokeTests: XCTestCase {
     func testSessionPhasesAndChannelGate() {

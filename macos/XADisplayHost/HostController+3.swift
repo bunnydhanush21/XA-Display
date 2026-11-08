@@ -1,9 +1,9 @@
-import AppKit
-import ApplicationServices
-import Darwin
-import Foundation
-import Network
-import ScreenCaptureKit
+@preconcurrency import AppKit
+@preconcurrency import ApplicationServices
+@preconcurrency import Darwin
+@preconcurrency import Foundation
+@preconcurrency import Network
+@preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 
 extension HostController {

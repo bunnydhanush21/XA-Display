@@ -1,9 +1,9 @@
-import AppKit
-import ApplicationServices
-import Darwin
-import Foundation
-import Network
-import ScreenCaptureKit
+@preconcurrency import AppKit
+@preconcurrency import ApplicationServices
+@preconcurrency import Darwin
+@preconcurrency import Foundation
+@preconcurrency import Network
+@preconcurrency import ScreenCaptureKit
 import XADisplayProtocol
 
 extension HostController {
@@ -155,7 +155,7 @@ extension HostController {
             guard let self = self else { return }
             let ok = self.display.applyPixelWidth(UInt32(pixelsWide), height: UInt32(pixelsHigh), scale: scale, name: "XA Display")
             guard ok, self.display.displayID != 0 else {
-                self.log("Virtual display unavailable")
+                self.log(HostError.virtualDisplay.userMessage)
                 self.publish()
                 completion?(false)
                 return

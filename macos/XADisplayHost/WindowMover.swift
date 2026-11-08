@@ -1,7 +1,7 @@
-import AppKit
-import ApplicationServices
-import CoreGraphics
-import Foundation
+@preconcurrency import AppKit
+@preconcurrency import ApplicationServices
+@preconcurrency import CoreGraphics
+@preconcurrency import Foundation
 import XADisplayProtocol
 
 struct LiveWindow {
@@ -34,6 +34,7 @@ enum WindowMover {
     }
 
     static func recover(from display: XARect, to main: XARect) -> Int {
+        XALog.write(XALog.ui, "recover windows")
         let live = windows()
         let stranded = WindowRecovery.stranded(live.map(\.snapshot), on: display)
         var moved = 0

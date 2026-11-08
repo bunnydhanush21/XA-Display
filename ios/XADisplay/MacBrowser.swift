@@ -10,6 +10,7 @@ final class MacBrowser: NSObject, NetServiceBrowserDelegate {
     private let queue = DispatchQueue(label: "xa.poke")
 
     func start() {
+        XALog.write(XALog.net, "bonjour browse")
         browser.delegate = self
         browser.searchForServices(ofType: XADisplayProtocolInfo.hostBonjourType, inDomain: "local.")
     }

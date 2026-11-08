@@ -1,5 +1,5 @@
-import AppKit
-import Foundation
+@preconcurrency import AppKit
+@preconcurrency import Foundation
 import XADisplayProtocol
 
 enum MediaKeyPoster {

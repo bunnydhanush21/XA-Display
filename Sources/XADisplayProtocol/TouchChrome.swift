@@ -1,5 +1,6 @@
 import Foundation
 
+/// ResizeCorner.
 public enum ResizeCorner: UInt8, Equatable {
     case topLeft = 1
     case topRight = 2
@@ -7,6 +8,7 @@ public enum ResizeCorner: UInt8, Equatable {
     case bottomRight = 4
 }
 
+/// TileRegion.
 public enum TileRegion: Equatable {
     case leftHalf, rightHalf, topLeft, topRight, bottomLeft, bottomRight
 }
@@ -56,6 +58,7 @@ public enum WindowChrome {
     }
 }
 
+/// FillToggle.
 public enum FillToggle {
     public static func nearlyFills(_ window: XARect, display: XARect, slack: Double = 8) -> Bool {
         abs(window.minX - display.minX) <= slack && abs(window.minY - display.minY) <= slack
@@ -71,6 +74,7 @@ public enum FillToggle {
     }
 }
 
+/// TitleBarFlick.
 public enum TitleBarFlick {
     public static func region(start: XAPoint, dx: Double, dy: Double, speed: Double, windows: [XARect], minimumSpeed: Double = 700) -> TileRegion? {
         guard speed >= minimumSpeed, let window = WindowChrome.window(containing: start, windows: windows),
@@ -87,6 +91,7 @@ public enum TitleBarFlick {
     }
 }
 
+/// WindowResize.
 public enum WindowResize {
     public static func resized(window: XARect, corner: ResizeCorner, translation: XAPoint, minimum: Double = 120) -> XARect {
         var minX = window.minX
@@ -113,6 +118,7 @@ public enum WindowResize {
     }
 }
 
+/// QuarterFrame.
 public enum QuarterFrame {
     public static func frame(_ region: TileRegion, display: XARect) -> XARect {
         let halfW = display.width / 2
@@ -134,6 +140,7 @@ public enum QuarterFrame {
     }
 }
 
+/// TitleBarDecision.
 public enum TitleBarDecision: Equatable {
     case click(XAPoint)
     case pending
@@ -181,6 +188,7 @@ public struct TitleBarArbiter {
     }
 }
 
+/// TrafficTarget.
 public struct TrafficTarget: Equatable {
     public var id: String
     public var rect: XARect
@@ -190,6 +198,7 @@ public struct TrafficTarget: Equatable {
     }
 }
 
+/// TrafficLights.
 public enum TrafficLights {
     public static func targets(titleBar: XARect, minimum: Double = WindowChrome.minimumHit) -> [TrafficTarget] {
         let side = max(minimum, 36)
@@ -201,13 +210,15 @@ public enum TrafficLights {
     }
 }
 
+/// CursorNudge.
 public struct CursorNudge {
     public static func apply(point: XAPoint, offset: XAPoint) -> XAPoint {
         XAPoint(x: point.x + offset.x, y: point.y + offset.y)
     }
 }
 
-public enum EdgeSystemAction: String, Equatable, Codable, CaseIterable {
+/// EdgeSystemAction.
+public enum EdgeSystemAction: String, Equatable, Codable, CaseIterable, Sendable {
     case notificationCenter
     case missionControl
     case appExpose
@@ -240,6 +251,7 @@ public enum EdgeSystemAction: String, Equatable, Codable, CaseIterable {
     }
 }
 
+/// EdgeDrawerGate.
 public enum EdgeDrawerGate {
     /// Right-edge swipe toward the center. The left edge stays free for the sidebar and iOS.
     public static func shouldOpen(startX: Double, viewWidth: Double, translationX: Double, minimumTravel: Double = 36) -> Bool {
@@ -248,7 +260,8 @@ public enum EdgeDrawerGate {
     }
 }
 
-public struct AppZoomBinding: Equatable, Codable {
+/// AppZoomBinding.
+public struct AppZoomBinding: Equatable, Codable, Sendable {
     public var bundleID: String
     public var zoomIn: String
     public var zoomOut: String
@@ -263,6 +276,7 @@ public struct AppZoomBinding: Equatable, Codable {
     public static let universal = AppZoomBinding(bundleID: "*", zoomIn: "=", zoomOut: "-", modifiers: XAModifierMask.command.rawValue)
 }
 
+/// ZoomProfiles.
 public enum ZoomProfiles {
     public static func resolve(bundleID: String, bindings: [AppZoomBinding]) -> AppZoomBinding {
         if let match = bindings.first(where: { $0.bundleID == bundleID }) { return match }
@@ -271,6 +285,7 @@ public enum ZoomProfiles {
     }
 }
 
+/// MacTouchScroll.
 public enum MacTouchScroll {
     /// Local inertia only. Steps keep the finger direction and stop. No rubber-band reversal.
     public static func steps(velocityX: Double, velocityY: Double) -> [InertiaStep] {
@@ -284,6 +299,7 @@ public enum MacTouchScroll {
     }
 }
 
+/// RepeatGate.
 public enum RepeatGate {
     public static func allow(now: Double, last: Double?, interval: Double) -> Bool {
         guard let last = last else { return true }
@@ -291,13 +307,15 @@ public enum RepeatGate {
     }
 }
 
+/// TouchMetrics.
 public enum TouchMetrics {
     public static func target(requested: Double, large: Bool) -> Double {
         max(WindowChrome.minimumHit, large ? max(requested, 52) : requested)
     }
 }
 
-public struct EdgeBinding: Equatable, Codable {
+/// EdgeBinding.
+public struct EdgeBinding: Equatable, Codable, Sendable {
     public var action: EdgeSystemAction
     public var input: String
     public var modifiers: UInt8
@@ -308,11 +326,13 @@ public struct EdgeBinding: Equatable, Codable {
     }
 }
 
+/// EdgeRoute.
 public enum EdgeRoute: Equatable {
     case key(KeyShortcut)
     case accessibility
 }
 
+/// EdgeRouter.
 public enum EdgeRouter {
     /// A configured key is posted as a normal shortcut. An empty key asks the host to use Accessibility.
     public static func route(_ binding: EdgeBinding) -> EdgeRoute {
@@ -321,6 +341,7 @@ public enum EdgeRouter {
     }
 }
 
+/// ChromeWire.
 public enum ChromeWire {
     public static func normalized(_ frame: XARect, in display: XARect) -> XARect {
         guard display.width > 0, display.height > 0 else { return XARect(x: 0, y: 0, width: 0, height: 0) }

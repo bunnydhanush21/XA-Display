@@ -40,8 +40,16 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
           xcodebuild -version | grep -q '^Xcode 16\.'
           xcodebuild -version
-      - name: Swift tests
-        run: swift test
+      - name: Install SwiftLint 0.65.1
+        run: |
+          curl -fsSL -o /tmp/swiftlint.zip https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          rm -rf /tmp/swiftlint-pkg
+          unzip -q /tmp/swiftlint.zip -d /tmp/swiftlint-pkg
+          find /tmp/swiftlint-pkg -type f -name swiftlint -exec chmod +x {} \;
+          find /tmp/swiftlint-pkg -type f -name swiftlint | head -n 1 > /tmp/swiftlint-path
+          dirname "$(cat /tmp/swiftlint-path)" >> "$GITHUB_PATH"
+      - name: Quality gate
+        run: bash scripts/quality_gate.sh
 
   ios:
     name: Unsigned iPad IPA

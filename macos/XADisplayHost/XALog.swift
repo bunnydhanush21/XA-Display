@@ -1,7 +1,7 @@
-import Foundation
-import ServiceManagement
+@preconcurrency import Foundation
+@preconcurrency import ServiceManagement
 import XADisplayProtocol
-import os
+@preconcurrency import os
 
 enum XALog {
     private static let subsystem = "com.bunnydhanush.xadisplay"

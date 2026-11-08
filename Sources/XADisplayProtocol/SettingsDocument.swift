@@ -1,12 +1,14 @@
 import Foundation
 
+/// SettingValue.
 public enum SettingValue: Equatable {
     case bool(Bool)
     case number(Double)
     case choice(String)
 }
 
-public struct SettingsRow: Equatable {
+/// SettingsRow.
+public struct SettingsRow: Equatable, Sendable {
     public var id: String
     public var title: String
     public var section: String
@@ -30,6 +32,7 @@ public struct SettingsRow: Equatable {
     }
 }
 
+/// SettingsCatalog.
 public enum SettingsCatalog {
     public static let padSections = [
         "Connection", "Display", "Touch", "Sidebar", "Keyboard", "Clipboard", "Audio",
@@ -109,6 +112,7 @@ public enum SettingsCatalog {
     }
 }
 
+/// XASettingsDocument.
 public struct XASettingsDocument: Equatable, Codable {
     public static let currentVersion = 1
     public var version: Int
@@ -300,6 +304,7 @@ public struct XASettingsDocument: Equatable, Codable {
     public mutating func reset() { self = XASettingsDocument.defaults }
 }
 
+/// SettingsSync.
 public enum SettingsSync {
     public static func encode(_ document: XASettingsDocument) -> String {
         let object: [String: Any] = [

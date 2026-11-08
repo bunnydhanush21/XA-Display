@@ -1,5 +1,6 @@
 import Foundation
 
+/// XAInputMessage.
 public enum XAInputMessage: Equatable {
     case hello(XAHello)
     case helloAck(XAHelloAck)
