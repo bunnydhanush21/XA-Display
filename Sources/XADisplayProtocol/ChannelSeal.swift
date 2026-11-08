@@ -1,4 +1,5 @@
 @preconcurrency import CommonCrypto
+import CXASeal
 import Foundation
 
 /// Which socket a sealed frame belongs to. The name is AES-GCM associated data, so a video frame cannot be replayed on the input socket.

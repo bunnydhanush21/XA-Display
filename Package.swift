@@ -11,7 +11,8 @@ let package = Package(
         .library(name: "XADisplayProtocol", targets: ["XADisplayProtocol"]),
     ],
     targets: [
-        .target(name: "XADisplayProtocol"),
+        .target(name: "CXASeal", path: "Sources/CXASeal", publicHeadersPath: "include"),
+        .target(name: "XADisplayProtocol", dependencies: ["CXASeal"]),
         .testTarget(
             name: "XADisplayProtocolTests",
             dependencies: ["XADisplayProtocol"]
