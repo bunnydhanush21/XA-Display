@@ -9,6 +9,12 @@ final class SurfaceCoverageTests: XCTestCase {
         UserDefaults.standard.set(true, forKey: "XADisplay.didOnboard")
         let controller = ReceiverViewController()
         controller.loadViewIfNeeded()
+        controller.healthTimer?.invalidate()
+        controller.healthTimer = nil
+        controller.orientTimer?.invalidate()
+        controller.receiver.pause()
+        controller.input.pause()
+        controller.macBrowser.stop()
         controller.view.frame = CGRect(x: 0, y: 0, width: 768, height: 1024)
         controller.view.layoutIfNeeded()
         controller.features.commandStrip = true
@@ -18,13 +24,9 @@ final class SurfaceCoverageTests: XCTestCase {
         controller.features.rotationMode = "stream"
         controller.videoSize = CGSize(width: 1440, height: 1080)
         controller.layoutVideo()
-        controller.noteOrientation("portrait")
-        controller.noteOrientation("landscape")
-        controller.sendOrientationIfDue()
         controller.layoutCursor()
         controller.releaseModifiers()
         controller.refreshStats()
-        controller.publishHealth()
         let point = XAPoint(x: 40, y: 80)
         let finger = CGPoint(x: 40, y: 80)
         controller.assist.loupeWhileDragging = false

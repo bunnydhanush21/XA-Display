@@ -67,8 +67,17 @@ final class ServiceTests: XCTestCase {
         view.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
+        window.orderFrontRegardless()
         window.layoutIfNeeded()
         view.layoutSubtreeIfNeeded()
+        window.display()
+        if let cached = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: cached)
+            if let data = cached.representation(using: .png, properties: [:]), data.count > 1000 {
+                try write(data, named: name)
+                return
+            }
+        }
         let pixelsWide = Int(size.width)
         let pixelsHigh = Int(size.height)
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
@@ -93,6 +102,10 @@ final class ServiceTests: XCTestCase {
             XCTFail("Could not encode PNG")
             return
         }
+        try write(data, named: name)
+    }
+
+    private func write(_ data: Data, named name: String) throws {
         guard let dir = Self.screenshotDirectory() else { return }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
