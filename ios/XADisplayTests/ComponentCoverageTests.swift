@@ -84,7 +84,7 @@ final class ComponentCoverageTests: XCTestCase {
         controller.perform(.drag(.moved, point), finger: finger, pointer: finger, time: 4.1)
         controller.perform(.drag(.ended, point), finger: finger, pointer: finger, time: 4.2)
         controller.perform(.relativeClick(.right), finger: finger, pointer: finger, time: 5)
-        controller.normalize(point)
+        _ = controller.normalize(point)
         _ = controller.contentSize()
         controller.videoSize = CGSize(width: 1920, height: 1080)
         controller.layoutVideo()
