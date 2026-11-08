@@ -24,6 +24,8 @@ These are CI captures: the Mac windows from the host test, and the iPad onboardi
 
 <p align="center">
   <img src="docs/screenshots/ipad-onboarding.png" alt="iPad onboarding card from the simulator" width="280">
+  <img src="docs/screenshots/ipad-onboarding-connect.png" alt="iPad onboarding connect card from the simulator" width="280">
+  <img src="docs/screenshots/ipad-onboarding-pair.png" alt="iPad onboarding pair card from the simulator" width="280">
   <img src="docs/screenshots/ipad-connection.png" alt="iPad connection overlay with pairing code and Connect" width="280">
   <img src="docs/screenshots/ipad-landscape.png" alt="iPad receiver with pairing code and Connect from the simulator" width="360">
 </p>

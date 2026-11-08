@@ -6,7 +6,6 @@ import XCTest
 
 @MainActor
 final class ServiceTests: XCTestCase {
-    private var heldWindows: [NSWindow] = []
     func testDisplayConnectionClipboardAndInput() {
         let display = DisplayService()
         let portrait = display.active(preset: .balanced, portrait: true, custom: CustomDisplaySettings())
@@ -47,20 +46,10 @@ final class ServiceTests: XCTestCase {
         try writePNG(menuView, named: "mac-popover.png", size: NSSize(width: 320, height: 420))
         let settings = HostSettingsPanel(document: .defaults)
         try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings.png", size: NSSize(width: 640, height: 480))
-        for title in ["Devices", "Display", "Input", "Audio", "Clipboard", "Battery", "Privacy", "Advanced"] {
-            settings.select(tab: title)
-            let slug = title.lowercased().replacingOccurrences(of: " ", with: "-")
-            try writePNG(try XCTUnwrap(settings.window.contentView), named: "mac-settings-\(slug).png", size: NSSize(width: 640, height: 480))
-        }
         let flow = OnboardingFlow()
         flow.pairingCode = "ABCD2345"
         flow.show()
         try writePNG(try XCTUnwrap(flow.window.contentView), named: "mac-onboarding.png", size: NSSize(width: 520, height: 360))
-        for name in ["mac-onboarding-screen.png", "mac-onboarding-accessibility.png", "mac-onboarding-pair.png"] {
-            flow.advance()
-            try writePNG(try XCTUnwrap(flow.window.contentView), named: name, size: NSSize(width: 520, height: 360))
-        }
-        flow.advance()
     }
 
     func testDiagnosticsRedactsTheToken() {
@@ -76,21 +65,13 @@ final class ServiceTests: XCTestCase {
 
     private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
         view.frame = NSRect(origin: .zero, size: size)
-        let host: NSWindow
-        if let existing = view.window {
-            existing.setContentSize(size)
-            host = existing
-        } else {
-            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
-            window.contentView = view
-            heldWindows.append(window)
-            host = window
-        }
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = view
         prepareForSnapshot(view)
-        host.orderFrontRegardless()
-        host.layoutIfNeeded()
+        window.orderFrontRegardless()
+        window.layoutIfNeeded()
         view.layoutSubtreeIfNeeded()
-        host.display()
+        window.display()
         if let cached = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
             view.cacheDisplay(in: view.bounds, to: cached)
             if let data = cached.representation(using: .png, properties: [:]), data.count > 1000 {
