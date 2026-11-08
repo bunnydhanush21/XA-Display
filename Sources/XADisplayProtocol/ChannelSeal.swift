@@ -1,5 +1,5 @@
-@preconcurrency import CommonCrypto
 import CXASeal
+@preconcurrency import CommonCrypto
 import Foundation
 
 /// Which socket a sealed frame belongs to. The name is AES-GCM associated data, so a video frame cannot be replayed on the input socket.
@@ -94,19 +94,21 @@ public struct ChannelSeal: Sendable {
     private static func crypt(encrypt: Bool, key: [UInt8], nonce: [UInt8], aad: Data, input: Data, output: inout [UInt8], tag: inout [UInt8]) -> CCCryptorStatus {
         let aadBytes = aad.isEmpty ? Data([0]) : aad
         let inputBytes = input.isEmpty ? Data([0]) : input
+        var localOutput = output
+        var localTag = tag
         let status = key.withUnsafeBytes { keyRaw in
             nonce.withUnsafeBytes { nonceRaw in
                 aadBytes.withUnsafeBytes { aadRaw in
                     inputBytes.withUnsafeBytes { inputRaw in
-                        output.withUnsafeMutableBytes { outputRaw in
-                            tag.withUnsafeMutableBytes { tagRaw in
+                        localOutput.withUnsafeMutableBytes { outputRaw in
+                            localTag.withUnsafeMutableBytes { tagRaw in
                                 xa_gcm_encrypt(
                                     keyRaw.bindMemory(to: UInt8.self).baseAddress, key.count,
                                     nonceRaw.bindMemory(to: UInt8.self).baseAddress, nonce.count,
                                     aadRaw.bindMemory(to: UInt8.self).baseAddress, aad.count,
                                     inputRaw.bindMemory(to: UInt8.self).baseAddress, input.count,
                                     outputRaw.bindMemory(to: UInt8.self).baseAddress,
-                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tag.count,
+                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, localTag.count,
                                     encrypt ? 1 : 0
                                 )
                             }
@@ -115,6 +117,8 @@ public struct ChannelSeal: Sendable {
                 }
             }
         }
+        output = localOutput
+        tag = localTag
         return CCCryptorStatus(status)
     }
 }
