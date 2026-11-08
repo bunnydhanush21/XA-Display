@@ -126,14 +126,14 @@ if "func testTamperedTagOrCiphertextIsRejected" not in Path("Tests/XADisplayProt
     raise SystemExit("seal tamper test missing")
 failure_call = re.compile(r'(?:log|onLog\?|setStatus)\(\s*"[^"]*(?:fail|unavailable|missing|stopped|malformed|rejected)', re.I)
 for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swift")):
-    if "Tests" in path.parts:
+    if any("Tests" in part for part in path.parts):
         continue
     for index, line in enumerate(path.read_text().splitlines(), 1):
         if failure_call.search(line):
             raise SystemExit(f"string failure log {path}:{index}: {line.strip()}")
 catch_line = re.compile(r"\bcatch\b")
 for path in list(Path("macos").rglob("*.swift")) + list(Path("ios").rglob("*.swift")):
-    if "Tests" in path.parts:
+    if any("Tests" in part for part in path.parts):
         continue
     lines = path.read_text().splitlines()
     for index, line in enumerate(lines):

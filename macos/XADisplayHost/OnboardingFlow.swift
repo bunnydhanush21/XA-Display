@@ -91,7 +91,7 @@ final class OnboardingFlow: NSObject {
         render()
     }
 
-    @objc private func advance() {
+    @objc func advance() {
         if step < 3 {
             step += 1
             render()

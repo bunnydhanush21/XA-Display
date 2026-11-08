@@ -56,10 +56,10 @@ final class ServiceTests: XCTestCase {
         flow.show()
         try writePNG(try XCTUnwrap(flow.window.contentView), named: "mac-onboarding.png", size: NSSize(width: 520, height: 360))
         for name in ["mac-onboarding-screen.png", "mac-onboarding-accessibility.png", "mac-onboarding-pair.png"] {
-            flow.perform(NSSelectorFromString("advance"))
+            flow.advance()
             try writePNG(try XCTUnwrap(flow.window.contentView), named: name, size: NSSize(width: 520, height: 360))
         }
-        flow.perform(NSSelectorFromString("advance"))
+        flow.advance()
     }
 
     func testDiagnosticsRedactsTheToken() {
