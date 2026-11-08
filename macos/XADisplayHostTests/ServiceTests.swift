@@ -67,6 +67,7 @@ final class ServiceTests: XCTestCase {
         view.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
+        prepareForSnapshot(view)
         window.orderFrontRegardless()
         window.layoutIfNeeded()
         view.layoutSubtreeIfNeeded()
@@ -110,6 +111,18 @@ final class ServiceTests: XCTestCase {
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
         XCTAssertGreaterThan(data.count, 1000)
+    }
+
+    private func prepareForSnapshot(_ view: NSView) {
+        view.wantsLayer = true
+        if let field = view as? NSTextField {
+            field.textColor = .white
+            field.drawsBackground = false
+        }
+        if let button = view as? NSButton, button.title.isEmpty == false {
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 13)])
+        }
+        for child in view.subviews { prepareForSnapshot(child) }
     }
 
     private static func screenshotDirectory() -> String? {
