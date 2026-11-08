@@ -6,6 +6,7 @@ import XCTest
 
 @MainActor
 final class ServiceTests: XCTestCase {
+    private var heldWindows: [NSWindow] = []
     func testDisplayConnectionClipboardAndInput() {
         let display = DisplayService()
         let portrait = display.active(preset: .balanced, portrait: true, custom: CustomDisplaySettings())
@@ -74,20 +75,22 @@ final class ServiceTests: XCTestCase {
     }
 
     private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
-        let home = view.window
-        let previous = view.frame
         view.frame = NSRect(origin: .zero, size: size)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = view
-        defer {
-            view.frame = previous
-            home?.contentView = view
+        let host: NSWindow
+        if let existing = view.window {
+            existing.setContentSize(size)
+            host = existing
+        } else {
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = view
+            heldWindows.append(window)
+            host = window
         }
         prepareForSnapshot(view)
-        window.orderFrontRegardless()
-        window.layoutIfNeeded()
+        host.orderFrontRegardless()
+        host.layoutIfNeeded()
         view.layoutSubtreeIfNeeded()
-        window.display()
+        host.display()
         if let cached = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
             view.cacheDisplay(in: view.bounds, to: cached)
             if let data = cached.representation(using: .png, properties: [:]), data.count > 1000 {
