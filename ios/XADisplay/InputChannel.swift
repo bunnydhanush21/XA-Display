@@ -195,6 +195,10 @@ final class InputChannel {
                     for frame in frames {
                         guard let plain = self.openSealed(frame) else {
                             connection.cancel()
+                            DispatchQueue.main.async { [weak self] in
+                                guard let self = self else { return }
+                                self.delegate?.inputChannel(self, failed: PadError.seal)
+                            }
                             return
                         }
                         do {
@@ -212,6 +216,10 @@ final class InputChannel {
                     }
                 case .failed:
                     connection.cancel()
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        self.delegate?.inputChannel(self, failed: PadError.malformed)
+                    }
                     return
                 }
             }

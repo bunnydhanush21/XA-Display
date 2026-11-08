@@ -74,9 +74,15 @@ final class ServiceTests: XCTestCase {
     }
 
     private func writePNG(_ view: NSView, named name: String, size: NSSize) throws {
+        let home = view.window
+        let previous = view.frame
         view.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
+        defer {
+            view.frame = previous
+            home?.contentView = view
+        }
         prepareForSnapshot(view)
         window.orderFrontRegardless()
         window.layoutIfNeeded()

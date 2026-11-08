@@ -8,14 +8,7 @@ import XCTest
 final class InjectedCoverageTests: XCTestCase {
     func testInjectedControlsGesturesAndDatagrams() {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1024, height: 768))
-        let controller = ReceiverViewController()
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
-        controller.loadViewIfNeeded()
-        controller.healthTimer?.invalidate()
-        controller.healthTimer = nil
-        controller.view.frame = window.bounds
-        controller.view.layoutIfNeeded()
+        let controller = prepared(in: window)
         controller.features.touchscreenGestures = true
         controller.features.threeFingerShortcuts = true
         controller.features.pinchMagnifier = true
@@ -83,7 +76,12 @@ final class InjectedCoverageTests: XCTestCase {
         controller.directory.remember(SavedMac(id: "office", name: "Office", token: "ABCD2345", lastUsed: 10))
         controller.applyLaunchRoute()
         controller.macBrowser.stop()
+        release(controller)
+    }
 
+    func testPickerMediaDatagramsAndInput() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1024, height: 768))
+        let controller = prepared(in: window)
         var assist = TouchAssist()
         assist.trafficLights = true
         assist.windowChrome = true
@@ -160,6 +158,31 @@ final class InjectedCoverageTests: XCTestCase {
         sendTouches(in: controller.sidebar)
         controller.connectionOverlay.show(macs: ["Office"], code: "ABCD2345")
         sendTouches(in: controller.connectionOverlay)
+        controller.healthTimer?.invalidate()
+        controller.orientTimer?.invalidate()
+        controller.titleTimer?.invalidate()
+        controller.keepalive?.invalidate()
+        controller.pillTimer?.invalidate()
+        controller.clipboard.stop()
+        controller.receiver.pause()
+        controller.input.pause()
+        controller.macBrowser.stop()
+        release(controller)
+    }
+
+    private func prepared(in window: UIWindow) -> ReceiverViewController {
+        let controller = ReceiverViewController()
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.loadViewIfNeeded()
+        controller.healthTimer?.invalidate()
+        controller.healthTimer = nil
+        controller.view.frame = window.bounds
+        controller.view.layoutIfNeeded()
+        return controller
+    }
+
+    private func release(_ controller: ReceiverViewController) {
         controller.healthTimer?.invalidate()
         controller.orientTimer?.invalidate()
         controller.titleTimer?.invalidate()
