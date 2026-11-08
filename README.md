@@ -17,9 +17,26 @@ Pointer injection is CGEvent mouse and keyboard input, plus Accessibility window
 These are CI captures: the Mac menu, settings, and onboarding from the host tests, and the iPad onboarding cards, connection overlay, and receiver from the simulator unit test.
 
 <p align="center">
-  <img src="docs/screenshots/mac-popover.png" alt="Mac menu popover from CI, showing iPad, usb, 12 ms, and 30 fps" width="320">
-  <img src="docs/screenshots/mac-settings.png" alt="Mac settings connection tab from CI" width="320">
-  <img src="docs/screenshots/mac-onboarding.png" alt="Mac onboarding first step from CI" width="320">
+  <img src="docs/screenshots/mac-popover.png" alt="Mac menu popover from CI, showing iPad, usb, 12 ms, and 30 fps" width="280">
+  <img src="docs/screenshots/mac-settings.png" alt="Mac settings General tab from CI" width="280">
+  <img src="docs/screenshots/mac-settings-display.png" alt="Mac settings Display tab with width, height, frame rate, and bitrate" width="280">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mac-settings-devices.png" alt="Mac settings Devices tab" width="220">
+  <img src="docs/screenshots/mac-settings-input.png" alt="Mac settings Input tab" width="220">
+  <img src="docs/screenshots/mac-settings-audio.png" alt="Mac settings Audio tab" width="220">
+  <img src="docs/screenshots/mac-settings-clipboard.png" alt="Mac settings Clipboard tab" width="220">
+  <img src="docs/screenshots/mac-settings-battery.png" alt="Mac settings Battery tab" width="220">
+  <img src="docs/screenshots/mac-settings-privacy.png" alt="Mac settings Privacy tab" width="220">
+  <img src="docs/screenshots/mac-settings-advanced.png" alt="Mac settings Advanced tab" width="220">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mac-onboarding.png" alt="Mac onboarding intro" width="240">
+  <img src="docs/screenshots/mac-onboarding-screen.png" alt="Mac onboarding Screen Recording step" width="240">
+  <img src="docs/screenshots/mac-onboarding-accessibility.png" alt="Mac onboarding Accessibility step" width="240">
+  <img src="docs/screenshots/mac-onboarding-pair.png" alt="Mac onboarding pairing step" width="240">
 </p>
 
 <p align="center">
