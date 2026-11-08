@@ -83,7 +83,7 @@ final class HostLogicTests: XCTestCase {
         host.sendVideo(Data([0, 0, 0, 1, 0x41]), keyframe: false, captureMs: 6, encodeMs: 1)
         host.tuneWiFi(rttMs: 40)
         host.tuneWiFi(rttMs: 180)
-        let _ = host.audioMenuState()
+        _ = host.audioMenuState()
         host.releaseInput(reason: "test closed the input link")
         host.stop()
     }
