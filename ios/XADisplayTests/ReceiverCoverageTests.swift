@@ -51,11 +51,14 @@ final class ReceiverCoverageTests: XCTestCase {
     func testInputChannelMessagesAndLocalSettings() {
         let channel = InputChannel()
         let box = InputDelegateBox()
+        let ready = expectation(description: "ack")
+        box.onAck = { ready.fulfill() }
         channel.delegate = box
         channel.token = "ABCD2345"
         let now = UInt64(Date().timeIntervalSince1970 * 1000)
         channel.queue.sync {
             channel.handle(.helloAck(XAHelloAck(accepted: true, session: 7, reason: "ok")))
+            XCTAssertTrue(channel.armed)
             channel.handle(.pong(XAPong(session: 7, clientUnixMs: now > 20 ? now - 20 : 0, hostUnixMs: now > 10 ? now - 10 : 0)))
             channel.handle(.clipboard(XAClipboard(session: 7, seq: 1, revision: 2, text: "copied")))
             channel.handle(.audio(XAAudio(session: 7, sampleRate: 48_000, channels: 2, pcm: Data([0, 1, 2, 3]))))
@@ -68,9 +71,8 @@ final class ReceiverCoverageTests: XCTestCase {
         channel.sendWindow(.snapLeft)
         channel.sendPing()
         channel.sendRelease()
-        XCTAssertTrue(channel.armed)
         channel.pause()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        wait(for: [ready], timeout: 2)
         LocalSettings.save(token: "ABCD2345", features: XAFeatureSettings())
         let loaded = LocalSettings.load()
         XCTAssertEqual(loaded.token, "ABCD2345")
@@ -104,7 +106,11 @@ private final class VideoDelegateBox: VideoReceiverDelegate {
 
 private final class InputDelegateBox: InputChannelDelegate {
     var sawAck = false
-    func inputChannel(_ channel: InputChannel, armed: Bool, reason: String) { sawAck = armed }
+    var onAck: (() -> Void)?
+    func inputChannel(_ channel: InputChannel, armed: Bool, reason: String) {
+        sawAck = armed
+        onAck?()
+    }
     func inputChannel(_ channel: InputChannel, clipboard text: String, revision: UInt64) {}
     func inputChannel(_ channel: InputChannel, audio: XAAudio) {}
     func inputChannel(_ channel: InputChannel, roundTripMs: Double) {}
