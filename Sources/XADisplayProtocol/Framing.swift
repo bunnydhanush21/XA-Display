@@ -160,7 +160,7 @@ public struct NALUnit: Equatable {
 }
 
 /// TimingPrefix.
-public struct TimingPrefix: Equatable {
+public struct TimingPrefix: Equatable, Sendable {
     public var seq: UInt64
     public var captureMs: Double
     public var encodeMs: Double?

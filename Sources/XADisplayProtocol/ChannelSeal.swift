@@ -129,6 +129,7 @@ public struct ChannelSeal: Sendable {
         let cipher = Data(sealed.dropFirst(1 + nonceLength).dropLast(tagLength))
         var tag = [UInt8](sealed.suffix(tagLength))
         var plain = [UInt8](repeating: 0, count: max(cipher.count, 1))
+        let tagCount = tag.count
         let aadBytes = aad.isEmpty ? Data([0]) : aad
         let inputBytes = cipher.isEmpty ? Data([0]) : cipher
         let status = key.withUnsafeBytes { keyRaw in
@@ -143,7 +144,7 @@ public struct ChannelSeal: Sendable {
                                     aadRaw.bindMemory(to: UInt8.self).baseAddress, aad.count,
                                     inputRaw.bindMemory(to: UInt8.self).baseAddress, cipher.count,
                                     outputRaw.bindMemory(to: UInt8.self).baseAddress,
-                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tag.count,
+                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tagCount,
                                     0
                                 )
                             }
