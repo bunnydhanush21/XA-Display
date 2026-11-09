@@ -2,10 +2,9 @@ import AppKit
 
 @main
 enum XADisplayMain {
+    @MainActor
     static func main() {
-        MainActor.assumeIsolated {
-            HostLaunch.start(runLoop: true)
-        }
+        HostLaunch.start(runLoop: true)
     }
 }
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// UDPVideoPacket.
-public struct UDPVideoPacket: Equatable {
+public struct UDPVideoPacket: Equatable, Sendable {
     public static let magic: UInt8 = 0xA5
     public static let version: UInt8 = 1
     public static let maxPayload = 1_100

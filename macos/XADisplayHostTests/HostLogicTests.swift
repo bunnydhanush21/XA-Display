@@ -97,7 +97,7 @@ final class HostLogicTests: XCTestCase {
         host.flushVideoOutbound()
         var descriptors = [Int32](repeating: 0, count: 2)
         if Darwin.pipe(&descriptors) == 0 {
-            host.videoOut.note(fd: descriptors[1], connection: nil, sender: host.udpSender)
+            host.videoOut.note(fd: descriptors[1])
             host.flushVideoOutbound()
             host.setLowLatencyWiFi(false)
             host.sendVideo(Data([0, 0, 0, 1, 0x65, 0x10]), keyframe: true, captureMs: 7, encodeMs: 1)

@@ -12,7 +12,7 @@ extension HostController {
         if pendingHandshake == nil {
             guard let answer = SessionHandshake.hostAnswer(token: token, offer: frame, replay: &handshakeReplay) else {
                 log(HostError.pairing)
-                return
+                return nil
             }
             pendingHandshake = answer.state
             sendRaw(LengthPrefixedFraming.encode(answer.reply), video: true, done: nil)

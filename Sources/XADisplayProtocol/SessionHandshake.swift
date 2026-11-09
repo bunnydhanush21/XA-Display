@@ -137,6 +137,7 @@ public struct HandshakeReplayGuard {
 
 /// ECDHParty.
 public struct ECDHParty {
+    /// Which side of the handshake owns this key.
     public enum Role: String { case pad, host }
     public let role: Role
     public let privateKey: SecKey

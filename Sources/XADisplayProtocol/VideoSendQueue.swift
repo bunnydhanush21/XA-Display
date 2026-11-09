@@ -1,77 +1,71 @@
-@preconcurrency import Darwin
-@preconcurrency import Foundation
-@preconcurrency import Network
-import XADisplayProtocol
+import Darwin
+import Foundation
 
-/// Seals and writes video off the main actor. One contiguous buffer, one write.
-final class VideoOutbound: @unchecked Sendable {
+/// Seals video off the caller and, for a USB file descriptor, writes one contiguous buffer.
+public final class VideoSendQueue: @unchecked Sendable {
     private let queue = DispatchQueue(label: "xa.video.out")
     private var seal: ChannelSeal
     private var fileDescriptor: Int32 = -1
-    private var connection: NWConnection?
-    private var sender: UDPVideoSender?
     private var udpSequence: UInt16 = 1
     private var udpFrameID: UInt16 = 1
 
-    init(seal: ChannelSeal) {
+    /// A sealed frame ready for the socket, or `idle` when the bytes were already written.
+    public enum Product: Sendable {
+        case idle
+        case tcp(Data)
+        case udp([UDPVideoPacket])
+    }
+
+    public init(seal: ChannelSeal) {
         self.seal = seal
     }
 
-    func replace(_ seal: ChannelSeal) {
+    public func replace(_ seal: ChannelSeal) {
         queue.sync { self.seal = seal }
     }
 
-    func sealSync(_ payload: Data, aad: Data) -> Data? {
+    public func sealSync(_ payload: Data, aad: Data) -> Data? {
         queue.sync { self.seal.seal(payload, aad: aad) }
     }
 
-    func note(fd: Int32?, connection: NWConnection?, sender: UDPVideoSender) {
+    public func note(fd: Int32?) {
         let descriptor = fd ?? -1
-        queue.async {
-            self.fileDescriptor = descriptor
-            self.connection = connection
-            self.sender = sender
-        }
+        queue.async { self.fileDescriptor = descriptor }
     }
 
-    func submit(payload: Data, aad: Data, udp: Bool, keyframe: Bool, done: @escaping @Sendable () -> Void) {
+    public func submit(payload: Data, aad: Data, udp: Bool, keyframe: Bool, done: @escaping @Sendable (Product) -> Void) {
         queue.async {
             if udp {
                 guard let sealed = self.seal.seal(payload, aad: aad) else {
-                    done()
+                    done(.idle)
                     return
                 }
                 let packets = UDPVideoPacketizer.packetize(frame: sealed, frameID: self.udpFrameID, nextSequence: &self.udpSequence, keyframe: keyframe)
                 self.udpFrameID &+= 1
-                self.sender?.send(packets)
-                done()
+                done(.udp(packets))
                 return
             }
             guard let frame = self.seal.sealPrefixed(payload, aad: aad) else {
-                done()
+                done(.idle)
                 return
             }
             if self.fileDescriptor >= 0 {
                 Self.writeAll(self.fileDescriptor, frame)
-                done()
+                done(.idle)
                 return
             }
-            if let connection = self.connection {
-                connection.send(content: frame, completion: .contentProcessed { _ in done() })
-                return
-            }
-            done()
+            done(.tcp(frame))
         }
     }
 
-    func flush() { queue.sync {} }
+    public func flush() { queue.sync {} }
 
     private static func writeAll(_ fd: Int32, _ data: Data) {
         data.withUnsafeBytes { raw in
             guard let base = raw.baseAddress else { return }
             var sent = 0
             while sent < raw.count {
-                let n = write(fd, base.advanced(by: sent), raw.count - sent)
+                let n = Darwin.write(fd, base.advanced(by: sent), raw.count - sent)
                 if n <= 0 { return }
                 sent += n
             }

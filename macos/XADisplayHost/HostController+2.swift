@@ -225,10 +225,10 @@ extension HostController {
         let udp = transport == .wifi && settings.lowLatencyWiFi
         let aad = (udp ? SealChannel.udp : SealChannel.video).aad
         if !udp { pendingSends += 1 }
-        let done: @Sendable () -> Void = { [weak self] in
-            Task { @MainActor in self?.pendingSends = max(0, (self?.pendingSends ?? 1) - 1) }
+        videoOut.submit(payload: annex, aad: aad, udp: udp, keyframe: keyframe) { [weak self] product in
+            let countSend = !udp
+            Task { @MainActor in self?.deliverVideo(product, countSend: countSend) }
         }
-        videoOut.submit(payload: annex, aad: aad, udp: udp, keyframe: keyframe, done: udp ? {} : done)
         _ = captureMs
         _ = encodeMs
     }

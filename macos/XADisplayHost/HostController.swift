@@ -21,7 +21,7 @@ final class HostController {
     var settings: XAFeatureSettings
     var token: String
     var outboundSeal = ChannelSeal(token: "", direction: .hostToPad)
-    let videoOut: VideoOutbound
+    let videoOut: VideoSendQueue
     var inboundSeal = SealInbox(token: "", direction: .padToHost)
     var sessionReady = false
     var handshakeReplay = HandshakeReplayGuard()
@@ -72,7 +72,7 @@ final class HostController {
         settings = stored.settings
         token = stored.token
         outboundSeal = ChannelSeal(token: token, direction: .hostToPad)
-        videoOut = VideoOutbound(seal: outboundSeal)
+        videoOut = VideoSendQueue(seal: outboundSeal)
         inboundSeal = SealInbox(token: token, direction: .padToHost)
         library = PresetLibrary(enabled: settings.savedPresets, items: stored.presets)
         if settings.savedPresets, let first = library.items.last {

@@ -1,3 +1,4 @@
+import Darwin
 import XCTest
 
 @testable import XADisplayProtocol
@@ -74,6 +75,32 @@ final class EfficiencyTests: XCTestCase {
         guard case .ok(let frames) = parser.append(framed, now: 1), let frame = frames.first else { return XCTFail("parse") }
         XCTAssertEqual(frames.count, 1)
         XCTAssertEqual(ChannelSeal.open(token: "ABCD2345", sealed: frame, aad: SealChannel.video.aad), plain)
+    }
+
+    func testVideoSendQueueWritesOneBufferAndPacketizesUDP() {
+        let queue = VideoSendQueue(seal: ChannelSeal(token: "ABCD2345", direction: .hostToPad))
+        var descriptors = [Int32](repeating: 0, count: 2)
+        XCTAssertEqual(Darwin.pipe(&descriptors), 0)
+        queue.note(fd: descriptors[1])
+        queue.flush()
+        let wrote = expectation(description: "usb write")
+        queue.submit(payload: Data([0, 0, 0, 1, 0x65]), aad: SealChannel.video.aad, udp: false, keyframe: true) { product in
+            if case .idle = product { wrote.fulfill() }
+        }
+        wait(for: [wrote], timeout: 2)
+        var buffer = [UInt8](repeating: 0, count: 64)
+        let count = Darwin.read(descriptors[0], &buffer, buffer.count)
+        XCTAssertGreaterThan(count, 4)
+        close(descriptors[0])
+        close(descriptors[1])
+        let packetized = expectation(description: "udp")
+        queue.submit(payload: Data([0, 0, 0, 1, 0x41]), aad: SealChannel.udp.aad, udp: true, keyframe: false) { product in
+            if case .udp(let packets) = product {
+                XCTAssertFalse(packets.isEmpty)
+                packetized.fulfill()
+            }
+        }
+        wait(for: [packetized], timeout: 2)
     }
 
     func testUIPaceAndMoveCoalesce() {
