@@ -13,6 +13,9 @@ extension VideoReceiver {
             return
         }
         let received = CACurrentMediaTime()
+        lock.lock()
+        metricsWindow.noteReceived(bytes: payload.count)
+        lock.unlock()
         let unit = AnnexB.parse(payload)
         if unit.truncated || unit.nalus.isEmpty {
             lock.lock()
@@ -55,16 +58,31 @@ extension VideoReceiver {
         let allow = decision == .show && inflight < cap
         if allow { inflight += 1 }
         lock.unlock()
-        guard allow else { return }
+        guard allow else {
+            lock.lock()
+            metricsWindow.noteDropped()
+            lock.unlock()
+            return
+        }
         let timing = unit.timing
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            let decodeStarted = CACurrentMediaTime()
             let enqueued = self.enqueue(vcl, keyframe: idr)
+            let decodeMs = (CACurrentMediaTime() - decodeStarted) * 1000
             let now = CACurrentMediaTime()
             self.lock.lock()
             self.inflight = max(0, self.inflight - 1)
             self.lock.unlock()
             if enqueued {
+                self.lock.lock()
+                self.metricsWindow.noteDisplayed(
+                    decodeMilliseconds: decodeMs,
+                    captureHostMs: timing?.captureMs,
+                    displayedClientMs: now * 1000,
+                    clientMinusHostMs: self.clockOffsetClientMinusHost
+                )
+                self.lock.unlock()
                 self.noteDelivered(handoffMs: (now - received) * 1000)
                 if let timing = timing, self.xaHost {
                     let ack = FrameAck(seq: timing.seq, captureMs: timing.captureMs, receiveMs: received * 1000, enqueueMs: now * 1000)
@@ -232,6 +250,15 @@ extension VideoReceiver {
         let now = Date()
         if now.timeIntervalSince(fpsWindow) >= 1 {
             stats.fpsDelivered = Double(deliveredThisSecond) / now.timeIntervalSince(fpsWindow)
+            lock.lock()
+            let sample = metricsWindow.snapshot(now: now, inputRoundTripMilliseconds: nil)
+            lock.unlock()
+            latestMetrics = sample
+            stats.receivedFramesPerSecond = sample.receivedFramesPerSecond
+            stats.droppedFrames = sample.droppedFrames
+            stats.inboundBitsPerSecond = sample.inboundBitsPerSecond
+            stats.decodeTimeMilliseconds = sample.decodeTimeMilliseconds
+            stats.endToEndLatencyMilliseconds = sample.endToEndLatencyMilliseconds
             deliveredThisSecond = 0
             fpsWindow = now
             layerFailures = 0

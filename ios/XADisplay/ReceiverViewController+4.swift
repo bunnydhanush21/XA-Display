@@ -9,6 +9,7 @@ extension ReceiverViewController {
     }
     func inputChannel(_ channel: InputChannel, clockOffsetClientMinusHost: Double) {
         audio.setClockOffset(clockOffsetClientMinusHost)
+        receiver?.clockOffsetClientMinusHost = clockOffsetClientMinusHost
     }
     func inputChannel(_ channel: InputChannel, failed error: PadError) {
         statusLabel.isHidden = false

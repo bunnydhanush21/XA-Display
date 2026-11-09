@@ -255,8 +255,7 @@ extension ReceiverViewController {
     }
     @objc func showPill() {
         guard StatsPill.heightFits(pill: 22, screen: Double(view.bounds.height)) else { return }
-        let latency = pipelineMs.map { String(format: "%.0f ms", $0) } ?? "—"
-        pill.text = "  \(latency) · \(String(format: "%.0f", fps)) fps · \(streamLabel)  "
+        pill.text = features.showStats ? PadMetricsText.pill(latestMetrics) : "  \(streamLabel)  "
         pill.isHidden = false
         pillTimer?.invalidate()
         let interval = UIAccessibility.isReduceMotionEnabled ? 0.0 : 0.2

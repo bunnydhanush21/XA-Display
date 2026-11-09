@@ -21,6 +21,11 @@ struct ReceiverStats {
     var fpsDelivered: Double = 0
     var handoffMs: Double = 0
     var decodeFails: Int = 0
+    var receivedFramesPerSecond: Double = 0
+    var droppedFrames: Int = 0
+    var inboundBitsPerSecond: Double = 0
+    var decodeTimeMilliseconds: Double = 0
+    var endToEndLatencyMilliseconds: Double?
 }
 
 protocol VideoReceiverDelegate: AnyObject {
@@ -78,6 +83,12 @@ final class VideoReceiver {
     var userPaused = false
     var deliveredThisSecond = 0
     var fpsWindow = Date()
+    var metricsWindow = PadMetricsAccumulator()
+    var clockOffsetClientMinusHost: Double?
+    var latestMetrics = PadStreamSample(
+        receivedFramesPerSecond: 0, displayedFramesPerSecond: 0, droppedFrames: 0, inboundBitsPerSecond: 0, decodeTimeMilliseconds: 0, endToEndLatencyMilliseconds: nil,
+        inputRoundTripMilliseconds: nil
+    )
     var stats = ReceiverStats()
     var layerFailures = 0
     var holdUntilKeyframe = false

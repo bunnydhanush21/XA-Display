@@ -107,8 +107,11 @@ extension ReceiverViewController {
         let rtt = rttMs.map { String(format: "%.0f ms", $0) } ?? "—"
         let batteryLines = features.batteryTelemetry ? "\n" + batteryLoop.lastText : ""
         let measured = pipelineMs == nil ? "not measured yet" : "\(pipeline) measured, includes return, not glass-to-glass"
+        let decode = String(format: "%.1f ms", latestMetrics.decodeTimeMilliseconds)
+        let inbound = String(format: "%.2f Mb/s", latestMetrics.inboundBitsPerSecond / 1_000_000)
+        let endToEnd = latestMetrics.endToEndLatencyMilliseconds.map { String(format: "%.0f ms", $0) } ?? "needs clock offset"
         statsLabel.text =
-            "  FPS \(String(format: "%.0f", fps)) delivered\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Link delay \(measured)\n  Input RTT \(rtt)\n  \(streamLabel)\(batteryLines)  "
+            "  Received \(String(format: "%.0f", latestMetrics.receivedFramesPerSecond)) fps\n  Displayed \(String(format: "%.0f", fps)) fps\n  Dropped \(latestMetrics.droppedFrames)\n  Inbound \(inbound)\n  Decode \(decode)\n  End to end \(endToEnd)\n  Input RTT \(rtt)\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Link delay \(measured)\n  \(streamLabel)\(batteryLines)  "
     }
     @objc func foreground() {
         guard !userPaused else { return }
@@ -182,6 +185,20 @@ extension ReceiverViewController {
     func videoReceiver(_ receiver: VideoReceiver, stats: ReceiverStats) {
         fps = stats.fpsDelivered
         handoffMs = stats.handoffMs
+        latestMetrics = PadStreamSample(
+            receivedFramesPerSecond: stats.receivedFramesPerSecond,
+            displayedFramesPerSecond: stats.fpsDelivered,
+            droppedFrames: stats.droppedFrames,
+            inboundBitsPerSecond: stats.inboundBitsPerSecond,
+            decodeTimeMilliseconds: stats.decodeTimeMilliseconds,
+            endToEndLatencyMilliseconds: stats.endToEndLatencyMilliseconds,
+            inputRoundTripMilliseconds: rttMs
+        )
+        metricRows.append(latestMetrics)
+        if metricRows.count > 240 { metricRows.removeFirst(metricRows.count - 240) }
+        if features.showStats, let directory = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first {
+            try? PadMetricsExport.write(metricRows, directory: directory)
+        }
         refreshStats()
     }
     func videoReceiverBecameXAHost(_ receiver: VideoReceiver) {

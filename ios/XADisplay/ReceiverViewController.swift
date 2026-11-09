@@ -34,6 +34,10 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     var handoffMs = 0.0
     var pipelineMs: Double?
     var rttMs: Double?
+    var latestMetrics = PadStreamSample(
+        receivedFramesPerSecond: 0, displayedFramesPerSecond: 0, droppedFrames: 0, inboundBitsPerSecond: 0, decodeTimeMilliseconds: 0, endToEndLatencyMilliseconds: nil, inputRoundTripMilliseconds: nil
+    )
+    var metricRows: [PadStreamSample] = []
     var fps = 0.0
     var userPaused = false
     var lastMove = XAPoint.zero
