@@ -1,3 +1,4 @@
+@preconcurrency import CommonCrypto
 import Foundation
 
 /// Remembers nonce counters for one direction so a sealed frame cannot be opened twice.
