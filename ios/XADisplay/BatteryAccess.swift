@@ -51,11 +51,13 @@ private enum IOKitDynamically {
             let getSym = dlsym(handle, "IOServiceGetMatchingService")
         else { return nil }
         typealias Matching = @convention(c) (UnsafePointer<CChar>) -> Unmanaged<CFMutableDictionary>?
-        typealias Get = @convention(c) (UInt32, CFDictionary) -> UInt32
+        // IOServiceGetMatchingService consumes the +1 dictionary. The pointer is passed
+        // without ARC so that consume is the only release.
+        typealias Get = @convention(c) (UInt32, UnsafeMutableRawPointer) -> UInt32
         let matching = unsafeBitCast(matchingSym, to: Matching.self)
         let get = unsafeBitCast(getSym, to: Get.self)
-        guard let dict = name.withCString({ matching($0) })?.takeRetainedValue() else { return nil }
-        let service = get(0, dict)
+        guard let created = name.withCString({ matching($0) }) else { return nil }
+        let service = get(0, created.toOpaque())
         return service == 0 ? nil : service
     }
 
@@ -64,11 +66,13 @@ private enum IOKitDynamically {
         typealias Copy = @convention(c) (UInt32, UnsafeMutablePointer<Unmanaged<CFMutableDictionary>?>, CFAllocator?, UInt32) -> Int32
         let copy = unsafeBitCast(sym, to: Copy.self)
         var unmanaged: Unmanaged<CFMutableDictionary>?
+        // Create rule: the out-dictionary is +1, and this call does not consume the service.
         guard copy(service, &unmanaged, kCFAllocatorDefault, 0) == 0, let dict = unmanaged?.takeRetainedValue() as? [String: Any] else { return nil }
         return dict
     }
 
     static func release(_ service: UInt32) {
+        // One release for the service returned by IOServiceGetMatchingService. The matching dictionary is already gone.
         guard let handle = handle, let sym = dlsym(handle, "IOObjectRelease") else { return }
         typealias Release = @convention(c) (UInt32) -> Int32
         _ = unsafeBitCast(sym, to: Release.self)(service)
@@ -127,10 +131,11 @@ final class BatteryCareLoop {
     private var lastGoodAt: Date?
     private(set) var warning: String?
     private(set) var lastText = ""
+    var readRegistry: () -> RawBatteryProperties? = { BatteryRegistry.read() }
 
     func tick(enabledTelemetry: Bool, chargeLimit: Bool, config: ChargeLimitConfig) -> (text: String, heat: Bool) {
         let kill = FileManager.default.fileExists(atPath: BatteryCarePaths.killSwitch)
-        let registry = BatteryRegistry.read()
+        let registry = (enabledTelemetry || chargeLimit) ? readRegistry() : nil
         UIDevice.current.isBatteryMonitoringEnabled = true
         let deviceLevel = Double(UIDevice.current.batteryLevel)
         let deviceCharging: Bool?
