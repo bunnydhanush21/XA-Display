@@ -1,0 +1,15 @@
+.build/
+build/
+ios/*.xcodeproj/
+macos/*.xcodeproj/
+*.xcodeproj/
+.swiftpm/
+.DS_Store
+DerivedData/
+xcuserdata/
+*.xcuserstate
+ios/build/
+macos/build/
+*.ipa
+*.zip
+.env

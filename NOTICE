@@ -1,0 +1,55 @@
+XA Display
+Copyright (c) 2026 Bunny
+
+The iPad receiver in ios/XADisplay is derived from the MIT-licensed iOS 12
+client by cuongpham1:
+
+  https://github.com/cuongpham1/ipad-iphone-second-monitor-ios12-free
+  commit 5ea40029a9ebf78dd83ba7651ea59cdec2ae4e54
+
+That project's license follows.
+
+---
+
+MIT License
+
+Copyright (c) 2026 cuongpham1
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Licensing choice
+
+XA Display Host (macos/) is original code written for this repository and is
+MIT, same as the rest of this tree. It is not a fork of OpenDisplay
+(GPL-3.0). No OpenDisplay, Deskreen, libusbmuxd, or other GPL/LGPL source is
+vendored here.
+
+The video wire format (4-byte big-endian length, JSON control messages, and
+H.264 Annex-B access units on TCP port 9000, Bonjour type _opensidecar._tcp)
+is implemented from the behavior documented by the MIT client so an existing
+OpenDisplay 1.30.x sender can still drive basic video, touch, and scroll.
+That does not copy OpenDisplay's source.
+
+The Mac host talks to Apple's built-in usbmuxd. It does not ship the
+libimobiledevice usbmuxd daemon or libusbmuxd.
+
+CGVirtualDisplay is Apple private API, isolated in XAVirtualDisplay.m.
+Declarations there are this project's own and are not taken from a GPL tree.

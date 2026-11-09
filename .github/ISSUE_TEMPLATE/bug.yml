@@ -1,0 +1,36 @@
+name: Bug
+description: A defect in the protocol, the iPad app, or the Mac host
+title: "fix: "
+labels: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened
+      description: Facts only. Leave out the pairing token.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or build
+      placeholder: git SHA, CI run, or draft release
+  - type: dropdown
+    id: link
+    attributes:
+      label: Link
+      options:
+        - USB
+        - Wi-Fi
+        - Not connected
+  - type: textarea
+    id: device
+    attributes:
+      label: Devices
+      description: iPad model and iOS, Mac model and macOS, preset (Balanced, Safe, Native).

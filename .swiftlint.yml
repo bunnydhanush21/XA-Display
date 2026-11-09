@@ -1,0 +1,52 @@
+# SwiftLint 0.65. Length and complexity ceilings match this codec-heavy tree.
+# Short geometry names (x, y, dx) are allowed. Force-casts stay where CoreFoundation requires them.
+excluded:
+  - .build
+  - build
+  - ios/build
+  - macos/build
+  - DerivedData
+  - .swiftpm
+
+disabled_rules:
+  # Layout is owned by swift-format (.swift-format). These rules fight that formatter.
+  - line_length
+  - opening_brace
+  - force_cast
+  - force_try
+  - identifier_name
+  - todo
+  - trailing_comma
+  - xctfail_message
+  # UIView.layerClass must stay a class member.
+  - static_over_final_class
+
+file_length:
+  warning: 400
+  error: 800
+
+type_body_length:
+  warning: 400
+  error: 800
+
+function_body_length:
+  warning: 150
+  error: 250
+
+cyclomatic_complexity:
+  warning: 80
+  error: 100
+
+function_parameter_count:
+  warning: 8
+  error: 12
+
+large_tuple:
+  warning: 4
+  error: 6
+
+type_name:
+  min_length: 2
+  max_length: 50
+
+reporter: "emoji"

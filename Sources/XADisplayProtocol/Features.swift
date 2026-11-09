@@ -1,0 +1,390 @@
+import Foundation
+
+/// GestureTuning.
+public struct GestureTuning: Equatable, Codable {
+    public var slop: Double
+    public var doubleTapWindow: Double
+    public var longPressDuration: Double
+    public var scrollGain: Double
+    public var sidebarOnLeft: Bool
+
+    public init(slop: Double = 12, doubleTapWindow: Double = 0.35, longPressDuration: Double = 0.45, scrollGain: Double = 1, sidebarOnLeft: Bool = true) {
+        self.slop = slop
+        self.doubleTapWindow = doubleTapWindow
+        self.longPressDuration = longPressDuration
+        self.scrollGain = scrollGain
+        self.sidebarOnLeft = sidebarOnLeft
+    }
+
+    public func clamped() -> GestureTuning {
+        GestureTuning(
+            slop: min(40, max(4, slop)),
+            doubleTapWindow: min(0.8, max(0.15, doubleTapWindow)),
+            longPressDuration: min(1.2, max(0.25, longPressDuration)),
+            scrollGain: min(3, max(0.25, scrollGain)),
+            sidebarOnLeft: sidebarOnLeft
+        )
+    }
+}
+
+/// Every extra is off or on independently. Pairing defaults on; clipboard and audio default off.
+public struct XAFeatureSettings: Equatable, Codable {
+    public var requirePairing: Bool
+    public var clipboardSync: Bool
+    public var threeFingerShortcuts: Bool
+    public var pinchMagnifier: Bool
+    public var commandStrip: Bool
+    public var windowSnapping: Bool
+    public var audio: Bool
+    public var savedPresets: Bool
+    public var gestureTuning: GestureTuning
+    public var autoConnectUSB: Bool
+    public var touchscreenGestures: Bool
+    public var wifiFallback: Bool
+    public var trackpadMode: Bool
+    public var scrollInertia: Bool
+    public var showStats: Bool
+    public var precisionMode: Bool
+    public var inputRotation: Int
+    public var oneTapReconnect: Bool
+    public var rememberMacs: Bool
+    public var mediaRemote: Bool
+    public var batteryTelemetry: Bool
+    public var chargeLimit: Bool
+    public var lowLatencyWiFi: Bool
+    public var followRotation: Bool
+    public var orientationLock: String
+    public var rotationMode: String
+    public var custom: CustomDisplaySettings
+    public var launchAtLogin: Bool
+    /// When true, frames are keyed from the pairing token. Off by default; the handshake key is used instead.
+    public var legacyTokenSeal: Bool
+
+    public init(
+        requirePairing: Bool = true,
+        clipboardSync: Bool = false,
+        threeFingerShortcuts: Bool = true,
+        pinchMagnifier: Bool = true,
+        commandStrip: Bool = true,
+        windowSnapping: Bool = true,
+        audio: Bool = false,
+        savedPresets: Bool = true,
+        gestureTuning: GestureTuning = GestureTuning(),
+        autoConnectUSB: Bool = true,
+        touchscreenGestures: Bool = true,
+        wifiFallback: Bool = true,
+        trackpadMode: Bool = false,
+        scrollInertia: Bool = true,
+        showStats: Bool = true,
+        precisionMode: Bool = false,
+        inputRotation: Int = 0,
+        oneTapReconnect: Bool = true,
+        rememberMacs: Bool = true,
+        mediaRemote: Bool = false,
+        batteryTelemetry: Bool = true,
+        chargeLimit: Bool = false,
+        lowLatencyWiFi: Bool = true,
+        followRotation: Bool = true,
+        orientationLock: String = "none",
+        rotationMode: String = "resolution",
+        custom: CustomDisplaySettings = CustomDisplaySettings(),
+        launchAtLogin: Bool = false,
+        legacyTokenSeal: Bool = false
+    ) {
+        self.requirePairing = requirePairing
+        self.clipboardSync = clipboardSync
+        self.threeFingerShortcuts = threeFingerShortcuts
+        self.pinchMagnifier = pinchMagnifier
+        self.commandStrip = commandStrip
+        self.windowSnapping = windowSnapping
+        self.audio = audio
+        self.savedPresets = savedPresets
+        self.gestureTuning = gestureTuning
+        self.autoConnectUSB = autoConnectUSB
+        self.touchscreenGestures = touchscreenGestures
+        self.wifiFallback = wifiFallback
+        self.trackpadMode = trackpadMode
+        self.scrollInertia = scrollInertia
+        self.showStats = showStats
+        self.precisionMode = precisionMode
+        self.inputRotation = inputRotation
+        self.oneTapReconnect = oneTapReconnect
+        self.rememberMacs = rememberMacs
+        self.mediaRemote = mediaRemote
+        self.batteryTelemetry = batteryTelemetry
+        self.chargeLimit = chargeLimit
+        self.lowLatencyWiFi = lowLatencyWiFi
+        self.followRotation = followRotation
+        self.orientationLock = orientationLock
+        self.rotationMode = rotationMode
+        self.custom = custom
+        self.launchAtLogin = launchAtLogin
+        self.legacyTokenSeal = legacyTokenSeal
+    }
+}
+
+extension XAFeatureSettings {
+    private enum CodingKeys: String, CodingKey {
+        case requirePairing, clipboardSync, threeFingerShortcuts, pinchMagnifier, commandStrip
+        case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
+        case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
+        case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit, lowLatencyWiFi
+        case followRotation, orientationLock, rotationMode, custom, launchAtLogin, legacyTokenSeal
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = XAFeatureSettings()
+        requirePairing = try values.decodeIfPresent(Bool.self, forKey: .requirePairing) ?? fallback.requirePairing
+        clipboardSync = try values.decodeIfPresent(Bool.self, forKey: .clipboardSync) ?? fallback.clipboardSync
+        threeFingerShortcuts = try values.decodeIfPresent(Bool.self, forKey: .threeFingerShortcuts) ?? fallback.threeFingerShortcuts
+        pinchMagnifier = try values.decodeIfPresent(Bool.self, forKey: .pinchMagnifier) ?? fallback.pinchMagnifier
+        commandStrip = try values.decodeIfPresent(Bool.self, forKey: .commandStrip) ?? fallback.commandStrip
+        windowSnapping = try values.decodeIfPresent(Bool.self, forKey: .windowSnapping) ?? fallback.windowSnapping
+        audio = try values.decodeIfPresent(Bool.self, forKey: .audio) ?? fallback.audio
+        savedPresets = try values.decodeIfPresent(Bool.self, forKey: .savedPresets) ?? fallback.savedPresets
+        gestureTuning = try values.decodeIfPresent(GestureTuning.self, forKey: .gestureTuning) ?? fallback.gestureTuning
+        autoConnectUSB = try values.decodeIfPresent(Bool.self, forKey: .autoConnectUSB) ?? fallback.autoConnectUSB
+        touchscreenGestures = try values.decodeIfPresent(Bool.self, forKey: .touchscreenGestures) ?? fallback.touchscreenGestures
+        wifiFallback = try values.decodeIfPresent(Bool.self, forKey: .wifiFallback) ?? fallback.wifiFallback
+        trackpadMode = try values.decodeIfPresent(Bool.self, forKey: .trackpadMode) ?? fallback.trackpadMode
+        scrollInertia = try values.decodeIfPresent(Bool.self, forKey: .scrollInertia) ?? fallback.scrollInertia
+        showStats = try values.decodeIfPresent(Bool.self, forKey: .showStats) ?? fallback.showStats
+        precisionMode = try values.decodeIfPresent(Bool.self, forKey: .precisionMode) ?? fallback.precisionMode
+        inputRotation = try values.decodeIfPresent(Int.self, forKey: .inputRotation) ?? fallback.inputRotation
+        oneTapReconnect = try values.decodeIfPresent(Bool.self, forKey: .oneTapReconnect) ?? fallback.oneTapReconnect
+        rememberMacs = try values.decodeIfPresent(Bool.self, forKey: .rememberMacs) ?? fallback.rememberMacs
+        mediaRemote = try values.decodeIfPresent(Bool.self, forKey: .mediaRemote) ?? fallback.mediaRemote
+        batteryTelemetry = try values.decodeIfPresent(Bool.self, forKey: .batteryTelemetry) ?? fallback.batteryTelemetry
+        chargeLimit = try values.decodeIfPresent(Bool.self, forKey: .chargeLimit) ?? fallback.chargeLimit
+        lowLatencyWiFi = try values.decodeIfPresent(Bool.self, forKey: .lowLatencyWiFi) ?? fallback.lowLatencyWiFi
+        followRotation = try values.decodeIfPresent(Bool.self, forKey: .followRotation) ?? fallback.followRotation
+        orientationLock = try values.decodeIfPresent(String.self, forKey: .orientationLock) ?? fallback.orientationLock
+        rotationMode = try values.decodeIfPresent(String.self, forKey: .rotationMode) ?? fallback.rotationMode
+        custom = try values.decodeIfPresent(CustomDisplaySettings.self, forKey: .custom) ?? fallback.custom
+        launchAtLogin = try values.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? fallback.launchAtLogin
+        legacyTokenSeal = try values.decodeIfPresent(Bool.self, forKey: .legacyTokenSeal) ?? fallback.legacyTokenSeal
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(requirePairing, forKey: .requirePairing)
+        try values.encode(clipboardSync, forKey: .clipboardSync)
+        try values.encode(threeFingerShortcuts, forKey: .threeFingerShortcuts)
+        try values.encode(pinchMagnifier, forKey: .pinchMagnifier)
+        try values.encode(commandStrip, forKey: .commandStrip)
+        try values.encode(windowSnapping, forKey: .windowSnapping)
+        try values.encode(audio, forKey: .audio)
+        try values.encode(savedPresets, forKey: .savedPresets)
+        try values.encode(gestureTuning, forKey: .gestureTuning)
+        try values.encode(autoConnectUSB, forKey: .autoConnectUSB)
+        try values.encode(touchscreenGestures, forKey: .touchscreenGestures)
+        try values.encode(wifiFallback, forKey: .wifiFallback)
+        try values.encode(trackpadMode, forKey: .trackpadMode)
+        try values.encode(scrollInertia, forKey: .scrollInertia)
+        try values.encode(showStats, forKey: .showStats)
+        try values.encode(precisionMode, forKey: .precisionMode)
+        try values.encode(inputRotation, forKey: .inputRotation)
+        try values.encode(oneTapReconnect, forKey: .oneTapReconnect)
+        try values.encode(rememberMacs, forKey: .rememberMacs)
+        try values.encode(mediaRemote, forKey: .mediaRemote)
+        try values.encode(batteryTelemetry, forKey: .batteryTelemetry)
+        try values.encode(chargeLimit, forKey: .chargeLimit)
+        try values.encode(lowLatencyWiFi, forKey: .lowLatencyWiFi)
+        try values.encode(followRotation, forKey: .followRotation)
+        try values.encode(orientationLock, forKey: .orientationLock)
+        try values.encode(rotationMode, forKey: .rotationMode)
+        try values.encode(custom, forKey: .custom)
+        try values.encode(launchAtLogin, forKey: .launchAtLogin)
+        try values.encode(legacyTokenSeal, forKey: .legacyTokenSeal)
+    }
+}
+
+/// Magnifier.
+public struct Magnifier: Equatable {
+    public var scale: Double
+    public var center: XAPoint
+    public init(scale: Double = 1, center: XAPoint = XAPoint(x: 0.5, y: 0.5)) {
+        self.scale = scale
+        self.center = center
+    }
+
+    public mutating func pinch(by factor: Double, around normalizedCenter: XAPoint) {
+        guard factor.isFinite, factor > 0 else { return }
+        scale = min(4, max(1, scale * factor))
+        if scale <= 1.001 {
+            scale = 1
+            center = XAPoint(x: 0.5, y: 0.5)
+        } else {
+            center = XAPoint(x: min(1, max(0, normalizedCenter.x)), y: min(1, max(0, normalizedCenter.y)))
+        }
+    }
+
+    public var visibleRect: XARect {
+        let width = 1 / scale
+        let height = 1 / scale
+        let x = min(max(center.x - width / 2, 0), 1 - width)
+        let y = min(max(center.y - height / 2, 0), 1 - height)
+        return XARect(x: x, y: y, width: width, height: height)
+    }
+
+    /// Maps a point in the on-screen video (0...1 of what is visible) back to the full frame.
+    public func videoNormalized(viewNormalized: XAPoint) -> XAPoint {
+        let visible = visibleRect
+        return XAPoint(
+            x: visible.origin.x + min(1, max(0, viewNormalized.x)) * visible.width,
+            y: visible.origin.y + min(1, max(0, viewNormalized.y)) * visible.height
+        )
+    }
+}
+
+/// ThreeFingerAction.
+public enum ThreeFingerAction: Equatable {
+    case undo, redo, copy, paste
+}
+
+/// ThreeFingerMapper.
+public enum ThreeFingerMapper {
+    /// `dx` and `dy` are view points. UIKit already follows the device, so callers do not rotate them again.
+    public static func action(dx: Double, dy: Double, minimum: Double = 24) -> ThreeFingerAction? {
+        if abs(dx) < minimum && abs(dy) < minimum { return nil }
+        if abs(dx) >= abs(dy) {
+            return dx < 0 ? .undo : .redo
+        }
+        return dy < 0 ? .copy : .paste
+    }
+
+    public static func intents(for action: ThreeFingerAction) -> [InputIntent] {
+        switch action {
+        case .undo:
+            return KeyShortcut(input: "z", modifiers: .command).intents()
+        case .redo:
+            return KeyShortcut(input: "z", modifiers: [.command, .shift]).intents()
+        case .copy:
+            return KeyShortcut(input: "c", modifiers: .command).intents()
+        case .paste:
+            return KeyShortcut(input: "v", modifiers: .command).intents()
+        }
+    }
+}
+
+/// CommandStripItem.
+public struct CommandStripItem: Equatable, Codable, Sendable {
+    public var id: String
+    public var title: String
+    public var input: String
+    public var modifiers: UInt8
+    public init(id: String, title: String, input: String, modifiers: UInt8) {
+        self.id = id
+        self.title = title
+        self.input = input
+        self.modifiers = modifiers
+    }
+
+    public static let standard: [CommandStripItem] = [
+        CommandStripItem(id: "esc", title: "Esc", input: "\u{1b}", modifiers: 0),
+        CommandStripItem(id: "undo", title: "Undo", input: "z", modifiers: XAModifierMask.command.rawValue),
+        CommandStripItem(id: "redo", title: "Redo", input: "z", modifiers: XAModifierMask.command.rawValue | XAModifierMask.shift.rawValue),
+        CommandStripItem(id: "copy", title: "Copy", input: "c", modifiers: XAModifierMask.command.rawValue),
+        CommandStripItem(id: "paste", title: "Paste", input: "v", modifiers: XAModifierMask.command.rawValue),
+        CommandStripItem(id: "snap-left", title: "Left", input: "", modifiers: 0),
+        CommandStripItem(id: "snap-right", title: "Right", input: "", modifiers: 0),
+        CommandStripItem(id: "fill", title: "Fill", input: "", modifiers: 0)
+    ]
+
+    public func shortcutIntents() -> [InputIntent] {
+        guard !input.isEmpty else { return [] }
+        return KeyShortcut(input: input, modifiers: XAModifierMask(rawValue: modifiers)).intents()
+    }
+
+    public var windowAction: WindowAction? {
+        switch id {
+        case "snap-left": return .snapLeft
+        case "snap-right": return .snapRight
+        case "fill": return .fill
+        default: return nil
+        }
+    }
+}
+
+/// SnapZone.
+public enum SnapZone: Equatable {
+    case leftHalf, rightHalf, full, mainDisplay
+}
+
+/// WindowSnap.
+public enum WindowSnap {
+    public static func frame(zone: SnapZone, virtualDisplay: XARect, mainDisplay: XARect) -> XARect {
+        switch zone {
+        case .leftHalf:
+            return XARect(x: virtualDisplay.minX, y: virtualDisplay.minY, width: virtualDisplay.width / 2, height: virtualDisplay.height)
+        case .rightHalf:
+            return XARect(x: virtualDisplay.minX + virtualDisplay.width / 2, y: virtualDisplay.minY, width: virtualDisplay.width / 2, height: virtualDisplay.height)
+        case .full:
+            return virtualDisplay
+        case .mainDisplay:
+            return XARect(x: mainDisplay.minX + 40, y: mainDisplay.minY + 40, width: min(900, mainDisplay.width - 80), height: min(600, mainDisplay.height - 80))
+        }
+    }
+
+    public static func flick(dx: Double, dy: Double, speed: Double, minimumSpeed: Double = 900) -> SnapZone? {
+        guard speed >= minimumSpeed, abs(dx) > abs(dy), abs(dx) > 40 else { return nil }
+        return dx < 0 ? .leftHalf : .rightHalf
+    }
+}
+
+/// TouchscreenGesture.
+public enum TouchscreenGesture: Equatable {
+    case fillWindow
+    case snap(SnapZone)
+    case openDrawer
+    case precisionOverlay
+}
+
+/// TouchGestureRouter.
+public enum TouchGestureRouter {
+    /// Screen position alone is not a title bar. Window actions use `WindowChrome`.
+    public static func titleBarFill(enabled: Bool, normalizedY: Double, tapCount: Int, topBand: Double = 0.08) -> Bool {
+        _ = (enabled, normalizedY, tapCount, topBand)
+        return false
+    }
+
+    public static func edgeDrawer(enabled: Bool, startX: Double, viewWidth: Double, translationX: Double, sidebarOnLeft: Bool) -> Bool {
+        guard enabled, viewWidth > 0, abs(translationX) > 24 else { return false }
+        if sidebarOnLeft {
+            return startX < 28 && translationX > 0
+        }
+        return startX > viewWidth - 28 && translationX < 0
+    }
+}
+
+/// SavedDisplayPreset.
+public struct SavedDisplayPreset: Equatable, Codable {
+    public var name: String
+    public var preset: StreamPreset.ID
+    public var portrait: Bool
+    public init(name: String, preset: StreamPreset.ID, portrait: Bool) {
+        self.name = name
+        self.preset = preset
+        self.portrait = portrait
+    }
+}
+
+/// PresetLibrary.
+public struct PresetLibrary {
+    public var enabled: Bool
+    public private(set) var items: [SavedDisplayPreset]
+    public init(enabled: Bool = true, items: [SavedDisplayPreset] = []) {
+        self.enabled = enabled
+        self.items = items
+    }
+    public mutating func save(_ item: SavedDisplayPreset) {
+        guard enabled else { return }
+        items.removeAll { $0.name == item.name }
+        items.append(item)
+    }
+    public func named(_ name: String) -> SavedDisplayPreset? {
+        guard enabled else { return nil }
+        return items.first { $0.name == name }
+    }
+}

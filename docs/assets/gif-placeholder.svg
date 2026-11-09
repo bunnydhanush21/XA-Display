@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-label="GIF placeholder, not a recording">
+  <rect width="960" height="240" fill="#161b24"/>
+  <rect x="16" y="16" width="928" height="208" rx="12" fill="none" stroke="#e6b15c" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="480" y="110" text-anchor="middle" fill="#f4f6fb" font-family="ui-sans-serif, system-ui, sans-serif" font-size="28" font-weight="700">Motion placeholder</text>
+  <text x="480" y="150" text-anchor="middle" fill="#b7c0d4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">No GIF yet. Record a real session before adding one.</text>
+</svg>

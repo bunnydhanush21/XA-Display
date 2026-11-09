@@ -1,0 +1,167 @@
+@preconcurrency import AppKit
+@preconcurrency import CoreVideo
+@preconcurrency import Darwin
+@preconcurrency import ScreenCaptureKit
+import XADisplayProtocol
+import XCTest
+
+@testable import XADisplayHost
+
+@MainActor
+final class PipelineCoverageTests: XCTestCase {
+    func testCapturePlanMatchesTheTargetAndSkipsIdleFrames() {
+        let config = SCStreamConfiguration()
+        CapturePlan.apply(to: config, width: 1440, height: 1080, fps: 60)
+        XCTAssertEqual(config.width, 1440)
+        XCTAssertEqual(config.height, 1080)
+        XCTAssertEqual(config.queueDepth, CapturePlan.queueDepth)
+        XCTAssertFalse(config.scalesToFit)
+        XCTAssertEqual(config.pixelFormat, CapturePlan.pixelFormat)
+        XCTAssertEqual(config.minimumFrameInterval, CMTime(value: 1, timescale: 60))
+        XCTAssertFalse(CapturePlan.shouldEncode(.idle))
+        XCTAssertFalse(CapturePlan.shouldEncode(.blank))
+        XCTAssertFalse(CapturePlan.shouldEncode(.suspended))
+        XCTAssertFalse(CapturePlan.shouldEncode(.stopped))
+        XCTAssertTrue(CapturePlan.shouldEncode(.complete))
+        XCTAssertTrue(CapturePlan.shouldEncode(.started))
+        XCTAssertTrue(CapturePlan.shouldEncode(nil))
+    }
+
+    func testEncoderUsbmuxWindowsAndSettings() {
+        let encoder = H264Encoder()
+        _ = encoder.start(width: 640, height: 360, fps: 30, bitrate: 2_000_000, profileLevel: "H264_Main_AutoLevel")
+        var pixel: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, 640, 360, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pixel)
+        if let pixel { encoder.encode(pixel, captureMs: 1) }
+        encoder.updateBitrate(1_500_000)
+        encoder.stop()
+        _ = UsbmuxClient.listUSBDevices()
+        if let fd = UsbmuxClient.connect(deviceID: 1, port: 1) { close(fd) }
+        var descriptors = [Int32](repeating: 0, count: 2)
+        if Darwin.pipe(&descriptors) == 0 {
+            let stream = FDStream(fd: descriptors[0])
+            stream.onData = { _ in }
+            stream.onClose = {}
+            stream.send(Data([1, 2, 3, 4]))
+            Thread.sleep(forTimeInterval: 0.05)
+            stream.closeStream()
+            close(descriptors[1])
+        }
+        let frame = XARect(x: 0, y: 0, width: 1440, height: 1080)
+        let main = WindowMover.mainDisplayFrame()
+        _ = WindowMover.windows()
+        _ = WindowMover.catalog(on: frame)
+        _ = WindowMover.displayFrame(CGMainDisplayID())
+        _ = WindowMover.recover(from: frame, to: main)
+        _ = WindowMover.apply(zone: .full, virtual: frame, main: main)
+        _ = WindowMover.tile(.bottomRight, on: frame)
+        _ = WindowMover.fillToggle(on: frame)
+        _ = WindowMover.pressTraffic(.pressZoom, on: frame)
+        _ = WindowMover.pressMenu(index: 0)
+        _ = WindowMover.pressExtra(matching: "Control Center")
+        _ = WindowMover.resize(windowIndex: 0, corner: .topLeft, translation: XAPoint(x: 8, y: 8), on: frame)
+        var document = XASettingsDocument.defaults
+        document.audioMode = AudioRouteMode.selected.rawValue
+        document.features.custom.enabled = true
+        let panel = HostSettingsPanel(document: document)
+        panel.apps = [("com.apple.finder", "Finder")]
+        panel.selectedBundles = ["com.apple.finder"]
+        panel.onChange = { _ in }
+        panel.onRevoke = {}
+        panel.onScreen = {}
+        panel.onAccessibility = {}
+        panel.onToggleApp = { _ in }
+        panel.update(document)
+        visit(panel.window.contentView)
+        let sender = UDPVideoSender()
+        sender.connect(host: "127.0.0.1")
+        sender.retransmit([])
+        sender.stop()
+    }
+
+    func testPostedEventsAndEncoderCallback() {
+        let poster = EventPoster()
+        let point = XAPoint(x: 12, y: 18)
+        poster.post(.mouse(phase: .move, button: .left, global: point))
+        poster.post(.mouse(phase: .down, button: .right, global: point))
+        poster.post(.mouse(phase: .up, button: .middle, global: point))
+        poster.post(.mouse(phase: .drag, button: .left, global: point))
+        poster.post(.scroll(dxPoints: 3, dyPoints: -4))
+        poster.post(.key(phase: .down, keyCode: 0, modifiers: .command, text: "a"))
+        poster.post(.key(phase: .typed, keyCode: 0, modifiers: [], text: ""))
+        poster.post(.modifier(bit: .shift, down: true))
+        poster.post(.modifier(bit: .control, down: false))
+        poster.post(.modifier(bit: .option, down: true))
+        poster.post(.modifier(bit: .command, down: false))
+        poster.post(.clipboard(text: "copied", revision: 1))
+        poster.post(.window(.snapLeft))
+        poster.post(.chrome(op: 1, index: 0, windowIndex: 0, dx: 0, dy: 0))
+        poster.post(.media(.playPause, scrub: 0))
+        for action in [MediaAction.playPause, .next, .previous, .volumeUp, .volumeDown, .seekForward, .seekBackward] {
+            MediaKeyPoster.post(action)
+        }
+        let encoder = H264Encoder()
+        _ = encoder.start(width: 320, height: 180, fps: 15, bitrate: 500_000, profileLevel: "H264_Main_AutoLevel")
+        var pixel: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, 320, 180, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pixel)
+        if let pixel {
+            encoder.encode(pixel, captureMs: 2)
+            encoder.encode(pixel, captureMs: 3)
+        }
+        Thread.sleep(forTimeInterval: 0.3)
+        encoder.stop()
+        LoginItem.setEnabled(false)
+        LoginItem.setEnabled(true)
+        LoginItem.setEnabled(false)
+        let coded = AACLCEncoder()
+        _ = coded.start()
+        _ = coded.encode(Data(count: 4096))
+        _ = coded.encode(Data(count: 64))
+        XCTAssertFalse(AudioCapture.describe(.allApplications).isEmpty)
+        XCTAssertTrue(AudioCapture.describe(.includingBundles(["com.apple.finder"])).contains("finder"))
+    }
+
+    func testCaptureAndAudioStartFailClosed() async {
+        let capture = CapturePipeline()
+        do {
+            try await capture.start(displayID: 0, width: 640, height: 360, fps: 30, bitrate: 1_000_000, profileLevel: "H264_Main_AutoLevel", audio: false)
+        } catch {
+            capture.stop()
+        }
+        capture.updateBitrate(800_000)
+        capture.stop()
+        let audio = AudioCapture()
+        await audio.start(displayID: 0, choice: .includingBundles([]))
+        await audio.start(displayID: CGMainDisplayID(), choice: .allApplications)
+        audio.stop()
+        if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) {
+            let frame = XARect(x: 0, y: 0, width: 1440, height: 900)
+            _ = AudioCapture.bundlesOnVirtualDisplay(content: content, displayFrame: frame)
+            if let display = content.displays.first {
+                _ = try? AudioCapture.filter(display: display, content: content, choice: .allApplications)
+                _ = try? AudioCapture.filter(display: display, content: content, choice: .includingBundles(["com.apple.finder"]))
+            }
+        }
+        var sequence: UInt16 = 1
+        let packets = UDPVideoPacketizer.packetize(frame: Data(repeating: 7, count: 1800), frameID: 4, nextSequence: &sequence, keyframe: true)
+        let sender = UDPVideoSender()
+        sender.connect(host: "127.0.0.1")
+        sender.send(packets)
+        sender.retransmit(packets.map(\.sequence))
+        sender.stop()
+    }
+
+    private func visit(_ view: NSView?) {
+        guard let view else { return }
+        if let button = view as? NSButton { button.performClick(nil) }
+        if let slider = view as? NSSlider, let target = slider.target as? NSObject, let action = slider.action {
+            slider.doubleValue = min(slider.maxValue, slider.minValue + 1)
+            _ = target.perform(action, with: slider)
+        }
+        if let popup = view as? NSPopUpButton, let target = popup.target as? NSObject, let action = popup.action {
+            popup.selectItem(at: 0)
+            _ = target.perform(action, with: popup)
+        }
+        for child in view.subviews { visit(child) }
+    }
+}

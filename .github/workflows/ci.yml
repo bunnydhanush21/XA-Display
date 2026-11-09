@@ -1,0 +1,226 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+          xcrun --find swift-format
+      - name: Install SwiftLint 0.65.1
+        run: |
+          curl -fsSL -o /tmp/swiftlint.zip https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          rm -rf /tmp/swiftlint-pkg
+          unzip -q /tmp/swiftlint.zip -d /tmp/swiftlint-pkg
+          find /tmp/swiftlint-pkg -type f -name swiftlint -exec chmod +x {} \;
+          find /tmp/swiftlint-pkg -type f -name swiftlint | head -n 1 > /tmp/swiftlint-path
+          test -s /tmp/swiftlint-path
+          "$(cat /tmp/swiftlint-path)" version
+      - name: SwiftLint
+        run: |
+          "$(cat /tmp/swiftlint-path)" lint --strict
+      - name: swift-format
+        run: xcrun swift-format lint --strict --configuration .swift-format --recursive Sources Tests ios macos
+
+  test:
+    name: Protocol tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+          xcodebuild -version
+      - name: Install SwiftLint 0.65.1
+        run: |
+          curl -fsSL -o /tmp/swiftlint.zip https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          rm -rf /tmp/swiftlint-pkg
+          unzip -q /tmp/swiftlint.zip -d /tmp/swiftlint-pkg
+          find /tmp/swiftlint-pkg -type f -name swiftlint -exec chmod +x {} \;
+          find /tmp/swiftlint-pkg -type f -name swiftlint | head -n 1 > /tmp/swiftlint-path
+          dirname "$(cat /tmp/swiftlint-path)" >> "$GITHUB_PATH"
+      - name: Quality gate
+        run: bash scripts/quality_gate.sh
+
+  ios:
+    name: Unsigned iPad IPA
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate and build
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP=$(find build/Build/Products -name 'XADisplay.app' -type d | head -n 1)
+          test -n "$APP"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry XADisplay.ipa Payload
+          ls -l XADisplay.ipa
+      - name: iPad simulator tests and screenshots
+        working-directory: ios
+        env:
+          XA_SCREENSHOT_DIR: ${{ github.workspace }}/docs/screenshots
+        run: |
+          mkdir -p "$XA_SCREENSHOT_DIR"
+          printf '%s' "$XA_SCREENSHOT_DIR" > /tmp/xa-screenshot-dir
+          UDID=$(python3 - << 'PY'
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          for runtime, devices in data["devices"].items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  if device.get("isAvailable") and "iPad" in device.get("name", ""):
+                      print(device["udid"])
+                      raise SystemExit
+          raise SystemExit("no iPad simulator")
+          PY
+          )
+          xcrun simctl boot "$UDID" || true
+          xcodebuild test \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -destination "id=$UDID" \
+            -derivedDataPath build-tests \
+            -only-testing:XADisplayTests \
+            -enableCodeCoverage YES \
+            -resultBundlePath build-tests/iPad.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" com.bunnydhanush.xadisplay data || true)
+          if [[ -n "$CONTAINER" && -d "$CONTAINER/Documents" ]]; then
+            cp "$CONTAINER/Documents/"*.png "$XA_SCREENSHOT_DIR/" || true
+          fi
+          xcodebuild test \
+            -project XADisplay.xcodeproj \
+            -scheme XADisplay \
+            -destination "id=$UDID" \
+            -derivedDataPath build-tests \
+            -only-testing:XADisplayUITests \
+            -enableCodeCoverage YES \
+            -resultBundlePath build-tests/iPadUI.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            XA_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots"
+          rm -rf build-tests/merged.xcresult
+          xcrun xcresulttool merge --output-path build-tests/merged.xcresult build-tests/iPad.xcresult build-tests/iPadUI.xcresult
+          xcrun xccov view --report --json build-tests/merged.xcresult > build-tests/ipad-coverage.json
+          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build-tests/ipad-coverage.json XADisplay 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: docs/screenshots
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XADisplay.ipa
+          path: ios/XADisplay.ipa
+
+  macos:
+    name: Mac host
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version | grep -q '^Xcode 16\.'
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate and build
+        working-directory: macos
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project XADisplayHost.xcodeproj \
+            -scheme XADisplayHost \
+            -destination 'platform=macOS' \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Zip host
+        working-directory: macos
+        run: |
+          APP=$(find build/Build/Products -name 'XADisplayHost.app' -type d | head -n 1)
+          test -n "$APP"
+          codesign --force --deep --sign - "$APP" || true
+          ditto -c -k --keepParent "$APP" XADisplayHost.zip
+          ls -l XADisplayHost.zip
+          MARKER=$(mktemp)
+          XA_LAUNCH_MARKER="$MARKER" "$APP/Contents/MacOS/XADisplayHost" >/tmp/xa-host-launch.log 2>&1 &
+          PID=$!
+          ok=0
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if grep -q "host launch" "$MARKER" 2>/dev/null; then ok=1; break; fi
+            if ! kill -0 "$PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          kill "$PID" 2>/dev/null || true
+          wait "$PID" 2>/dev/null || true
+          echo "marker:"; cat "$MARKER" || true
+          echo "stdout:"; cat /tmp/xa-host-launch.log || true
+          test "$ok" = 1
+      - name: Host smoke tests
+        working-directory: macos
+        env:
+          XA_SCREENSHOT_DIR: ${{ github.workspace }}/docs/screenshots
+        run: |
+          mkdir -p "$XA_SCREENSHOT_DIR"
+          printf '%s' "$XA_SCREENSHOT_DIR" > /tmp/xa-screenshot-dir
+          xcodebuild test \
+            -project XADisplayHost.xcodeproj \
+            -scheme XADisplayHostTests \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            -enableCodeCoverage YES \
+            -resultBundlePath build/Host.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+          xcrun xccov view --report --json build/Host.xcresult > build/host-coverage.json
+          python3 "$GITHUB_WORKSPACE/scripts/check_app_coverage.py" build/host-coverage.json XADisplayHost 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-screenshots
+          path: docs/screenshots
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XADisplayHost.zip
+          path: macos/XADisplayHost.zip

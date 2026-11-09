@@ -1,0 +1,78 @@
+name: XADisplayHost
+options:
+  bundleIdPrefix: com.bunnydhanush
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  XADisplayProtocol:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  XADisplayHost:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: XADisplayHost
+        excludes:
+          - Info.plist
+          - XADisplayHost.entitlements
+    dependencies:
+      - package: XADisplayProtocol
+        product: XADisplayProtocol
+      - sdk: ScreenCaptureKit.framework
+      - sdk: VideoToolbox.framework
+      - sdk: CoreMedia.framework
+      - sdk: ApplicationServices.framework
+    info:
+      path: XADisplayHost/Info.plist
+      properties:
+        CFBundleDisplayName: XA Display Host
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true
+        NSHighResolutionCapable: true
+        NSScreenCaptureUsageDescription: XA Display Host captures only the virtual display it creates so your iPad can show it.
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.host
+        PRODUCT_NAME: XADisplayHost
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: XADisplayHost/XADisplayHost-Bridging-Header.h
+        CODE_SIGN_ENTITLEMENTS: XADisplayHost/XADisplayHost.entitlements
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_TESTABILITY: YES
+        ARCHS: arm64
+        ONLY_ACTIVE_ARCH: NO
+        GENERATE_INFOPLIST_FILE: NO
+        OTHER_LDFLAGS: "-Wl,-undefined,dynamic_lookup"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  XADisplayHostTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: XADisplayHostTests
+    dependencies:
+      - target: XADisplayHost
+      - package: XADisplayProtocol
+        product: XADisplayProtocol
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.host.tests
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/XADisplayHost.app/Contents/MacOS/XADisplayHost"
+        BUNDLE_LOADER: "$(TEST_HOST)"

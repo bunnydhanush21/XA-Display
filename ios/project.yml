@@ -1,0 +1,110 @@
+name: XADisplay
+options:
+  bundleIdPrefix: com.bunnydhanush
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "12.0"
+packages:
+  XADisplayProtocol:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  XADisplay:
+    type: application
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - path: XADisplay
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: XADisplayProtocol
+        product: XADisplayProtocol
+    info:
+      path: XADisplay/Info.plist
+      properties:
+        CFBundleDisplayName: XA Display
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: XA Display listens on the local network so your Mac can send the screen and receive pointer events.
+        NSBonjourServices:
+          - _opensidecar._tcp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay
+        PRODUCT_NAME: XADisplay
+        TARGETED_DEVICE_FAMILY: "2"
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: NO
+        ENABLE_BITCODE: NO
+        ARCHS: arm64
+        ONLY_ACTIVE_ARCH: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_TESTABILITY: YES
+  XADisplayTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - path: XADisplayTests
+    dependencies:
+      - target: XADisplay
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.tests
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/XADisplay.app/XADisplay"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  XADisplayUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "12.0"
+    sources:
+      - path: XADisplayUITests
+    dependencies:
+      - target: XADisplay
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.bunnydhanush.xadisplay.uitests
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  XADisplay:
+    build:
+      targets:
+        XADisplay: all
+        XADisplayTests: [test]
+        XADisplayUITests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - XADisplayUITests
+        - XADisplayTests
