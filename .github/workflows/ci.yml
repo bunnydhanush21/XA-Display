@@ -181,6 +181,20 @@ jobs:
           codesign --force --deep --sign - "$APP" || true
           ditto -c -k --keepParent "$APP" XADisplayHost.zip
           ls -l XADisplayHost.zip
+          MARKER=$(mktemp)
+          XA_LAUNCH_MARKER="$MARKER" "$APP/Contents/MacOS/XADisplayHost" >/tmp/xa-host-launch.log 2>&1 &
+          PID=$!
+          ok=0
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if grep -q "host launch" "$MARKER" 2>/dev/null; then ok=1; break; fi
+            if ! kill -0 "$PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          kill "$PID" 2>/dev/null || true
+          wait "$PID" 2>/dev/null || true
+          echo "marker:"; cat "$MARKER" || true
+          echo "stdout:"; cat /tmp/xa-host-launch.log || true
+          test "$ok" = 1
       - name: Host smoke tests
         working-directory: macos
         env:

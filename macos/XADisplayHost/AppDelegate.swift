@@ -2,9 +2,13 @@
 @preconcurrency import ApplicationServices
 import XADisplayProtocol
 
-@main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private static var retained: AppDelegate?
+
+    static func retainForLaunch(_ delegate: AppDelegate) { retained = delegate }
+
+    var statusButtonForTest: NSStatusBarButton? { statusItem?.button }
     private var controller: HostController!
     private var statusItem: NSStatusItem!
     private var onboarding: OnboardingFlow?
@@ -14,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         XALog.write(XALog.ui, "host launch")
+        if let path = ProcessInfo.processInfo.environment["XA_LAUNCH_MARKER"], !path.isEmpty {
+            try? Data("host launch\n".utf8).write(to: URL(fileURLWithPath: path))
+        }
         NSApp.setActivationPolicy(.accessory)
         controller = HostController()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
