@@ -97,4 +97,19 @@ final class HostLogicTests: XCTestCase {
         XCTAssertTrue(HostError.captureStopped("ended").userMessage.contains("Capture"))
         host.stop()
     }
+
+    func testHandshakeInstallsSessionKeysBeforeHello() {
+        let host = HostController()
+        host.settings.legacyTokenSeal = false
+        guard let client = SessionHandshake.clientOffer() else { return XCTFail("offer") }
+        let reply = host.acceptHandshake(client.frame)
+        XCTAssertNotNil(reply)
+        XCTAssertFalse(host.sessionReady)
+        guard let reply = reply, let finished = SessionHandshake.clientFinish(token: host.currentToken(), state: client.state, reply: reply) else {
+            return XCTFail("finish")
+        }
+        XCTAssertNil(host.acceptHandshake(finished.finish))
+        XCTAssertTrue(host.sessionReady)
+        XCTAssertNil(host.acceptHandshake(client.frame))
+    }
 }

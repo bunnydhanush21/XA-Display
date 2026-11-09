@@ -70,10 +70,10 @@ final class VideoReceiver {
     var sps: Data?
     var pps: Data?
     var port: UInt16 = XADisplayProtocolInfo.videoPort
-    private let sealLock = NSLock()
-    private var pairingToken = ""
-    private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
-    private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
+    let sealLock = NSLock()
+    var pairingToken = ""
+    var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
+    var inboundSeal = SealInbox(token: "", direction: .hostToPad)
     var legacyTokenSeal = false
     var sessionReady = false
     var clientHandshake: ClientHandshake?

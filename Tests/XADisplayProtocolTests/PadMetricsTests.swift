@@ -9,6 +9,7 @@ final class PadMetricsTests: XCTestCase {
         XCTAssertNil(PadMetricsMath.endToEndLatencyMilliseconds(captureHostMs: 1_000, displayedClientMs: 5_040, clientMinusHostMs: nil))
         var window = PadMetricsAccumulator()
         let start = Date()
+        window.anchor(at: start)
         window.noteReceived(bytes: 100_000)
         window.noteReceived(bytes: 50_000)
         window.noteDropped()

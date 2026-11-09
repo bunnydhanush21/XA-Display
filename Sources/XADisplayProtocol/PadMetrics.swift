@@ -62,6 +62,8 @@ public struct PadMetricsAccumulator {
 
     public init() {}
 
+    public mutating func anchor(at date: Date) { windowStart = date }
+
     public mutating func noteReceived(bytes: Int) {
         received += 1
         self.bytes += max(0, bytes)
