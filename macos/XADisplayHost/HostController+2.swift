@@ -247,13 +247,19 @@ extension HostController {
         let frame = lastDisplayFrame
         let mode = audioMode
         let selected = selectedAudioBundles
-        audioCapture.onLog = { line in
+        audioCapture.onLog = { [weak self] line in
             let text = line
-            Task { @MainActor [weak self] in self?.log(text) }
+            let host = self
+            Task { @MainActor [host] in
+                host?.log(text)
+            }
         }
-        audioCapture.onPacket = { packet in
+        audioCapture.onPacket = { [weak self] packet in
             let copy = packet
-            Task { @MainActor [weak self] in self?.sendAudio(copy) }
+            let host = self
+            Task { @MainActor [host] in
+                host?.sendAudio(copy)
+            }
         }
         Task { @MainActor [weak self] in
             guard let self = self else { return }
