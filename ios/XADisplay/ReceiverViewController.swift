@@ -79,6 +79,9 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
     let connectionOverlay = ConnectionOverlay()
     let pill = UILabel()
     var pillTimer: Timer?
+    var inBackground = false
+    var pendingPointer: (() -> Void)?
+    var pointerLink: CADisplayLink?
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -204,9 +207,7 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
         installConnectionChrome()
         receiver.start()
         input.start()
-        healthTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            self?.publishHealth()
-        }
+        scheduleMaintenance()
         NotificationCenter.default.addObserver(self, selector: #selector(foreground), name: UIApplication.willEnterForegroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(backgrounded), name: UIApplication.didEnterBackgroundNotification, object: nil)
     }

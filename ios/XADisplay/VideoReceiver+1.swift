@@ -16,81 +16,9 @@ extension VideoReceiver {
         lock.lock()
         metricsWindow.noteReceived(bytes: payload.count)
         lock.unlock()
-        let unit = AnnexB.parse(payload)
-        if unit.truncated || unit.nalus.isEmpty {
-            lock.lock()
-            admission.awaitingKeyframe = true
-            lock.unlock()
-            return
-        }
-        var idr = false
-        var vcl: [Data] = []
-        for nalu in unit.nalus {
-            switch nalu.type {
-            case 7:
-                if sps != nalu.data {
-                    sps = nalu.data
-                    formatDesc = nil
-                }
-            case 8:
-                if pps != nalu.data {
-                    pps = nalu.data
-                    formatDesc = nil
-                }
-            case 6:
-                break
-            case 5:
-                idr = true
-                vcl.append(nalu.data)
-            default:
-                vcl.append(nalu.data)
-            }
-        }
-        if formatDesc == nil, let sps = sps, let pps = pps {
-            buildFormat(sps: sps, pps: pps)
-        }
-        guard !vcl.isEmpty, formatDesc != nil else { return }
-        let age = unit.timing.map { max(0, received * 1000 - $0.captureMs) } ?? 0
-        lock.lock()
-        let maxAge = lowLatency ? 80.0 : 150.0
-        let cap = lowLatency ? 1 : 3
-        let decision = admission.decide(isKeyframe: idr, queued: inflight, ageMs: age.isFinite ? age : 0, maxAgeMs: maxAge)
-        let allow = decision == .show && inflight < cap
-        if allow { inflight += 1 }
-        lock.unlock()
-        guard allow else {
-            lock.lock()
-            metricsWindow.noteDropped()
-            lock.unlock()
-            return
-        }
-        let timing = unit.timing
+        guard let picture = preparePicture(payload, received: received) else { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let decodeStarted = CACurrentMediaTime()
-            let enqueued = self.enqueue(vcl, keyframe: idr)
-            let decodeMs = (CACurrentMediaTime() - decodeStarted) * 1000
-            let now = CACurrentMediaTime()
-            self.lock.lock()
-            self.inflight = max(0, self.inflight - 1)
-            self.lock.unlock()
-            if enqueued {
-                self.lock.lock()
-                self.metricsWindow.noteDisplayed(
-                    decodeMilliseconds: decodeMs,
-                    captureHostMs: timing?.captureMs,
-                    displayedClientMs: now * 1000,
-                    clientMinusHostMs: self.clockOffsetClientMinusHost
-                )
-                self.lock.unlock()
-                self.noteDelivered(handoffMs: (now - received) * 1000)
-                if let timing = timing, self.xaHost {
-                    let ack = FrameAck(seq: timing.seq, captureMs: timing.captureMs, receiveMs: received * 1000, enqueueMs: now * 1000)
-                    self.send(.frameAck(ack))
-                }
-            } else {
-                self.noteFailure()
-            }
+            self?.display(picture)
         }
     }
     func handleControl(_ message: VideoControlMessage) {
@@ -199,37 +127,7 @@ extension VideoReceiver {
             lock.unlock()
             return false
         }
-        var avcc = Data()
-        for nalu in nalus {
-            var len = UInt32(nalu.count).bigEndian
-            avcc.append(Data(bytes: &len, count: 4))
-            avcc.append(nalu)
-        }
-        var block: CMBlockBuffer?
-        guard
-            CMBlockBufferCreateWithMemoryBlock(
-                allocator: kCFAllocatorDefault, memoryBlock: nil, blockLength: avcc.count,
-                blockAllocator: kCFAllocatorDefault, customBlockSource: nil, offsetToData: 0,
-                dataLength: avcc.count, flags: 0, blockBufferOut: &block
-            ) == noErr, let block = block
-        else { return false }
-        let copied = avcc.withUnsafeBytes { raw -> OSStatus in
-            CMBlockBufferReplaceDataBytes(with: raw.baseAddress!, blockBuffer: block, offsetIntoDestination: 0, dataLength: avcc.count)
-        }
-        guard copied == noErr else { return false }
-        var sample: CMSampleBuffer?
-        var sizes = [avcc.count]
-        guard
-            CMSampleBufferCreateReady(
-                allocator: kCFAllocatorDefault, dataBuffer: block, formatDescription: formatDesc,
-                sampleCount: 1, sampleTimingEntryCount: 0, sampleTimingArray: nil,
-                sampleSizeEntryCount: 1, sampleSizeArray: &sizes, sampleBufferOut: &sample
-            ) == noErr, let sample = sample
-        else { return false }
-        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true), CFArrayGetCount(attachments) > 0 {
-            let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
-            CFDictionarySetValue(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(), Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
-        }
+        guard let block = framePool.block(nalus: nalus), let sample = makeSample(block: block, format: formatDesc, bytes: nalus.reduce(0) { $0 + 4 + $1.count }) else { return false }
         displayLayer.enqueue(sample)
         if keyframe, holding {
             holdUntilKeyframe = false
@@ -263,6 +161,7 @@ extension VideoReceiver {
             fpsWindow = now
             layerFailures = 0
         }
+        guard statsPace.allow(now: now, force: false) else { return }
         let snapshot = stats
         delegate?.videoReceiver(self, stats: snapshot)
     }

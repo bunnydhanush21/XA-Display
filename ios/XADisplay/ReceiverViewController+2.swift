@@ -169,6 +169,7 @@ extension ReceiverViewController {
         adoptToken(token)
         input.requirePairing = features.requirePairing
         clipboard.enabled = features.clipboardSync
+        clipboard.arm()
         precisionLabel.isHidden = !features.precisionMode
         if features.audio { audio.start() } else { audio.stop() }
         audio.volume = document.audioVolume
@@ -195,7 +196,7 @@ extension ReceiverViewController {
     func updateKeepalive() {
         keepalive?.invalidate()
         keepalive = nil
-        guard features.lowLatencyWiFi, receiver.isConnected else { return }
+        guard features.lowLatencyWiFi, receiver.isConnected, !inBackground else { return }
         keepalive = Timer.scheduledTimer(withTimeInterval: WiFiPowerSave.keepaliveSeconds, repeats: true) { [weak self] _ in
             self?.input.sendPing()
         }

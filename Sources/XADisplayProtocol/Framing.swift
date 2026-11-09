@@ -193,45 +193,13 @@ public enum AnnexB {
     public static let maxTimingPrefix = 4_096
 
     public static func parse(_ payload: Data) -> AnnexBAccessUnit {
-        let bytes = [UInt8](payload)
-        var startIndexes: [Int] = []
-        if bytes.count >= 4 {
-            var i = 0
-            while i + 4 <= bytes.count {
-                if bytes[i] == 0, bytes[i + 1] == 0, bytes[i + 2] == 0, bytes[i + 3] == 1 {
-                    startIndexes.append(i)
-                    i += 4
-                } else {
-                    i += 1
-                }
-            }
-        }
-        var timing: TimingPrefix?
-        let nalStart: Int
-        if let first = startIndexes.first {
-            if first > 0 && first <= maxTimingPrefix {
-                let prefix = Data(bytes[0..<first])
-                timing = parseTiming(prefix)
-            }
-            nalStart = first
-        } else {
-            return AnnexBAccessUnit(timing: nil, nalus: [], truncated: false)
-        }
+        let view = AnnexBSpan.scan(payload)
         var nalus: [NALUnit] = []
-        var truncated = false
-        for index in 0..<startIndexes.count {
-            if nalus.count >= maxNALUs {
-                truncated = true
-                break
-            }
-            let begin = startIndexes[index] + 4
-            let end = index + 1 < startIndexes.count ? startIndexes[index + 1] : bytes.count
-            if begin < end {
-                nalus.append(NALUnit(data: Data(bytes[begin..<end])))
-            }
+        nalus.reserveCapacity(view.spans.count)
+        for span in view.spans {
+            nalus.append(NALUnit(data: payload.subdata(in: span.range)))
         }
-        _ = nalStart
-        return AnnexBAccessUnit(timing: timing, nalus: nalus, truncated: truncated)
+        return AnnexBAccessUnit(timing: view.timing, nalus: nalus, truncated: view.truncated)
     }
 
     public static func encode(timingJSON: Data?, nalus: [Data], prependParameterSets: [Data] = []) -> Data {
@@ -247,7 +215,7 @@ public enum AnnexB {
         return out
     }
 
-    private static func parseTiming(_ data: Data) -> TimingPrefix? {
+    static func parseTiming(_ data: Data) -> TimingPrefix? {
         guard data.first == UInt8(ascii: "{"),
             let obj = JSON.object(data),
             JSON.string(obj["type"]) == "timing",

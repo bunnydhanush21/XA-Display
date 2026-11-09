@@ -81,17 +81,53 @@ public struct ChannelSeal: Sendable {
 
     public mutating func seal(_ plaintext: Data, aad: Data) -> Data? {
         guard key.count == Int(CC_SHA256_DIGEST_LENGTH), let nonce = nextNonce() else { return nil }
-        var cipher = [UInt8](repeating: 0, count: max(plaintext.count, 1))
-        var tag = [UInt8](repeating: 0, count: Self.tagLength)
-        let status = Self.crypt(
-            encrypt: true, key: key, nonce: nonce, aad: aad, input: plaintext, output: &cipher, tag: &tag
-        )
-        guard status == kCCSuccess else { return nil }
-        var out = Data([Self.version])
-        out.append(contentsOf: nonce)
-        if plaintext.count > 0 { out.append(contentsOf: cipher.prefix(plaintext.count)) }
-        out.append(contentsOf: tag)
+        var out = Data(count: Self.overhead + plaintext.count)
+        let wrote = out.withUnsafeMutableBytes { outRaw in
+            key.withUnsafeBytes { keyRaw in
+                nonce.withUnsafeBytes { nonceRaw in
+                    plaintext.withUnsafeBytes { plainRaw in
+                        aad.withUnsafeBytes { aadRaw in
+                            SealBytes.seal(key: keyRaw, nonce: nonceRaw, aad: aadRaw, plaintext: plainRaw, output: outRaw)
+                        }
+                    }
+                }
+            }
+        }
+        guard wrote == out.count else { return nil }
         return out
+    }
+
+    /// Allocation-heavy decrypt kept so the throughput test can compare it with `open(into:)`.
+    static func copyingOpen(key: [UInt8], sealed: Data, aad: Data) -> Data? {
+        guard key.count == Int(CC_SHA256_DIGEST_LENGTH), sealed.count >= overhead, sealed.first == version else { return nil }
+        let cipher = Data(sealed.dropFirst(1 + nonceLength).dropLast(tagLength))
+        var tag = [UInt8](sealed.suffix(tagLength))
+        var plain = [UInt8](repeating: 0, count: max(cipher.count, 1))
+        let aadBytes = aad.isEmpty ? Data([0]) : aad
+        let inputBytes = cipher.isEmpty ? Data([0]) : cipher
+        let status = key.withUnsafeBytes { keyRaw in
+            sealed.withUnsafeBytes { sealedRaw in
+                aadBytes.withUnsafeBytes { aadRaw in
+                    inputBytes.withUnsafeBytes { inputRaw in
+                        plain.withUnsafeMutableBytes { outputRaw in
+                            tag.withUnsafeMutableBytes { tagRaw in
+                                xa_gcm_encrypt(
+                                    keyRaw.bindMemory(to: UInt8.self).baseAddress, key.count,
+                                    sealedRaw.bindMemory(to: UInt8.self).baseAddress?.advanced(by: 1), nonceLength,
+                                    aadRaw.bindMemory(to: UInt8.self).baseAddress, aad.count,
+                                    inputRaw.bindMemory(to: UInt8.self).baseAddress, cipher.count,
+                                    outputRaw.bindMemory(to: UInt8.self).baseAddress,
+                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tag.count,
+                                    0
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        guard status == 0 else { return nil }
+        return Data(plain.prefix(cipher.count))
     }
 
     public static func open(token: String, sealed: Data, aad: Data, direction: SealDirection = .hostToPad) -> Data? {
@@ -99,19 +135,33 @@ public struct ChannelSeal: Sendable {
     }
 
     static func decrypt(key: [UInt8], sealed: Data, aad: Data) -> (plain: Data, nonce: Data)? {
-        guard key.count == Int(CC_SHA256_DIGEST_LENGTH) else { return nil }
-        guard sealed.count >= overhead, sealed.first == version else { return nil }
-        let nonceStart = 1
-        let cipherStart = nonceStart + nonceLength
-        let tagStart = sealed.count - tagLength
-        guard tagStart >= cipherStart else { return nil }
-        let nonce = Data(sealed[nonceStart..<cipherStart])
-        let cipher = sealed.subdata(in: cipherStart..<tagStart)
-        var tag = [UInt8](sealed[tagStart..<sealed.count])
-        var plain = [UInt8](repeating: 0, count: max(cipher.count, 1))
-        let status = crypt(encrypt: false, key: key, nonce: [UInt8](nonce), aad: aad, input: cipher, output: &plain, tag: &tag)
-        guard status == kCCSuccess else { return nil }
-        return (Data(plain.prefix(cipher.count)), nonce)
+        var plain = Data()
+        guard let nonce = open(key: key, sealed: sealed, aad: aad, into: &plain) else { return nil }
+        return (plain, nonce)
+    }
+
+    /// Decrypts into `output`, reusing its storage when it is already large enough. Returns the nonce.
+    static func open(key: [UInt8], sealed: Data, aad: Data, into output: inout Data) -> Data? {
+        guard key.count == Int(CC_SHA256_DIGEST_LENGTH), sealed.count >= overhead, sealed.first == version else { return nil }
+        let plainCount = sealed.count - overhead
+        if output.count != plainCount {
+            output.reserveCapacity(plainCount)
+            output.count = plainCount
+        }
+        var nonce = Data()
+        let ok = key.withUnsafeBytes { keyRaw -> Bool in
+            sealed.withUnsafeBytes { sealedRaw -> Bool in
+                aad.withUnsafeBytes { aadRaw -> Bool in
+                    output.withUnsafeMutableBytes { outRaw -> Bool in
+                        guard SealBytes.open(key: keyRaw, sealed: sealedRaw, aad: aadRaw, output: outRaw) != nil else { return false }
+                        guard let base = sealedRaw.baseAddress else { return false }
+                        nonce = Data(bytes: base.advanced(by: 1), count: nonceLength)
+                        return true
+                    }
+                }
+            }
+        }
+        return ok ? nonce : nil
     }
 
     private mutating func nextNonce() -> [UInt8]? {
@@ -126,39 +176,4 @@ public struct ChannelSeal: Sendable {
         return nonce
     }
 
-    private static func crypt(encrypt: Bool, key: [UInt8], nonce: [UInt8], aad: Data, input: Data, output: inout [UInt8], tag: inout [UInt8]) -> CCCryptorStatus {
-        let aadBytes = aad.isEmpty ? Data([0]) : aad
-        let inputBytes = input.isEmpty ? Data([0]) : input
-        var localOutput = output
-        var localTag = tag
-        let keyCount = key.count
-        let nonceCount = nonce.count
-        let aadCount = aad.count
-        let inputCount = input.count
-        let tagCount = localTag.count
-        let status = key.withUnsafeBytes { keyRaw in
-            nonce.withUnsafeBytes { nonceRaw in
-                aadBytes.withUnsafeBytes { aadRaw in
-                    inputBytes.withUnsafeBytes { inputRaw in
-                        localOutput.withUnsafeMutableBytes { outputRaw in
-                            localTag.withUnsafeMutableBytes { tagRaw in
-                                xa_gcm_encrypt(
-                                    keyRaw.bindMemory(to: UInt8.self).baseAddress, keyCount,
-                                    nonceRaw.bindMemory(to: UInt8.self).baseAddress, nonceCount,
-                                    aadRaw.bindMemory(to: UInt8.self).baseAddress, aadCount,
-                                    inputRaw.bindMemory(to: UInt8.self).baseAddress, inputCount,
-                                    outputRaw.bindMemory(to: UInt8.self).baseAddress,
-                                    tagRaw.bindMemory(to: UInt8.self).baseAddress, tagCount,
-                                    encrypt ? 1 : 0
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        output = localOutput
-        tag = localTag
-        return CCCryptorStatus(status)
-    }
 }

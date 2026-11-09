@@ -113,12 +113,35 @@ extension ReceiverViewController {
         statsLabel.text =
             "  Received \(String(format: "%.0f", latestMetrics.receivedFramesPerSecond)) fps\n  Displayed \(String(format: "%.0f", fps)) fps\n  Dropped \(latestMetrics.droppedFrames)\n  Inbound \(inbound)\n  Decode \(decode)\n  End to end \(endToEnd)\n  Input RTT \(rtt)\n  Handoff \(String(format: "%.1f", handoffMs)) ms\n  Link delay \(measured)\n  \(streamLabel)\(batteryLines)  "
     }
+    func scheduleMaintenance() {
+        healthTimer?.invalidate()
+        healthTimer = nil
+        guard !inBackground, receiver.isConnected else { return }
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self = self, self.receiver.isConnected, !self.inBackground else { return }
+            self.publishHealth()
+        }
+    }
     @objc func foreground() {
+        inBackground = false
+        audio.setForeground(true)
+        clipboard.setForeground(true)
         guard !userPaused else { return }
         receiver.ensureListening()
         input.ensureListening()
+        scheduleMaintenance()
+        updateKeepalive()
     }
     @objc func backgrounded() {
+        inBackground = true
+        flushPointer()
+        pointerLink?.isPaused = true
+        healthTimer?.invalidate()
+        healthTimer = nil
+        keepalive?.invalidate()
+        keepalive = nil
+        audio.setForeground(false)
+        clipboard.setForeground(false)
         input.sendRelease()
         releaseModifiers()
         UIApplication.shared.isIdleTimerDisabled = false
@@ -149,6 +172,7 @@ extension ReceiverViewController {
             }
         }
         updateKeepalive()
+        scheduleMaintenance()
         statusLabel.isHidden = connected
         if connected {
             switch transport {

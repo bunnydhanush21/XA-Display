@@ -35,6 +35,7 @@ final class InputChannel {
     }
     private let sealLock = NSLock()
     private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
+    private var inboundScratch = Data()
     private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
     var legacyTokenSeal = false
     private var sessionReady = false
@@ -310,7 +311,8 @@ final class InputChannel {
         sealLock.lock()
         defer { sealLock.unlock() }
         guard sessionReady || legacyTokenSeal else { return nil }
-        return inboundSeal.open(sealed: frame, aad: SealChannel.input.aad)
+        guard inboundSeal.open(sealed: frame, aad: SealChannel.input.aad, into: &inboundScratch) else { return nil }
+        return inboundScratch
     }
 
     private static func messages(for intent: InputIntent, session: UInt32, nextSeq: () -> UInt32) -> [XAInputMessage] {

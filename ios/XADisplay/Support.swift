@@ -131,7 +131,8 @@ final class RoutedAudioPlayer {
     }
     private var jitter = AudioJitterQueue()
     private let output = PCMPlayer()
-    private var timer: Timer?
+    private var link: CADisplayLink?
+    private var foreground = true
     private let decoder = AACLCDecoder()
 
     init() {
@@ -141,17 +142,23 @@ final class RoutedAudioPlayer {
     func start() {
         output.start()
         output.setVolume(Float(volume))
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.015, repeats: true) { [weak self] _ in
-            self?.pump()
-        }
+        link?.invalidate()
+        let link = CADisplayLink(target: self, selector: #selector(step))
+        link.isPaused = true
+        link.add(to: .main, forMode: .common)
+        self.link = link
     }
 
     func stop() {
-        timer?.invalidate()
-        timer = nil
+        link?.invalidate()
+        link = nil
         jitter = AudioJitterQueue()
         output.stop()
+    }
+
+    func setForeground(_ on: Bool) {
+        foreground = on
+        if !on { link?.isPaused = true }
     }
 
     func setClockOffset(_ offset: Double) {
@@ -171,6 +178,16 @@ final class RoutedAudioPlayer {
         guard let pcm = pcm else { return }
         let shaped = AudioVolume.scalePCM16(pcm: pcm, volume: volume)
         _ = jitter.push(hostMs: packet.hostTimeMs, payload: shaped)
+        if foreground, !jitter.slots.isEmpty { link?.isPaused = false }
+    }
+
+    @objc func step() {
+        guard foreground else {
+            link?.isPaused = true
+            return
+        }
+        pump()
+        if jitter.slots.isEmpty { link?.isPaused = true }
     }
 
     private func pump() {
@@ -230,17 +247,27 @@ final class ClipboardBridge {
     private var lastRevision: UInt64 = 0
     private var suppress = false
     private var timer: Timer?
+    private var foreground = true
 
-    func start() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
-            self?.poll()
-        }
-    }
+    func start() { arm() }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+    }
+
+    func setForeground(_ on: Bool) {
+        foreground = on
+        if on { arm() } else { stop() }
+    }
+
+    func arm() {
+        timer?.invalidate()
+        timer = nil
+        guard enabled, foreground else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
+            self?.poll()
+        }
     }
 
     func checkPasteboard() { poll() }

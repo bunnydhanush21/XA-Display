@@ -17,9 +17,15 @@ public struct SealInbox: Sendable {
     }
 
     public mutating func open(sealed: Data, aad: Data) -> Data? {
-        guard let opened = ChannelSeal.decrypt(key: key, sealed: sealed, aad: aad) else { return nil }
-        guard accept(opened.nonce) else { return nil }
-        return opened.plain
+        var output = Data()
+        guard open(sealed: sealed, aad: aad, into: &output) else { return nil }
+        return output
+    }
+
+    /// Decrypts into `output`. The buffer is grown only when the plaintext does not fit.
+    public mutating func open(sealed: Data, aad: Data, into output: inout Data) -> Bool {
+        guard let nonce = ChannelSeal.open(key: key, sealed: sealed, aad: aad, into: &output) else { return false }
+        return accept(nonce)
     }
 
     private mutating func accept(_ nonce: Data) -> Bool {

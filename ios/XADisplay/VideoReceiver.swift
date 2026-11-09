@@ -93,6 +93,9 @@ final class VideoReceiver {
     var layerFailures = 0
     var holdUntilKeyframe = false
     var pendingSize: CGSize?
+    let framePool = FrameMemoryPool()
+    var inboundScratch = Data()
+    var statsPace = UIPace(interval: 0.5)
 
     static let installID: String = {
         let key = "XADisplay.installID"
@@ -241,13 +244,6 @@ final class VideoReceiver {
         connection.send(content: LengthPrefixedFraming.encode(sealed), completion: .contentProcessed { _ in })
     }
 
-    func openSealed(_ frame: Data, channel: SealChannel) -> Data? {
-        sealLock.lock()
-        defer { sealLock.unlock() }
-        guard sessionReady || legacyTokenSeal else { return nil }
-        return inboundSeal.open(sealed: frame, aad: channel.aad)
-    }
-
     func startListener() {
         guard !userPaused else { return }
         do {
@@ -315,8 +311,8 @@ final class VideoReceiver {
         guard let packet = UDPVideoPacket.decode(data) else { return }
         if let frame = reassembler.ingest(packet) {
             queue.async {
-                guard let plain = self.openSealed(frame, channel: .udp) else { return }
-                self.handle(plain)
+                guard self.openIntoScratch(frame, channel: .udp) else { return }
+                self.handle(self.inboundScratch)
             }
         }
         let holes = reassembler.missing()
@@ -361,12 +357,12 @@ final class VideoReceiver {
                             self.receiveHandshake(frame)
                             continue
                         }
-                        guard let plain = self.openSealed(frame, channel: .video) else {
+                        guard self.openIntoScratch(frame, channel: .video) else {
                             connection.cancel()
                             self.setStatus(PadError.seal.userMessage)
                             return
                         }
-                        self.handle(plain)
+                        self.handle(self.inboundScratch)
                     }
                 case .failed:
                     connection.cancel()

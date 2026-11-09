@@ -4,6 +4,7 @@ import XADisplayProtocol
 
 extension ReceiverViewController {
     func perform(_ gesture: FingerGesture, finger: CGPoint, pointer: CGPoint, time: Double) {
+        if !isPointerMove(gesture) { flushPointer() }
         if features.trackpadMode {
             chrome.loupe.hide()
             performTrackpad(gesture)
@@ -27,10 +28,38 @@ extension ReceiverViewController {
         if case .drag = gesture, assist.loupeWhileDragging {
             showLoupe(at: finger)
         }
+        if isPointerMove(gesture) {
+            coalescePointer { [weak self] in
+                guard let self = self else { return }
+                self.forwardLegacy(gesture)
+                for intent in GestureMapper.intents(for: gesture) { self.input.send(intent: intent) }
+            }
+            return
+        }
         forwardLegacy(gesture)
         for intent in GestureMapper.intents(for: gesture) {
             input.send(intent: intent)
         }
+    }
+    func isPointerMove(_ gesture: FingerGesture) -> Bool {
+        if case .drag(.moved, _) = gesture { return true }
+        if case .relativeMove = gesture { return true }
+        return false
+    }
+    func coalescePointer(_ send: @escaping () -> Void) {
+        pendingPointer = send
+        if pointerLink == nil {
+            let link = CADisplayLink(target: self, selector: #selector(flushPointer))
+            link.add(to: .main, forMode: .common)
+            pointerLink = link
+        }
+        pointerLink?.isPaused = false
+    }
+    @objc func flushPointer() {
+        let send = pendingPointer
+        pendingPointer = nil
+        pointerLink?.isPaused = true
+        send?()
     }
     func handleTap(_ point: XAPoint, time: Double) {
         let tuning = features.gestureTuning.clamped()
@@ -103,7 +132,9 @@ extension ReceiverViewController {
             let content = contentSize()
             guard content.width > 0, content.height > 0 else { return }
             let moved = trackpad.apply(normalizedDelta: XAPoint(x: delta.x / content.width, y: delta.y / content.height))
-            input.send(intent: .mouse(phase: .move, button: .left, x: moved.x, y: moved.y, space: .absoluteNormalized))
+            coalescePointer { [weak self] in
+                self?.input.send(intent: .mouse(phase: .move, button: .left, x: moved.x, y: moved.y, space: .absoluteNormalized))
+            }
             cursorNorm = CGPoint(x: moved.x, y: moved.y)
             cursorVisible = true
             layoutCursor()
