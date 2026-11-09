@@ -9,6 +9,24 @@ import XCTest
 
 @MainActor
 final class PipelineCoverageTests: XCTestCase {
+    func testCapturePlanMatchesTheTargetAndSkipsIdleFrames() {
+        let config = SCStreamConfiguration()
+        CapturePlan.apply(to: config, width: 1440, height: 1080, fps: 60)
+        XCTAssertEqual(config.width, 1440)
+        XCTAssertEqual(config.height, 1080)
+        XCTAssertEqual(config.queueDepth, CapturePlan.queueDepth)
+        XCTAssertFalse(config.scalesToFit)
+        XCTAssertEqual(config.pixelFormat, CapturePlan.pixelFormat)
+        XCTAssertEqual(config.minimumFrameInterval, CMTime(value: 1, timescale: 60))
+        XCTAssertFalse(CapturePlan.shouldEncode(.idle))
+        XCTAssertFalse(CapturePlan.shouldEncode(.blank))
+        XCTAssertFalse(CapturePlan.shouldEncode(.suspended))
+        XCTAssertFalse(CapturePlan.shouldEncode(.stopped))
+        XCTAssertTrue(CapturePlan.shouldEncode(.complete))
+        XCTAssertTrue(CapturePlan.shouldEncode(.started))
+        XCTAssertTrue(CapturePlan.shouldEncode(nil))
+    }
+
     func testEncoderUsbmuxWindowsAndSettings() {
         let encoder = H264Encoder()
         _ = encoder.start(width: 640, height: 360, fps: 30, bitrate: 2_000_000, profileLevel: "H264_Main_AutoLevel")

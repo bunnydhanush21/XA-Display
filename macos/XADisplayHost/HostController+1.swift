@@ -80,6 +80,7 @@ extension HostController {
             stream.onData = { [weak self] data in Task { @MainActor in self?.ingestVideo(data) } }
             stream.onClose = { [weak self] in Task { @MainActor in self?.linkClosed() } }
             usbFD = stream
+            publishVideoLink()
             if let input = UsbmuxClient.connect(deviceID: device.deviceID, port: XADisplayProtocolInfo.inputPort) {
                 let inputStream = FDStream(fd: input)
                 inputStream.onData = { [weak self] data in Task { @MainActor in self?.ingestInput(data) } }
@@ -116,7 +117,12 @@ extension HostController {
         }
         connection.start(queue: queue)
         receiveNW(connection, video: video)
-        if video { wifiVideo = connection } else { wifiInput = connection }
+        if video {
+            wifiVideo = connection
+            publishVideoLink()
+        } else {
+            wifiInput = connection
+        }
     }
     func receiveNW(_ connection: NWConnection, video: Bool) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
@@ -208,11 +214,12 @@ extension HostController {
             applyOrientation(requested: orientation, mode: mode)
         case .frameAck(let ack):
             let now = Date().timeIntervalSince1970 * 1000
-            lastLatency = "—"
             if let ms = LatencyMath.captureToAck(captureMs: ack.captureMs, ackMs: now) {
-                lastLatency = String(format: "%.0f ms", ms)
-                sendControl(.xaMetrics(XAMetrics(captureToAckMs: ms, encodeMs: nil)), onVideo: true)
                 tuneWiFi(rttMs: ms)
+                if metricsPace.allow(now: Date(), force: false) {
+                    lastLatency = String(format: "%.0f ms", ms)
+                    sendControl(.xaMetrics(XAMetrics(captureToAckMs: ms, encodeMs: nil)), onVideo: true)
+                }
             }
         case .health(let health):
             lastHealth = health

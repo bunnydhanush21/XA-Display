@@ -97,6 +97,32 @@ public struct ChannelSeal: Sendable {
         return out
     }
 
+    /// Length prefix and ciphertext in one buffer, so the socket write is a single buffer.
+    public mutating func sealPrefixed(_ plaintext: Data, aad: Data) -> Data? {
+        guard key.count == Int(CC_SHA256_DIGEST_LENGTH), let nonce = nextNonce() else { return nil }
+        let sealedCount = Self.overhead + plaintext.count
+        var out = Data(count: 4 + sealedCount)
+        var length = UInt32(sealedCount).bigEndian
+        let wrote = out.withUnsafeMutableBytes { raw -> Int? in
+            guard let base = raw.baseAddress else { return nil }
+            withUnsafeBytes(of: &length) { bytes in
+                base.copyMemory(from: bytes.baseAddress!, byteCount: 4)
+            }
+            let sealed = UnsafeMutableRawBufferPointer(start: base.advanced(by: 4), count: sealedCount)
+            return key.withUnsafeBytes { keyRaw in
+                nonce.withUnsafeBytes { nonceRaw in
+                    plaintext.withUnsafeBytes { plainRaw in
+                        aad.withUnsafeBytes { aadRaw in
+                            SealBytes.seal(key: keyRaw, nonce: nonceRaw, aad: aadRaw, plaintext: plainRaw, output: sealed)
+                        }
+                    }
+                }
+            }
+        }
+        guard wrote == sealedCount else { return nil }
+        return out
+    }
+
     /// Allocation-heavy decrypt kept so the throughput test can compare it with `open(into:)`.
     static func copyingOpen(key: [UInt8], sealed: Data, aad: Data) -> Data? {
         guard key.count == Int(CC_SHA256_DIGEST_LENGTH), sealed.count >= overhead, sealed.first == version else { return nil }

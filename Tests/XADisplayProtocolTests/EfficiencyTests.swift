@@ -65,6 +65,17 @@ final class EfficiencyTests: XCTestCase {
         }
     }
 
+    func testSealPrefixedFrameIsOneBuffer() {
+        var seal = ChannelSeal(token: "ABCD2345", direction: .hostToPad)
+        let plain = Data([0, 0, 0, 1, 0x65, 0x11])
+        guard let framed = seal.sealPrefixed(plain, aad: SealChannel.video.aad) else { return XCTFail("seal") }
+        XCTAssertEqual(framed.count, 4 + ChannelSeal.overhead + plain.count)
+        var parser = FrameParser(limits: .video)
+        guard case .ok(let frames) = parser.append(framed, now: 1), let frame = frames.first else { return XCTFail("parse") }
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(ChannelSeal.open(token: "ABCD2345", sealed: frame, aad: SealChannel.video.aad), plain)
+    }
+
     func testUIPaceAndMoveCoalesce() {
         var pace = UIPace(interval: 0.5)
         let start = Date(timeIntervalSince1970: 1_000)

@@ -23,7 +23,7 @@ extension HostController {
             pendingHandshake = nil
             return nil
         }
-        outboundSeal = ChannelSeal(rawKey: keys.hostToPad, connectionID: pending.connectionID)
+        installOutboundSeal(ChannelSeal(rawKey: keys.hostToPad, connectionID: pending.connectionID))
         inboundSeal = SealInbox(rawKey: keys.padToHost)
         sessionReady = true
         pendingHandshake = nil

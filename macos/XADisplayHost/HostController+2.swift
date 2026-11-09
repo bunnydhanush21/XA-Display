@@ -220,23 +220,15 @@ extension HostController {
         guard inputService.allowsVideo(channelGate) else { return }
         let decision = sendBudget.admit(pending: pendingSends, isKeyframe: keyframe)
         guard decision == .send else { return }
+        guard sessionReady || settings.legacyTokenSeal else { return }
         guard annex.count + ChannelSeal.overhead <= FrameLimits.video.maxPayload else { return }
         let udp = transport == .wifi && settings.lowLatencyWiFi
-        guard let sealed = outboundSeal.seal(annex, aad: (udp ? SealChannel.udp : SealChannel.video).aad) else {
-            log(HostError.seal)
-            return
-        }
-        if udp {
-            let packets = UDPVideoPacketizer.packetize(frame: sealed, frameID: udpFrameID, nextSequence: &udpSequence, keyframe: keyframe)
-            udpFrameID &+= 1
-            udpSender.send(packets)
-            return
-        }
-        pendingSends += 1
-        let frame = LengthPrefixedFraming.encode(sealed)
-        sendRaw(frame, video: true) { [weak self] in
+        let aad = (udp ? SealChannel.udp : SealChannel.video).aad
+        if !udp { pendingSends += 1 }
+        let done: @Sendable () -> Void = { [weak self] in
             Task { @MainActor in self?.pendingSends = max(0, (self?.pendingSends ?? 1) - 1) }
         }
+        videoOut.submit(payload: annex, aad: aad, udp: udp, keyframe: keyframe, done: udp ? {} : done)
         _ = captureMs
         _ = encodeMs
     }
@@ -303,7 +295,7 @@ extension HostController {
     }
     func sealedFrame(_ payload: Data, channel: SealChannel) -> Data? {
         guard sessionReady || settings.legacyTokenSeal else { return nil }
-        guard let sealed = outboundSeal.seal(payload, aad: channel.aad) else {
+        guard let sealed = videoOut.sealSync(payload, aad: channel.aad) else {
             log(HostError.seal)
             return nil
         }

@@ -2,10 +2,11 @@
 @preconcurrency import Network
 import XADisplayProtocol
 
-final class UDPVideoSender {
+final class UDPVideoSender: @unchecked Sendable {
     private var connection: NWConnection?
     private var recent: [UInt16: Data] = [:]
     private let queue = DispatchQueue(label: "xa.udp.send")
+    private let lock = NSLock()
 
     func connect(host: String) {
         connection?.cancel()
@@ -18,6 +19,8 @@ final class UDPVideoSender {
     }
 
     func send(_ packets: [UDPVideoPacket]) {
+        lock.lock()
+        defer { lock.unlock() }
         for packet in packets {
             let data = packet.encode()
             recent[packet.sequence] = data
@@ -30,6 +33,8 @@ final class UDPVideoSender {
     }
 
     func retransmit(_ sequences: [UInt16]) {
+        lock.lock()
+        defer { lock.unlock() }
         for sequence in sequences {
             guard let data = recent[sequence] else { continue }
             connection?.send(content: data, completion: .contentProcessed { _ in })

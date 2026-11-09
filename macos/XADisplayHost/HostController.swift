@@ -21,6 +21,7 @@ final class HostController {
     var settings: XAFeatureSettings
     var token: String
     var outboundSeal = ChannelSeal(token: "", direction: .hostToPad)
+    let videoOut: VideoOutbound
     var inboundSeal = SealInbox(token: "", direction: .padToHost)
     var sessionReady = false
     var handshakeReplay = HandshakeReplayGuard()
@@ -61,6 +62,7 @@ final class HostController {
     var channelGate: ChannelGate
     var pendingHello: LegacyHello?
     var lastLatency = "—"
+    var metricsPace = UIPace(interval: 0.5)
     var lastFPS = "—"
     var displayedPhase = ConnectionPhase.idle
     var logRing = LogRing()
@@ -70,6 +72,7 @@ final class HostController {
         settings = stored.settings
         token = stored.token
         outboundSeal = ChannelSeal(token: token, direction: .hostToPad)
+        videoOut = VideoOutbound(seal: outboundSeal)
         inboundSeal = SealInbox(token: token, direction: .padToHost)
         library = PresetLibrary(enabled: settings.savedPresets, items: stored.presets)
         if settings.savedPresets, let first = library.items.last {
@@ -136,7 +139,7 @@ final class HostController {
 
     func regenerateToken() {
         token = PairingToken.make()
-        outboundSeal = ChannelSeal(token: token, direction: .hostToPad)
+        installOutboundSeal(ChannelSeal(token: token, direction: .hostToPad))
         inboundSeal = SealInbox(token: token, direction: .padToHost)
         dispatcher.expectedToken = token
         dispatcher.requirePairing = settings.requirePairing

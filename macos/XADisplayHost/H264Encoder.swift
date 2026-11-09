@@ -1,4 +1,5 @@
 @preconcurrency import CoreMedia
+@preconcurrency import CoreVideo
 @preconcurrency import Foundation
 @preconcurrency import QuartzCore
 @preconcurrency import VideoToolbox
@@ -57,6 +58,7 @@ final class H264Encoder {
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: limits as CFArray)
     }
 
+    /// The ScreenCaptureKit buffer is IOSurface-backed 420v. It is passed through with no pixel copy.
     func encode(_ pixelBuffer: CVPixelBuffer, captureMs: Double) {
         guard let session = session else { return }
         let permit: InFlightGate.Permit = lock.xaWithLock { gate.begin() }
@@ -101,7 +103,10 @@ final class H264Encoder {
             height: Int32(height),
             codecType: kCMVideoCodecType_H264,
             encoderSpecification: spec as CFDictionary,
-            imageBufferAttributes: nil,
+            imageBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange),
+                kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary
+            ] as CFDictionary,
             compressedDataAllocator: nil,
             outputCallback: encoderOutput,
             refcon: Unmanaged.passUnretained(self).toOpaque(),
@@ -117,13 +122,11 @@ final class H264Encoder {
         VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: LowLatencyEncoderRequest.maxFrameDelayCount as CFNumber)
         let intra = VTSessionSetProperty(created, key: LowLatencyEncoderRequest.intraRefreshKey as CFString, value: kCFBooleanTrue)
         let slices = VTSessionSetProperty(created, key: LowLatencyEncoderRequest.sliceBytesKey as CFString, value: LowLatencyEncoderRequest.sliceBytes as CFNumber)
-        if intra == noErr || slices == noErr {
-            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: max(fps * 8, 1) as CFNumber)
-            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 8 as CFNumber)
-        } else {
-            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: max(fps, 1) as CFNumber)
-            VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 1 as CFNumber)
-        }
+        _ = intra
+        _ = slices
+        let interval = max(fps * 2, 1)
+        VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: interval as CFNumber)
+        VTSessionSetProperty(created, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 2 as CFNumber)
         updateBitrate(bitrate)
         VTCompressionSessionPrepareToEncodeFrames(created)
         return true

@@ -28,14 +28,7 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
         }
         let filter = SCContentFilter(display: display, excludingWindows: [])
         let config = SCStreamConfiguration()
-        config.width = width
-        config.height = height
-        config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        config.showsCursor = false
-        config.queueDepth = 3
-        config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(max(fps, 1)))
-        config.scalesToFit = true
-        config.capturesAudio = false
+        CapturePlan.apply(to: config, width: width, height: height, fps: fps)
         let stream = SCStream(filter: filter, configuration: config, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
         _ = audio
@@ -67,13 +60,15 @@ final class CapturePipeline: NSObject, SCStreamOutput, SCStreamDelegate {
             return
         }
         guard sampleBuffer.isValid, let pixel = sampleBuffer.imageBuffer else { return }
-        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-            let raw = attachments.first?[.status] as? Int,
-            SCFrameStatus(rawValue: raw) == .idle
-        {
-            return
-        }
+        if !CapturePlan.shouldEncode(Self.frameStatus(sampleBuffer)) { return }
         encoder.encode(pixel, captureMs: Date().timeIntervalSince1970 * 1000)
+    }
+
+    private static func frameStatus(_ sample: CMSampleBuffer) -> SCFrameStatus? {
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+            let raw = attachments.first?[.status] as? Int
+        else { return nil }
+        return SCFrameStatus(rawValue: raw)
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {

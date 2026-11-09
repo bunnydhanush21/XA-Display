@@ -136,6 +136,7 @@ extension HostController {
         wifiVideo = nil
         wifiInput = nil
         udpSender.stop()
+        publishVideoLink()
         videoParser = FrameParser(limits: .video)
         inputParser = FrameParser(limits: .input)
         pendingSends = 0

@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsPanel: HostSettingsPanel?
     private let menu = MenuPopoverController()
     private var phase = ConnectionPhase.idle
+    private var menuPace = UIPace(interval: 0.5)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         XALog.write(XALog.ui, "host launch")
@@ -28,11 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePopover)
         wireMenu()
-        controller.onState = { [weak self] _ in self?.refreshMenu() }
+        controller.onState = { [weak self] _ in self?.refreshMenu(force: false) }
         controller.onPhase = { [weak self] phase in
             self?.phase = phase
             self?.statusItem.button?.image = StatusGlyph.image(phase: phase)
-            self?.refreshMenu()
+            self?.refreshMenu(force: true)
         }
         refreshMenu()
         if !UserDefaults.standard.bool(forKey: "XADisplayHost.didOnboard") || !CGPreflightScreenCaptureAccess() || !AXIsProcessTrusted() {
@@ -71,7 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshMenu()
     }
 
-    private func refreshMenu() {
+    private func refreshMenu(force: Bool = false) {
+        guard menuPace.allow(now: Date(), force: force) else { return }
         var snapshot = controller.menuSnapshot()
         snapshot.phase = phase
         menu.refresh(snapshot)

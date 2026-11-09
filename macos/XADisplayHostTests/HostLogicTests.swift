@@ -1,4 +1,5 @@
 @preconcurrency import AppKit
+@preconcurrency import Darwin
 import XADisplayProtocol
 import XCTest
 
@@ -86,10 +87,36 @@ final class HostLogicTests: XCTestCase {
         _ = host.audioMenuState()
         host.releaseInput(.transport("The input link closed."))
         host.settings.legacyTokenSeal = true
+        host.installOutboundSeal(ChannelSeal(token: "ABCD2345", direction: .hostToPad))
+        host.publishVideoLink()
+        host.setLowLatencyWiFi(false)
+        host.sendVideo(Data([0, 0, 0, 1, 0x65]), keyframe: true, captureMs: 5, encodeMs: 1)
+        host.flushVideoOutbound()
+        host.setLowLatencyWiFi(true)
+        host.sendVideo(Data([0, 0, 0, 1, 0x41]), keyframe: false, captureMs: 6, encodeMs: 1)
+        host.flushVideoOutbound()
+        var descriptors = [Int32](repeating: 0, count: 2)
+        if Darwin.pipe(&descriptors) == 0 {
+            host.videoOut.note(fd: descriptors[1], connection: nil, sender: host.udpSender)
+            host.flushVideoOutbound()
+            host.setLowLatencyWiFi(false)
+            host.sendVideo(Data([0, 0, 0, 1, 0x65, 0x10]), keyframe: true, captureMs: 7, encodeMs: 1)
+            host.flushVideoOutbound()
+            close(descriptors[0])
+            close(descriptors[1])
+        }
         var seal = ChannelSeal(token: host.currentToken(), direction: .padToHost)
         let hello = VideoControlMessage.xaHello.jsonData() ?? Data()
         if let sealed = seal.seal(hello, aad: SealChannel.video.aad) {
             host.ingestVideo(LengthPrefixedFraming.encode(sealed))
+        }
+        host.inboundSeal = SealInbox(token: "ABCD2345")
+        var ackSeal = ChannelSeal(token: "ABCD2345", direction: .padToHost)
+        for seq in [UInt64(1), UInt64(2)] {
+            let ack = VideoControlMessage.frameAck(FrameAck(seq: seq, captureMs: 5, receiveMs: 6, enqueueMs: 7))
+            if let sealed = ackSeal.seal(ack.jsonData() ?? Data(), aad: SealChannel.video.aad) {
+                host.ingestVideo(LengthPrefixedFraming.encode(sealed))
+            }
         }
         XCTAssertTrue(HostError.wakeUnavailable.userMessage.contains("wake"))
         XCTAssertTrue(HostError.seal.userMessage.contains("seal"))
