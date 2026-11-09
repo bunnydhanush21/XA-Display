@@ -97,6 +97,7 @@ public enum SettingsCatalog {
         SettingsRow(id: "battery.restore", title: "Restore normal charging", section: "Battery care", kind: "action"),
         SettingsRow(id: "battery.disable", title: "Disable battery care", section: "Battery care", kind: "action"),
         SettingsRow(id: "security.pairing", title: "Require pairing", section: "Security", kind: "toggle", onHost: true),
+        SettingsRow(id: "security.legacySeal", title: "Legacy token seal", section: "Security", kind: "toggle", onHost: true),
         SettingsRow(id: "security.devices", title: "Paired devices", section: "Security", kind: "info", onHost: true),
         SettingsRow(id: "security.revoke", title: "Revoke pairing", section: "Security", kind: "action", onHost: true),
         SettingsRow(id: "about.diagnostics", title: "Export diagnostics", section: "About", kind: "action", onHost: true),
@@ -236,6 +237,7 @@ public struct XASettingsDocument: Equatable, Codable {
         case "battery.stop": return .number(charge.stopAtPercent)
         case "battery.resume": return .number(charge.resumeAtPercent)
         case "security.pairing": return .bool(features.requirePairing)
+        case "security.legacySeal": return .bool(features.legacyTokenSeal)
         case "security.devices": return .choice(pairedIDs.isEmpty ? "None saved" : pairedIDs.joined(separator: ", "))
         default: return .choice("")
         }
@@ -279,6 +281,7 @@ public struct XASettingsDocument: Equatable, Codable {
         case "battery.stop": if case .number(let number) = value { charge.stopAtPercent = number }
         case "battery.resume": if case .number(let number) = value { charge.resumeAtPercent = number }
         case "security.pairing": if case .bool(let on) = value { features.requirePairing = on }
+        case "security.legacySeal": if case .bool(let on) = value { features.legacyTokenSeal = on }
         default: break
         }
         self = normalized()

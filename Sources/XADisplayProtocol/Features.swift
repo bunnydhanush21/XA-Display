@@ -57,6 +57,8 @@ public struct XAFeatureSettings: Equatable, Codable {
     public var rotationMode: String
     public var custom: CustomDisplaySettings
     public var launchAtLogin: Bool
+    /// When true, frames are keyed from the pairing token. Off by default; the handshake key is used instead.
+    public var legacyTokenSeal: Bool
 
     public init(
         requirePairing: Bool = true,
@@ -86,7 +88,8 @@ public struct XAFeatureSettings: Equatable, Codable {
         orientationLock: String = "none",
         rotationMode: String = "resolution",
         custom: CustomDisplaySettings = CustomDisplaySettings(),
-        launchAtLogin: Bool = false
+        launchAtLogin: Bool = false,
+        legacyTokenSeal: Bool = false
     ) {
         self.requirePairing = requirePairing
         self.clipboardSync = clipboardSync
@@ -116,6 +119,7 @@ public struct XAFeatureSettings: Equatable, Codable {
         self.rotationMode = rotationMode
         self.custom = custom
         self.launchAtLogin = launchAtLogin
+        self.legacyTokenSeal = legacyTokenSeal
     }
 }
 
@@ -125,7 +129,7 @@ extension XAFeatureSettings {
         case windowSnapping, audio, savedPresets, gestureTuning, autoConnectUSB, touchscreenGestures
         case wifiFallback, trackpadMode, scrollInertia, showStats, precisionMode, inputRotation
         case oneTapReconnect, rememberMacs, mediaRemote, batteryTelemetry, chargeLimit, lowLatencyWiFi
-        case followRotation, orientationLock, rotationMode, custom, launchAtLogin
+        case followRotation, orientationLock, rotationMode, custom, launchAtLogin, legacyTokenSeal
     }
 
     public init(from decoder: Decoder) throws {
@@ -159,6 +163,7 @@ extension XAFeatureSettings {
         rotationMode = try values.decodeIfPresent(String.self, forKey: .rotationMode) ?? fallback.rotationMode
         custom = try values.decodeIfPresent(CustomDisplaySettings.self, forKey: .custom) ?? fallback.custom
         launchAtLogin = try values.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? fallback.launchAtLogin
+        legacyTokenSeal = try values.decodeIfPresent(Bool.self, forKey: .legacyTokenSeal) ?? fallback.legacyTokenSeal
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -191,6 +196,7 @@ extension XAFeatureSettings {
         try values.encode(rotationMode, forKey: .rotationMode)
         try values.encode(custom, forKey: .custom)
         try values.encode(launchAtLogin, forKey: .launchAtLogin)
+        try values.encode(legacyTokenSeal, forKey: .legacyTokenSeal)
     }
 }
 

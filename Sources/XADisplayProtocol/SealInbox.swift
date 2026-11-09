@@ -10,6 +10,11 @@ public struct SealInbox: Sendable {
         key = ChannelSeal.derivedKey(token: PairingGate.normalize(token), direction: direction)
     }
 
+    /// Opens frames sealed with a handshake key.
+    public init(rawKey: Data) {
+        key = rawKey.count == Int(CC_SHA256_DIGEST_LENGTH) ? [UInt8](rawKey) : []
+    }
+
     public mutating func open(sealed: Data, aad: Data) -> Data? {
         guard let opened = ChannelSeal.decrypt(key: key, sealed: sealed, aad: aad) else { return nil }
         guard accept(opened.nonce) else { return nil }

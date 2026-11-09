@@ -86,14 +86,14 @@ extension HostController {
                 inputStream.onClose = { [weak self] in Task { @MainActor in self?.releaseInput(.transport("The input link closed.")) } }
                 inputFD = inputStream
             }
-            sendControl(.xaHello, onVideo: true)
+            sendHelloIfReady()
             transition(.transportReady)
             if !settings.requirePairing { transition(.authAccepted) }
         } else if let host = wifiHost {
             openNW(host: host, port: XADisplayProtocolInfo.videoPort, video: true)
             openNW(host: host, port: XADisplayProtocolInfo.inputPort, video: false)
             if settings.lowLatencyWiFi { udpSender.connect(host: host) }
-            sendControl(.xaHello, onVideo: true)
+            sendHelloIfReady()
             transition(.transportReady)
             if !settings.requirePairing { transition(.authAccepted) }
         }
@@ -109,7 +109,7 @@ extension HostController {
         connection.stateUpdateHandler = { [weak self] state in
             Task { @MainActor in
                 if case .ready = state, video {
-                    self?.sendControl(.xaHello, onVideo: true)
+                    self?.sendHelloIfReady()
                 }
                 if case .failed = state { self?.linkClosed() }
             }
@@ -133,6 +133,10 @@ extension HostController {
         switch videoParser.append(data, now: Date().timeIntervalSince1970) {
         case .ok(let frames):
             for frame in frames {
+                if SessionHandshake.isHandshake(frame) {
+                    acceptHandshake(frame)
+                    continue
+                }
                 guard let plain = openFrame(frame, channel: .video) else {
                     log(HostError.seal)
                     linkClosed()

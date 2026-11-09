@@ -22,6 +22,9 @@ final class HostController {
     var token: String
     var outboundSeal = ChannelSeal(token: "", direction: .hostToPad)
     var inboundSeal = SealInbox(token: "", direction: .padToHost)
+    var sessionReady = false
+    var handshakeReplay = HandshakeReplayGuard()
+    var pendingHandshake: HostHandshake?
     var library: PresetLibrary
     var adaptation: AdaptationController
     var preset: StreamPreset

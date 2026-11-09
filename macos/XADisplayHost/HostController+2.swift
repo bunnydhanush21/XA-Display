@@ -302,6 +302,7 @@ extension HostController {
         sendRaw(frame, video: false, done: nil)
     }
     func sealedFrame(_ payload: Data, channel: SealChannel) -> Data? {
+        guard sessionReady || settings.legacyTokenSeal else { return nil }
         guard let sealed = outboundSeal.seal(payload, aad: channel.aad) else {
             log(HostError.seal)
             return nil
@@ -309,6 +310,7 @@ extension HostController {
         return LengthPrefixedFraming.encode(sealed)
     }
     func openFrame(_ frame: Data, channel: SealChannel) -> Data? {
-        inboundSeal.open(sealed: frame, aad: channel.aad)
+        guard sessionReady || settings.legacyTokenSeal else { return nil }
+        return inboundSeal.open(sealed: frame, aad: channel.aad)
     }
 }

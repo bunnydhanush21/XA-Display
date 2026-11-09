@@ -210,6 +210,8 @@ extension ReceiverViewController {
     func adoptToken(_ value: String) {
         token = value
         input.token = value
+        receiver?.legacyTokenSeal = features.legacyTokenSeal
+        input.legacyTokenSeal = features.legacyTokenSeal
         receiver?.setPairingToken(value)
     }
 

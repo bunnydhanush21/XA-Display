@@ -69,6 +69,10 @@ final class VideoReceiver {
     private var pairingToken = ""
     private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
     private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
+    var legacyTokenSeal = false
+    var sessionReady = false
+    var clientHandshake: ClientHandshake?
+    var onSessionKeys: ((SessionKeyPair, Data) -> Void)?
     var lastData = Date()
     var watchdogStarted = false
     var userPaused = false
@@ -213,6 +217,10 @@ final class VideoReceiver {
     func sendFrame(_ payload: Data) {
         guard let connection = connection else { return }
         sealLock.lock()
+        guard sessionReady || legacyTokenSeal else {
+            sealLock.unlock()
+            return
+        }
         let sealed = outboundSeal.seal(payload, aad: SealChannel.video.aad)
         sealLock.unlock()
         guard let sealed = sealed else {
@@ -224,9 +232,9 @@ final class VideoReceiver {
 
     func openSealed(_ frame: Data, channel: SealChannel) -> Data? {
         sealLock.lock()
-        let plain = inboundSeal.open(sealed: frame, aad: channel.aad)
-        sealLock.unlock()
-        return plain
+        defer { sealLock.unlock() }
+        guard sessionReady || legacyTokenSeal else { return nil }
+        return inboundSeal.open(sealed: frame, aad: channel.aad)
     }
 
     func startListener() {
@@ -318,6 +326,7 @@ final class VideoReceiver {
                 let kind = TransportHeuristic.classify(remoteHost: Self.remoteHost(connection))
                 self.setConnected(true, transport: kind)
                 self.announcePanel()
+                self.beginHandshakeIfNeeded()
             case .failed, .cancelled:
                 self.setConnected(false, transport: .none)
             default:
@@ -337,6 +346,10 @@ final class VideoReceiver {
                 switch outcome {
                 case .ok(let frames):
                     for frame in frames {
+                        if SessionHandshake.isHandshake(frame) {
+                            self.receiveHandshake(frame)
+                            continue
+                        }
                         guard let plain = self.openSealed(frame, channel: .video) else {
                             connection.cancel()
                             self.setStatus(PadError.seal.userMessage)

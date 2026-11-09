@@ -7,12 +7,12 @@ XA Display injects input into a Mac and installs an unsigned app on a jailbroken
 | Asset | Where it lives |
 |---|---|
 | Pairing token | Mac menu bar, iPad settings, UserDefaults. Diagnostics export redacts it |
-| Screen contents | H.264 inside AES-256-GCM, keyed from the pairing token |
+| Screen contents | H.264 inside AES-256-GCM. The key is ECDH plus HKDF, not the pairing token, unless Legacy token seal is on |
 | Pointer and keyboard | CGEvent after a paired session |
 | Clipboard text | Optional, 12 KB, both switches on |
 | Window and menu control | Accessibility, after a paired window or chrome message |
 
-There is no TLS handshake. Each frame is AES-256-GCM from CommonCrypto. The key is HKDF-SHA256 of the pairing token, one key for Mac-to-iPad and one for iPad-to-Mac. The nonce is a fresh connection id plus a counter, and the receiver drops a replay. Video, input, and UDP use different associated data, so a sealed video frame does not open on the input socket. On USB the socket is still a usbmux tunnel. On Wi-Fi a peer that does not know the token cannot read or forge frames. Pairing remains the control gate for pointer injection.
+There is no TLS handshake and there are no certificates. Each connection runs ephemeral P-256 ECDH in Security.framework. HMAC-SHA256 keyed by the pairing token covers both public keys, both nonces, and the connection id, so a machine in the middle without the token cannot finish the exchange. HKDF-SHA256 then derives one AES-256-GCM key per direction from the ECDH secret and the transcript hash. The pairing token alone cannot decrypt a recorded frame. Legacy token seal restores the older token-derived keys and is off by default. The nonce is the connection id plus a counter, and the receiver drops a replay. Video, input, and UDP use different associated data. On USB the socket is still a usbmux tunnel. Pairing remains the control gate for pointer injection.
 
 ## Pairing model
 
@@ -36,7 +36,7 @@ Video-port `touch` and `scroll` JSON have no token. `LegacyInputPolicy` rejects 
 | Replay of an old seq | Dropped | Seq is per session. GCM also rejects a flipped ciphertext |
 | Clipboard exfiltration | Off unless both switches are on. Text cap 12 KB. Images are not applied. The bytes are inside the sealed input frame | A paired peer can read or set the pasteboard text while the switch is on |
 | Token in logs | Diagnostics redact the token | Screenshots of the menu bar still show it |
-| Wi-Fi eavesdropping | AES-256-GCM on video, input, and UDP. The tag covers the channel name | A person who learns the pairing token can decrypt |
+| Wi-Fi eavesdropping | Ephemeral ECDH plus AES-256-GCM. The token only authenticates the handshake | A person who learns the token can impersonate a peer on a new connection. A past recording stays sealed |
 | Jailbreak install | The IPA is unsigned and fakesigned with `ldid` on device | The device trust model is the jailbreak, not App Store review |
 | Private virtual display API | Isolated in one Objective-C file. Failure is reported, not papered over | The SPI can break on a macOS update |
 | Accessibility | Window moves and menu presses need the permission the person granted | A paired session can press menus and move windows when those switches are on |

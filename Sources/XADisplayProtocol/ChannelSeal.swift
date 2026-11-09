@@ -35,6 +35,19 @@ public struct ChannelSeal: Sendable {
         self.init(token: token, direction: direction, connectionID: nil, counter: 0)
     }
 
+    /// A key from the ECDH handshake. The pairing token is not an input.
+    public init(rawKey: Data, connectionID: Data) {
+        guard rawKey.count == Int(CC_SHA256_DIGEST_LENGTH), connectionID.count == 8 else {
+            key = []
+            prefix = []
+            counter = 0
+            return
+        }
+        key = [UInt8](rawKey)
+        prefix = [UInt8](connectionID)
+        counter = 0
+    }
+
     init(token: String, direction: SealDirection, testingCounter: UInt32) {
         self.init(token: token, direction: direction, connectionID: [UInt8](repeating: 9, count: 8), counter: testingCounter)
     }

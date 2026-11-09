@@ -48,6 +48,7 @@ final class ComponentCoverageTests: XCTestCase {
         XCTAssertEqual(parsed.isCharging, true)
         _ = AACLCDecoder().decode(cookie: Data([1, 2, 3]), frame: Data([4, 5, 6, 7]))
         let receiver = VideoReceiver(displayLayer: AVSampleBufferDisplayLayer())
+        receiver.legacyTokenSeal = true
         receiver.setPairingToken("ABCD2345")
         var seal = ChannelSeal(token: "ABCD2345")
         let json = VideoControlMessage.ping(t: 3).jsonData() ?? Data()

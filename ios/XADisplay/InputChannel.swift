@@ -36,6 +36,8 @@ final class InputChannel {
     private let sealLock = NSLock()
     private var outboundSeal = ChannelSeal(token: "", direction: .padToHost)
     private var inboundSeal = SealInbox(token: "", direction: .hostToPad)
+    var legacyTokenSeal = false
+    private var sessionReady = false
     var deviceName = "iPad"
     var requirePairing = true
 
@@ -286,7 +288,16 @@ final class InputChannel {
         }
     }
 
+    func installSession(_ keys: SessionKeyPair, connectionID: Data) {
+        sealLock.lock()
+        outboundSeal = ChannelSeal(rawKey: keys.padToHost, connectionID: connectionID)
+        inboundSeal = SealInbox(rawKey: keys.hostToPad)
+        sessionReady = true
+        sealLock.unlock()
+    }
+
     private func send(_ message: XAInputMessage) {
+        guard sessionReady || legacyTokenSeal else { return }
         guard let connection = connection, let payload = try? message.encode() else { return }
         sealLock.lock()
         let sealed = outboundSeal.seal(payload, aad: SealChannel.input.aad)
@@ -297,9 +308,9 @@ final class InputChannel {
 
     private func openSealed(_ frame: Data) -> Data? {
         sealLock.lock()
-        let plain = inboundSeal.open(sealed: frame, aad: SealChannel.input.aad)
-        sealLock.unlock()
-        return plain
+        defer { sealLock.unlock() }
+        guard sessionReady || legacyTokenSeal else { return nil }
+        return inboundSeal.open(sealed: frame, aad: SealChannel.input.aad)
     }
 
     private static func messages(for intent: InputIntent, session: UInt32, nextSeq: () -> UInt32) -> [XAInputMessage] {

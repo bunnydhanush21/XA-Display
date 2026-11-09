@@ -174,6 +174,11 @@ final class ReceiverViewController: UIViewController, VideoReceiverDelegate, Inp
 
         receiver = VideoReceiver(displayLayer: videoView.displayLayer)
         receiver.delegate = self
+        receiver.legacyTokenSeal = features.legacyTokenSeal
+        receiver.onSessionKeys = { [weak self] keys, connectionID in
+            self?.input.installSession(keys, connectionID: connectionID)
+        }
+        input.legacyTokenSeal = features.legacyTokenSeal
         input.delegate = self
         adoptToken(token)
         input.requirePairing = features.requirePairing
