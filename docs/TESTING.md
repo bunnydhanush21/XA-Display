@@ -73,7 +73,7 @@ Do this on the iPad while it is streaming before you leave **Charge limit** on. 
 
 - [ ] Balanced is the first connection: 1440×1080, 30 fps target.
 - [ ] Safe is the smaller preset.
-- [ ] Native is labeled experimental. If the iPad cannot decode it, the host leaves Native for Balanced. Confirm the SPS level is not advertised as 4.2.
+- [ ] Native is 2048×1536 or 1536×2048 at 60 fps, Main 5.1, about 18 Mb/s on USB. If the iPad cannot decode it, the host leaves Native for Balanced. This build has not measured that path; OpenDisplay has.
 - [ ] A warm thermal state steps quality down.
 
 ## Not in this build

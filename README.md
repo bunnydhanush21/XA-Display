@@ -108,9 +108,9 @@ These are **engineering targets**, chosen so the stream fits published H.264 lev
 |---|---|---|---|---|---|
 | Balanced (default) | 1440×1080 | 30 | Main 4.1, no B-frames | 8 Mb/s USB, 6 Mb/s Wi-Fi | Target. Fits Level 4.1 MaxFS |
 | Safe | 1024×768 | 30 | Main 3.1, no B-frames | 4 Mb/s USB, 3 Mb/s Wi-Fi | Target. Fits Level 3.1 MaxFS |
-| Native | 2048×1536 | 30 | Main 5.0, no B-frames | 18 Mb/s USB, 12 Mb/s Wi-Fi | Experimental target. Does not fit Level 4.2 |
+| Native | 2048×1536 and 1536×2048 | 60 (30 also fits Level 5.0) | Main 5.1, no B-frames | 18 Mb/s USB, 12 Mb/s Wi-Fi | OpenDisplay 1.30.2 is streaming this mode to an iPad mini 3 (A7, iOS 12.5.8). XA has not measured its own encoder on that device |
 
-Native steps down to Balanced, then Safe, if encode or decode fails. The host also lowers bitrate when the iPad reports heat, a low battery, or a backed-up send queue.
+Native stays off the USB default. Balanced is still what a new host selects. OpenDisplay shows the panel can decode 1536×2048 at 60 fps and about 18 Mb/s, but that is a different app, so making Native the XA default would advertise a path this build has not measured. Native steps down to Balanced, then Safe, on a decode error, serious or critical thermal state, or a backed-up send queue. The host also lowers bitrate when the iPad reports heat, a low battery, or that backlog.
 
 ## Install
 

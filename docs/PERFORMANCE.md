@@ -46,6 +46,6 @@ Bitrate targets (8 / 6, 4 / 3, 18 / 12 Mb/s) are encoder settings, not measured 
 
 - Balanced 1440×1080 is 6,120 macroblocks per frame. H.264 Level 4.1 MaxFS is 8,192, so the preset fits a level A7-class decoders are expected to play.
 - Safe 1024×768 is 3,072 macroblocks. Level 3.1 MaxFS is 3,600.
-- Native 2048×1536 is 12,288 macroblocks. Level 4.2 MaxFS is 8,704, so Native is Level 5.0 and marked experimental.
+- Native 2048×1536 is 12,288 macroblocks. At 60 fps that exceeds Level 5.0 MaxMBPS, so the preset is Main 5.1. OpenDisplay has decoded the mode on an iPad mini 3. XA's own measurement is still empty.
 
 Those are specification checks, tested in `BehaviorTests.testPresetsMatchLevelLimitsAndBitrates`. They are not playback measurements.

@@ -43,10 +43,10 @@ public struct StreamPreset: Equatable, Codable, Sendable {
         bitrateUSB: 4_000_000, bitrateWiFi: 3_000_000,
         allowBFrames: false, experimental: false
     )
-    /// 2048×1536 is 12,288 macroblocks, past Level 4.2 MaxFS (8,704). It requires Level 5.0 and a device test.
+    /// 2048×1536 and 1536×2048 are 12,288 macroblocks. At 60 fps that is Level 5.1. OpenDisplay has decoded this mode on an iPad mini 3; XA has not measured it yet, so it stays experimental and is not the USB default.
     public static let native = StreamPreset(
-        id: .native, width: 2048, height: 1536, fps: 30,
-        profile: "main", level: "5.0",
+        id: .native, width: 2048, height: 1536, fps: 60,
+        profile: "main", level: "5.1",
         bitrateUSB: 18_000_000, bitrateWiFi: 12_000_000,
         allowBFrames: false, experimental: true
     )
@@ -85,27 +85,6 @@ public struct StreamPreset: Equatable, Codable, Sendable {
         }
         let levelName = level.replacingOccurrences(of: ".", with: "_")
         return "H264_\(profileName)_\(levelName)"
-    }
-}
-
-/// H264LevelLimits.
-public enum H264LevelLimits {
-    public static func maxMacroblocksPerFrame(_ level: String) -> Int? {
-        switch level {
-        case "3.1": return 3_600
-        case "4.0": return 8_192
-        case "4.1": return 8_192
-        case "4.2": return 8_704
-        case "5.0": return 22_080
-        case "5.1": return 36_864
-        default: return nil
-        }
-    }
-
-    public static func fits(width: Int, height: Int, level: String) -> Bool {
-        guard let maxFS = maxMacroblocksPerFrame(level) else { return false }
-        let macroblocks = ((width + 15) / 16) * ((height + 15) / 16)
-        return macroblocks <= maxFS
     }
 }
 
