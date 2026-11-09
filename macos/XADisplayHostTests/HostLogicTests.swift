@@ -110,7 +110,7 @@ final class HostLogicTests: XCTestCase {
         if let sealed = seal.seal(hello, aad: SealChannel.video.aad) {
             host.ingestVideo(LengthPrefixedFraming.encode(sealed))
         }
-        host.inboundSeal = SealInbox(token: "ABCD2345")
+        host.inboundSeal = SealInbox(token: "ABCD2345", direction: .padToHost)
         var ackSeal = ChannelSeal(token: "ABCD2345", direction: .padToHost)
         for seq in [UInt64(1), UInt64(2)] {
             let ack = VideoControlMessage.frameAck(FrameAck(seq: seq, captureMs: 5, receiveMs: 6, enqueueMs: 7))
